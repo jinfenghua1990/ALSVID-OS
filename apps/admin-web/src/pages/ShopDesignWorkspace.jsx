@@ -328,27 +328,29 @@ export default function ShopDesignWorkspace({ active = true, user, onSectionChan
           <div className="sdw__side-head"><h3 className="sdw__side-title">列表页版式</h3></div>
           {row ? <CatalogLayoutPanel row={row} locale={locale} products={products} publishedMap={publishedMap} onPublished={refreshPages} notify={setNotice}/> : <p className="sdw__tip">该语言（{locale}）还没有产品页模板记录，请先在「页面管理」创建 product_template 页面。</p>}
         </aside>
-        : <>
-          <aside className="sdw__products">
-            <div className="sdw__side-head"><h3 className="sdw__side-title">商品列表</h3></div>
-            <input className="sdp__search" type="search" placeholder="搜索商品名称 / ID" value={productQuery} onChange={e => setProductQuery(e.target.value)}/>
-            <div className="sdp__plist">
-              {products.filter(p => !productQuery.trim() || p.name?.toLowerCase().includes(productQuery.trim().toLowerCase()) || String(p.id).includes(productQuery.trim())).map(p => <button type="button" key={p.id} className={'sdp__prow' + (p.id === designProductId ? ' is-active' : '')} onClick={() => { setDesignProductId(p.id); setSelected('live'); }}>
-                {p.images?.[0] ? <img src={`/api/products/${encodeURIComponent(p.id)}/media/${encodeURIComponent(p.images[0].id)}`} alt=""/> : <span className="sdp__prow-noimg">无图</span>}
-                <span className="sdp__prow-main"><b>{p.name}</b><small>ID: {p.id}</small></span>
-                <i className={'sdp__pstate' + (publishedMap.has(String(p.id)) ? ' is-on' : '')}>{publishedMap.has(String(p.id)) ? '在售' : '未上架'}</i>
-              </button>)}
-              {!products.length && <p className="sdw__tip">正在读取商品清单…</p>}
-            </div>
-          </aside>
-          <section className="sdw__panel sdw__panel--editor">
-            {subPage === 'graphic'
-              ? <StandardDetailPanel locale={locale} products={products} publishedMap={publishedMap} productId={designProductId}/>
-              : row
-                ? <GlobalModulesPanel row={row} locale={locale} onPublished={refreshPages} notify={setNotice}/>
-                : <p className="sdw__tip">该语言（{locale}）还没有产品页模板记录，无法装修公共模块。</p>}
-          </section>
-        </>)
+        : subPage === 'graphic'
+          ? <>
+            <aside className="sdw__products">
+              <div className="sdw__side-head"><h3 className="sdw__side-title">商品列表</h3></div>
+              <input className="sdp__search" type="search" placeholder="搜索商品名称 / ID" value={productQuery} onChange={e => setProductQuery(e.target.value)}/>
+              <div className="sdp__plist">
+                {products.filter(p => !productQuery.trim() || p.name?.toLowerCase().includes(productQuery.trim().toLowerCase()) || String(p.id).includes(productQuery.trim())).map(p => <button type="button" key={p.id} className={'sdp__prow' + (p.id === designProductId ? ' is-active' : '')} onClick={() => { setDesignProductId(p.id); setSelected('live'); }}>
+                  {p.images?.[0] ? <img src={`/api/products/${encodeURIComponent(p.id)}/media/${encodeURIComponent(p.images[0].id)}`} alt=""/> : <span className="sdp__prow-noimg">无图</span>}
+                  <span className="sdp__prow-main"><b>{p.name}</b><small>ID: {p.id}</small></span>
+                  <i className={'sdp__pstate' + (publishedMap.has(String(p.id)) ? ' is-on' : '')}>{publishedMap.has(String(p.id)) ? '在售' : '未上架'}</i>
+                </button>)}
+                {!products.length && <p className="sdw__tip">正在读取商品清单…</p>}
+              </div>
+            </aside>
+            <section className="sdw__panel sdw__panel--editor">
+              <StandardDetailPanel locale={locale} products={products} publishedMap={publishedMap} productId={designProductId}/>
+            </section>
+          </>
+          // 公共模块：左模块目录（01-08）+ 中当前模块编辑区 + 右预览
+          : row
+            ? <GlobalModulesPanel row={row} products={products} productId={designProductId} onProductChange={id => { setDesignProductId(id); setSelected('live'); }} onPublished={refreshPages} notify={setNotice} onEditGraphic={() => setSubPage('graphic')}/>
+            : <aside className="sdw__panel"><p className="sdw__tip">该语言（{locale}）还没有产品页模板记录，无法装修公共模块。</p></aside>
+        )
         // 其余页面：左侧版本列表 + 右侧预览
         : <aside className="sdw__versions">
         <div className="sdw__side-head">

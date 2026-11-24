@@ -244,9 +244,32 @@ export function StandardDetailPanel({ locale, products, publishedMap, productId 
   </div>;
 }
 
-export function GlobalModulesPanel({ row, locale, onPublished, notify }) {
+// 公共模块的 8 个固定模块：序号、名称、是否属于全局装修
+const GLOBAL_MODULES = [
+  ['info', '01', '主信息区'],
+  ['marketing', '02', '营销模块'],
+  ['reserved3', '03', '预留位一'],
+  ['reserved4', '04', '预留位二'],
+  ['detail', '05', '图文详情'],
+  ['reviews', '06', '用户评价'],
+  ['returns', '07', '退换货'],
+  ['other', '08', '其他说明'],
+];
+
+function moduleBadge(key, modules) {
+  if (key === 'info') return '固定';
+  if (key === 'detail') return '按商品';
+  if (key === 'reserved3' || key === 'reserved4') {
+    const m = modules[key] || {};
+    return m.enabled && (m.imageId || m.text || m.href) ? '已配置' : '自动隐藏';
+  }
+  return modules[key]?.enabled ? '已启用' : '已关闭';
+}
+
+export function GlobalModulesPanel({ row, locale, products = [], productId, onProductChange, onPublished, notify, onEditGraphic }) {
   const { doc, setDoc, dirty, busy, error, save, publish } = useCmsDocument(row);
   const [assets, setAssets] = useState([]);
+  const [active, setActive] = useState('marketing');
   useEffect(() => { api.assetsAll({ category: 'page', kind: 'image' }).then(rows => setAssets(Array.isArray(rows) ? rows : [])).catch(() => setAssets([])); }, []);
   if (!doc) return <p className="sdw__tip">{error || '正在读取公共模块配置…'}</p>;
   const modules = { ...DEFAULT_MODULES, ...(doc.modules || {}) };
@@ -254,21 +277,62 @@ export function GlobalModulesPanel({ row, locale, onPublished, notify }) {
   const productLayout = { gallery: 'standard', specifications: 'list', reviews: 'list', ...(doc.productLayout || {}) };
   const doSave = async () => { if (await save()) notify('公共模块草稿已保存'); };
   const doPublish = async () => { if (await publish()) { notify('公共模块已发布，全部商品详情页生效'); onPublished?.(); } };
-  return <div className="sdp">
-    <SaveBar dirty={dirty} busy={busy} error={error} onSave={doSave} onPublish={doPublish} publishedVersion={row.publishedVersion} hint="全部商品共用，发布一次即生效"/>
-    <BannerEditor title="② 营销模块" note="图片 + 链接 + 文案" value={modules.marketing} assets={assets} onChange={marketing => patchModules({ marketing })}/>
-    <BannerEditor title="③ 预留位一" note="空则自动隐藏" value={modules.reserved3} assets={assets} onChange={reserved3 => patchModules({ reserved3 })}/>
-    <BannerEditor title="④ 预留位二" note="空则自动隐藏" value={modules.reserved4} assets={assets} onChange={reserved4 => patchModules({ reserved4 })}/>
-    <section className="sdp__module">
-      <header><strong>⑤ 图文详情</strong><span className="hint">见「标准详情」</span></header>
+  const current = GLOBAL_MODULES.find(([key]) => key === active) || GLOBAL_MODULES[1];
+  const [no, name] = [current[1], current[2]];
+
+  const editor = (() => {
+    if (active === 'info') return <div className="sdp">
+      <section className="sdp__module">
+        <header><strong>主图 · 型号颜色 · 价格</strong><span className="hint">固定模块</span></header>
+        <p className="sdw__tip">由商品数据自动生成，不可删除或移动；主图顺序在「商品详情页（图文）」按商品调整。</p>
+        <div><button type="button" className="btn small" onClick={onEditGraphic}>去按商品装修 →</button></div>
+      </section>
+    </div>;
+    if (active === 'detail') return <div className="sdp">
+      <section className="sdp__module">
+        <header><strong>05 图文详情</strong><span className="hint">按商品</span></header>
+        <p className="sdw__tip">每个商品内容不同，内部可自由组合文字段与图片段；位置固定，不随公共模块变化。</p>
+        <div><button type="button" className="btn small" onClick={onEditGraphic}>去按商品装修 →</button></div>
+      </section>
+    </div>;
+    if (active === 'reviews') return <div className="sdp">
+      <section className="sdp__module">
+        <header><strong>06 用户评价</strong><span className="hint">标准模板</span></header>
+        <label className="sdp__check"><input type="checkbox" checked={modules.reviews.enabled} onChange={e => patchModules({ reviews: { ...modules.reviews, enabled: e.target.checked } })}/> 显示评价区</label>
+        <label className="sdp__field">显示条数<input type="number" min={1} max={50} value={modules.reviews.limit} onChange={e => patchModules({ reviews: { ...modules.reviews, limit: Number(e.target.value) || 20 } })}/></label>
+        <label className="sdp__field">评价样式<select value={productLayout.reviews} onChange={e => setDoc({ ...doc, productLayout: { ...productLayout, reviews: e.target.value } })}><option value="list">列表</option><option value="cards">卡片</option></select></label>
+        <p className="sdw__tip">内容读取「评价管理」，公共模板不覆盖商品真实评价。</p>
+      </section>
+    </div>;
+    if (active === 'returns') return <div className="sdp">
+      <CopyEditor title="07 退换货政策" defaultTitle="退换货政策" value={modules.returns} onChange={returns => patchModules({ returns })}/>
+    </div>;
+    if (active === 'other') return <div className="sdp">
+      <CopyEditor title="08 其他说明" defaultTitle="其他说明" value={modules.other} onChange={other => patchModules({ other })}/>
+    </div>;
+    return <div className="sdp">
+      <BannerEditor title={`${no} ${name}`} note={active === 'marketing' ? '图片 + 链接 + 文案' : '空则自动隐藏'} value={modules[active]} assets={assets} onChange={next => patchModules({ [active]: next })}/>
+    </div>;
+  })();
+
+  return <>
+    <aside className="sdw__panel gmp__nav">
+      <div className="sdw__side-head"><h3 className="sdw__side-title">模块目录</h3></div>
+      <label className="sdp__field">预览商品
+        <select value={productId || ''} onChange={e => onProductChange?.(e.target.value)}>
+          {products.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+        </select>
+      </label>
+      <div className="gmp__list">
+        {GLOBAL_MODULES.map(([key, itemNo, itemName]) => <button type="button" key={key} className={'gmp__item' + (active === key ? ' is-active' : '')} onClick={() => setActive(key)}>
+          <b>{itemNo}</b><span>{itemName}</span><i className={'gmp__badge' + (moduleBadge(key, modules) === '已启用' || moduleBadge(key, modules) === '已配置' ? ' is-on' : '')}>{moduleBadge(key, modules)}</i>
+        </button>)}
+      </div>
+      <SaveBar dirty={dirty} busy={busy} error={error} onSave={doSave} onPublish={doPublish} publishedVersion={row.publishedVersion}/>
+    </aside>
+    <section className="sdw__panel sdw__panel--editor">
+      <div className="sdw__side-head"><h3 className="sdw__side-title">{no} {name}</h3></div>
+      {editor}
     </section>
-    <section className="sdp__module">
-      <header><strong>⑥ 用户评价</strong><span className="hint">来自「评价管理」</span></header>
-      <label className="sdp__check"><input type="checkbox" checked={modules.reviews.enabled} onChange={e => patchModules({ reviews: { ...modules.reviews, enabled: e.target.checked } })}/> 显示评价区</label>
-      <label className="sdp__field">显示条数<input type="number" min={1} max={50} value={modules.reviews.limit} onChange={e => patchModules({ reviews: { ...modules.reviews, limit: Number(e.target.value) || 20 } })}/></label>
-      <label className="sdp__field">评价样式<select value={productLayout.reviews} onChange={e => setDoc({ ...doc, productLayout: { ...productLayout, reviews: e.target.value } })}><option value="list">列表</option><option value="cards">卡片</option></select></label>
-    </section>
-    <CopyEditor title="⑦ 退换货政策" defaultTitle="退换货政策" value={modules.returns} onChange={returns => patchModules({ returns })}/>
-    <CopyEditor title="⑧ 其他说明" defaultTitle="其他说明" value={modules.other} onChange={other => patchModules({ other })}/>
-  </div>;
+  </>;
 }

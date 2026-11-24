@@ -80,9 +80,10 @@ A1-ULT-GRY-EUR
 
 ## 六、系统执行规则
 
-- 产品编辑页维护产品名称、型号、技术资料和 SKU，不新增独立商品 ID字段。
-- 商品装修页维护 SEO 商品 ID / URL Slug、SEO Title、SEO 描述、关键词和 Canonical。
-- 新建商城商品时，根据已确定的产品型号和真实属性生成 SEO Slug 建议，运营人员确认后保存。
+- 产品编辑页维护产品名称、型号、技术资料、SKU，以及 **SEO 商品 ID**（`products.specs._seoProductId`）。这是唯一真源。
+- 商品装修页的「SEO 商品 ID」字段为只读展示，跟随产品主档；该页只维护 SEO Title、SEO 描述、关键词和 Canonical。
+- 新建商城商品时，URL 直接取产品主档的 SEO 商品 ID；未填写时才按已确定的产品型号和真实属性生成建议，由运营回产品页确认。
+- 产品页保存 SEO 商品 ID 时：服务端校验格式（小写字母/数字/单个短横线）与全局唯一性，并**自动同步**到该产品所有渠道的商品记录（`storefront_listings.slug` 与 `document.seo.slug`，含已发布版本）。
 - 首页、商品列表、B2B 商品入口统一跳转到 SEO 商品 URL，不直接暴露 UUID。
 - 商品 URL 只使用 SEO 商品 ID；UUID 不作为商城公开入口。
 - 修改商品 SEO 商品 ID 时，直接以新规则替换旧商城入口，不保留旧入口。

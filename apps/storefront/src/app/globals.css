@@ -138,9 +138,30 @@ h1 { max-width:900px; margin:14px 0 20px; font-size:clamp(42px,7vw,92px); font-w
 .product-related__grid img { width: 100%; height: 100%; object-fit: contain; }
 .product-related__grid small { color: var(--muted, #5f6b7a); }
 /* 详情页装修模块：②③④营销/预留横幅、⑤图文详情、⑦⑧标准文案 + 列表页分类导航 */
-.product-marketing-banner { margin-block: 2rem; }
-.product-marketing-banner img { width: 100%; height: auto; border-radius: .75rem; display: block; }
-.product-marketing-banner p { margin: .65rem 0 0; color: var(--muted, #5f6b7a); line-height: 1.7; }
+/* 营销组件：横幅广告 / 图片+文案 / 促销信息条 */
+.product-mkt { margin-block: 2.5rem; border-radius: .75rem; overflow: hidden; }
+.product-mkt.sp-compact { padding-block: .75rem; }
+.product-mkt.sp-loose { padding-block: 1.25rem; }
+.product-mkt.bg-soft { background: #f3f6f2; padding-inline: 1.25rem; }
+.product-mkt.bg-dark { background: #183b36; color: #fff; padding-inline: 1.25rem; }
+.product-mkt__media { width: 100%; height: auto; border-radius: .75rem; display: block; }
+.product-mkt.ratio-wide .product-mkt__media { aspect-ratio: 16 / 9; object-fit: cover; }
+.product-mkt.ratio-square .product-mkt__media { aspect-ratio: 1 / 1; object-fit: cover; }
+.product-mkt__copy { padding-block: 1rem 0; }
+.product-mkt.is-image-text .product-mkt__copy { padding-block: 0; }
+.product-mkt__copy h2 { margin: 0 0 .5rem; font-size: clamp(1.35rem, 2.4vw, 1.9rem); }
+.product-mkt__copy p { margin: 0 0 .9rem; color: var(--muted, #5f6b7a); line-height: 1.7; }
+.product-mkt.bg-dark .product-mkt__copy p { color: #cfe0d6; }
+.product-mkt__btn { display: inline-block; padding: .55rem 1.25rem; border-radius: 999px; font-size: .9rem; text-decoration: none; }
+.product-mkt__btn.is-solid { background: #183b36; color: #fff; }
+.product-mkt__btn.is-outline { border: 1px solid #183b36; color: #183b36; }
+.product-mkt.bg-dark .product-mkt__btn.is-outline { border-color: #fff; color: #fff; }
+.product-mkt__btn.is-text { padding: 0; color: #183b36; text-decoration: underline; }
+.product-mkt.is-image-text { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1.5rem; align-items: center; }
+.product-mkt.is-promo-bar { display: flex; flex-wrap: wrap; align-items: center; gap: .75rem; padding: .9rem 1.25rem; }
+.product-mkt.is-promo-bar .product-mkt__btn { margin-inline-start: auto; }
+.product-mkt.is-promo-bar span { color: var(--muted, #5f6b7a); }
+@media (max-width: 720px) { .product-mkt.is-image-text { grid-template-columns: 1fr; gap: .75rem; } }
 .product-detail-blocks { margin-block: 3rem; }
 .product-detail-blocks h2 { margin: 0 0 1rem; }
 .product-detail-blocks img { width: 100%; height: auto; display: block; margin-bottom: 1rem; }

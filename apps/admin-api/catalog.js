@@ -835,14 +835,16 @@ function createCatalogStore(connectionString) {
       const { draft = false } = options;
       // 草稿预览：管理员带 draft=1 时读取商品草稿内容（主图/图文详情），发布前即可在装修预览里看到效果。
       const doc = draft ? 'l.draft' : 'l.published';
-      const row = (await pool.query(`SELECT p.id,p.kind,l.published,l.slug,${doc} AS document FROM storefront_listings l JOIN products p ON p.entity_uuid=l.product_uuid WHERE l.channel='website' AND ${doc} IS NOT NULL AND l.published IS NOT NULL AND (l.slug=$1 OR p.id=$1) AND p.status='启用' AND ${doc}->'languages' ? $2 ORDER BY CASE WHEN l.slug=$1 THEN 0 ELSE 1 END LIMIT 1`, [slug,lang])).rows[0];
+      // 第三个条件兜底：SEO 商品 ID 是产品主档的唯一真源，正常情况下已同步到 l.slug；
+      // 万一历史数据/同步未覆盖，也要能按 SEO ID 直接打开商品页，而不是 404。
+      const row = (await pool.query(`SELECT p.id,p.kind,l.published,l.slug,${doc} AS document FROM storefront_listings l JOIN products p ON p.entity_uuid=l.product_uuid WHERE l.channel='website' AND ${doc} IS NOT NULL AND l.published IS NOT NULL AND (l.slug=$1 OR p.id=$1 OR BTRIM(LOWER(p.specs->>'_seoProductId'))=$1) AND p.status='启用' AND ${doc}->'languages' ? $2 ORDER BY CASE WHEN l.slug=$1 THEN 0 WHEN p.id=$1 THEN 1 ELSE 2 END LIMIT 1`, [slug,lang])).rows[0];
       if (!row) return null;
       const product = publicRow({ ...row, published: row.document }, lang);
       return { ...product, detailBlocks: await detailImageUrls(row.id, product.detailBlocks), relatedAccessories: row.kind === 'vehicle' ? await relatedAccessories(row.id, lang) : [] };
     },
-    async offers(slug,lang) {return (await pool.query(`SELECT s.code AS sku,s.spec,s.color_code AS color,lp.currency,lp.unit_price::text AS "unitPrice" FROM storefront_listings l JOIN products p ON p.entity_uuid=l.product_uuid JOIN storefront_listing_skus ls ON ls.listing_id=l.id JOIN skus s ON s.entity_uuid=ls.sku_uuid JOIN storefront_listing_prices lp ON lp.listing_id=l.id AND lp.sku_uuid=s.entity_uuid WHERE l.channel='website' AND (l.slug=$1 OR p.id=$1) AND l.published IS NOT NULL AND p.status='启用' AND l.published->'languages' ? $2 AND lp.published ORDER BY s.code,lp.currency`,[slug,lang])).rows;},
+    async offers(slug,lang) {return (await pool.query(`SELECT s.code AS sku,s.spec,s.color_code AS color,lp.currency,lp.unit_price::text AS "unitPrice" FROM storefront_listings l JOIN products p ON p.entity_uuid=l.product_uuid JOIN storefront_listing_skus ls ON ls.listing_id=l.id JOIN skus s ON s.entity_uuid=ls.sku_uuid JOIN storefront_listing_prices lp ON lp.listing_id=l.id AND lp.sku_uuid=s.entity_uuid WHERE l.channel='website' AND (l.slug=$1 OR p.id=$1 OR BTRIM(LOWER(p.specs->>'_seoProductId'))=$1) AND l.published IS NOT NULL AND p.status='启用' AND l.published->'languages' ? $2 AND lp.published ORDER BY s.code,lp.currency`,[slug,lang])).rows;},
     async availability(slug,lang) {
-      const product=(await pool.query(`SELECT p.entity_uuid,l.id AS listing_id FROM products p JOIN storefront_listings l ON l.product_uuid=p.entity_uuid AND l.channel='website' AND (l.slug=$1 OR p.id=$1) AND l.published IS NOT NULL
+      const product=(await pool.query(`SELECT p.entity_uuid,l.id AS listing_id FROM products p JOIN storefront_listings l ON l.product_uuid=p.entity_uuid AND l.channel='website' AND (l.slug=$1 OR p.id=$1 OR BTRIM(LOWER(p.specs->>'_seoProductId'))=$1) AND l.published IS NOT NULL
         WHERE p.status='启用' AND l.published->'languages' ? $2`,[slug,lang])).rows[0];
       if(!product)return null;
       const ready=(await pool.query(`SELECT to_regclass('alsvid_v2.inventory_condition_ledger') IS NOT NULL AS conditions,

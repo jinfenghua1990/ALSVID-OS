@@ -8,6 +8,7 @@ const { validateProductSpecs } = require('./product-specs');
 const { splitVehicleMaster, archiveLegacyMarket, validateVehicleStatus, validatePhysicalSpecs } = require('./product-master');
 const { TEMPLATES, OWNERSHIP } = require('./db');
 const { isValidEan13 } = require('./ean13');
+const { normalizeSeoProductId, assertSeoProductId, assertSeoProductIdUnique, assertSeoProductIdRemovable, syncListingSeoId } = require('./seo-product-id');
 
 // 整车封面图：图片实体统一存在素材库 media_assets（文件在 R2），通过 asset_links 关联产品。
 // 旧的 product_media 表已不再写入，产品列表/详情用这个字段兜底显示图片，避免改动 BOM 图纸与商城上架的 images 语义。
@@ -344,7 +345,11 @@ function createProductStore(connectionString) {
       const id = /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(input.id||'')) ? input.id.toLowerCase() : uuidv7();
       if (!['vehicle','part'].includes(input.kind) || !input.name || !input.productType || !input.ownership) throw new Error('产品类型、名称、品类与归属必填');
       if (!validProductSkuBase(input.kind,input.ownership,input.productType,input.model,TEMPLATES,OWNERSHIP) || input.kind === 'vehicle' && (input.productType !== 'EBI')) throw new Error('产品型号或归属编码无效');
-      return withAudit('product.create',`products/${id}`,async c=>{ const fields=(await c.query('SELECT code,data_type AS type,options,level,templates,enabled,required FROM fields')).rows;const specs=input.specs||{};if(input.kind==='vehicle'&&input.productType==='EBI')specs.compliance_standard='EN 15194:2017+A1:2023';validateProductSpecs(specs,fields,input.productType);const platform=String(input.platform||'').trim().toUpperCase()||null;const r=await c.query(`INSERT INTO products(id,kind,name,model,product_type,status,ownership,uses,specs,platform) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING ${projection},bom_version AS "bomVersion"`,[id,input.kind,input.name,input.model || '',input.productType,input.status || '启用',input.ownership,JSON.stringify(input.uses || []),JSON.stringify(specs),platform]); if(master)await archiveLegacyMarket(c,id,input.name,master.legacyMarket); return {before:null,after:await hydrate(c,r.rows[0])}; });
+      return withAudit('product.create',`products/${id}`,async c=>{ const fields=(await c.query('SELECT code,data_type AS type,options,level,templates,enabled,required FROM fields')).rows;const specs={...(input.specs||{})};if(input.kind==='vehicle'&&input.productType==='EBI')specs.compliance_standard='EN 15194:2017+A1:2023';validateProductSpecs(specs,fields,input.productType);
+        // SEO 商品 ID 是商城 URL 的唯一真源：建库前先规范化并确认没有被别的产品占用。
+        const seoProductId=assertSeoProductId(specs._seoProductId);
+        if(seoProductId){await assertSeoProductIdUnique(c,seoProductId,id);specs._seoProductId=seoProductId}else delete specs._seoProductId;
+        const platform=String(input.platform||'').trim().toUpperCase()||null;const r=await c.query(`INSERT INTO products(id,kind,name,model,product_type,status,ownership,uses,specs,platform) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING ${projection},bom_version AS "bomVersion"`,[id,input.kind,input.name,input.model || '',input.productType,input.status || '启用',input.ownership,JSON.stringify(input.uses || []),JSON.stringify(specs),platform]); if(master)await archiveLegacyMarket(c,id,input.name,master.legacyMarket); return {before:null,after:await hydrate(c,r.rows[0])}; });
     },
     async update(id,input) {
       if (!Number.isInteger(input.version)) throw new Error('必须提供产品版本');
@@ -365,7 +370,21 @@ function createProductStore(connectionString) {
           const fields=(await c.query('SELECT code,data_type AS type,options,level,templates,enabled,required FROM fields')).rows;
           validateProductSpecs(next.specs,fields,next.productType);
         }
+        // SEO 商品 ID 以产品页为唯一真源：保存时就规范化、查重，并同步到所有商城渠道的 URL。
+        // 不同步的话，产品页显示新 ID、前台仍用旧 slug，这条链路就是断的。
+        const previousSeo=normalizeSeoProductId(old.specs?._seoProductId);
+        let nextSeo=previousSeo;
+        if (input.specs !== undefined) {
+          nextSeo=assertSeoProductId(next.specs?._seoProductId);
+          if (nextSeo!==previousSeo) {
+            if (nextSeo) await assertSeoProductIdUnique(c,nextSeo,id);
+            else await assertSeoProductIdRemovable(c,old.entityUuid,nextSeo);
+          }
+          next.specs={...next.specs};
+          if (nextSeo) next.specs._seoProductId=nextSeo; else delete next.specs._seoProductId;
+        }
         const r=await c.query(`UPDATE products SET name=$1,model=$2,product_type=$3,status=$4,ownership=$5,uses=$6,specs=$7,version=version+1,updated_at=now(),platform=$9 WHERE id=$8 RETURNING ${projection},bom_version AS "bomVersion"`,[next.name,next.model,next.productType,next.status,next.ownership,JSON.stringify(next.uses),JSON.stringify(next.specs),id,next.platform]);
+        if (nextSeo!==previousSeo) await syncListingSeoId(c,old.entityUuid,nextSeo);
         if (Array.isArray(input.fitments)) {
           if (next.kind !== 'part') throw new Error('只有零配件可以设置车型适配');
           const resolved = await resolveFitments(c, input.fitments);

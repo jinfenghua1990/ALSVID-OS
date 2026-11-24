@@ -14,6 +14,22 @@
 const DEV_API_ORIGIN = 'http://127.0.0.1:8089';
 const DEV_SITE_ORIGINS = ['http://localhost:8091', 'http://127.0.0.1:8091'];
 
+/** 部署配置缺失，不是「后端暂时不可用」，不能按空数据降级。 */
+export class ApiConfigurationError extends Error {
+  readonly code = 'ALSVID_CONFIG_MISSING';
+
+  constructor(message: string) {
+    super(message);
+    this.name = 'ApiConfigurationError';
+  }
+}
+
+/** 跨模块判断配置错误时同时看类型和 code，避免打包/多实例导致 instanceof 失效。 */
+export function isApiConfigurationError(error: unknown): boolean {
+  return error instanceof ApiConfigurationError
+    || (typeof error === 'object' && error !== null && (error as { code?: unknown }).code === 'ALSVID_CONFIG_MISSING');
+}
+
 function isProduction() {
   return process.env.NODE_ENV === 'production';
 }
@@ -42,10 +58,14 @@ export function apiOrigin(): string {
   return DEV_API_ORIGIN;
 }
 
-/** 组装后端 URL。apiOrigin 为空时直接抛出可读错误，避免请求发到错误的默认地址。 */
+/** 组装后端 URL。apiOrigin 为空时抛出 ApiConfigurationError，避免请求发到错误的默认地址。
+ *
+ * 错误类型必须是专属的：调用方（alsvid-api.ts）要能区分「部署配置缺失」和
+ * 「后端暂时不可用」——前者必须让页面报错，后者才允许降级成空数据。
+ */
 export function apiUrl(path: string): URL {
   const origin = apiOrigin();
-  if (!origin) throw new Error('站点未配置后端地址（ALSVID_API_ORIGIN），请联系运维检查部署配置');
+  if (!origin) throw new ApiConfigurationError('站点未配置后端地址（ALSVID_API_ORIGIN），请联系运维检查部署配置');
   return new URL(path, origin);
 }
 

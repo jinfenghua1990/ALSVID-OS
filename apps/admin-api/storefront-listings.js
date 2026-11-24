@@ -4,6 +4,7 @@ const { createPool } = require('./db-pool');
 const { currentActor } = require('./audit-context');
 const { documentOf } = require('./catalog');
 const { isUuidv7, uuidv7 } = require('./uuidv7');
+const { normalizeSeoProductId } = require('./seo-product-id');
 
 function fail(message, statusCode = 400) { throw Object.assign(new Error(message), { statusCode }); }
 function sameSkuPrices(current, next) {
@@ -64,9 +65,12 @@ function createStorefrontListingStore(url) {
         if(product.status!=='启用')fail('停用产品不能创建商品');
         id=uuidv7();
       }
-      const masterSeoId=String(product.specs?._seoProductId||'').trim().toLowerCase();
-      if(!before?.published&&candidate.channel==='website'&&masterSeoId&&!/^[a-z][0-9]+-(?:std|ult|pro)-[a-z0-9]+-[a-z0-9]+$/.test(masterSeoId)){
-        candidate={...candidate,slug:masterSeoId,document:{...candidate.document,seo:{...candidate.document.seo,slug:masterSeoId}}};
+      // SEO 商品 ID 的唯一真源是产品主档，前台 URL 完全跟随它。
+      // 这里不再静默覆盖运营填写的内容（以前填了会被改掉，看起来像「没保存成功」）：
+      // 主档有值时要求两者一致，不一致就明确报错，引导回产品编辑页修改。
+      const masterSeoId=normalizeSeoProductId(product.specs?._seoProductId);
+      if(candidate.channel==='website'&&masterSeoId&&candidate.slug!==masterSeoId){
+        fail(`SEO 商品 ID 由产品主档统一维护（当前为 ${masterSeoId}），请在产品编辑页修改；此处 URL 会自动跟随`);
       }
       const detailImageIds=[...new Set(Object.values(candidate.document.languages||{}).flatMap(loc=>(loc.detailBlocks||[]).filter(block=>block.type==='image').map(block=>block.imageId)))];
       const allImageIds=[...new Set([...candidate.document.mediaIds,...detailImageIds])];

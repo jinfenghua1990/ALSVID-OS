@@ -5,7 +5,8 @@
   "description": "ALSVID V2.0 内部管理系统 - 业务 API（Fastify, 端口 8089）",
   "main": "index.js",
   "scripts": {
-    "start": "node index.js",
+    "start": "node secret-bootstrap.js",
+    "start:direct": "node index.js",
     "db:init": "node init-postgres.js",
     "db:migrate": "node migrate.js",
     "test": "node test/run-local.js"

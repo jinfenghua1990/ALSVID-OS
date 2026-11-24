@@ -89,17 +89,41 @@ function blockOf(input) {
 }
 // 商品详情页 8 模块中的全局模块（②营销 ③④预留 ⑥评价开关 ⑦退换货 ⑧其他）。
 // 顺序固定不可拖拽；③④内容为空时前台自动隐藏。缺省字段全部给默认值，旧草稿可直接保存/发布。
+// 营销/预留模块：固定位置的样式化组件（不做自由拖拽），三种标准样式共用一套内容字段
+const BANNER_STYLES = ['banner', 'imageText', 'promoBar'];
+const BANNER_THEME = {
+  background: ['none', 'soft', 'dark'],
+  spacing: ['compact', 'normal', 'loose'],
+  imageRatio: ['wide', 'square', 'auto'],
+  buttonStyle: ['solid', 'outline', 'text'],
+};
 const DEFAULT_PRODUCT_MODULES = {
-  marketing: { enabled: false, imageId: '', href: '', text: '' },
-  reserved3: { enabled: false, imageId: '', href: '', text: '' },
-  reserved4: { enabled: false, imageId: '', href: '', text: '' },
+  marketing: { enabled: false, style: 'banner', imageId: '', title: '', description: '', buttonText: '', href: '', text: '', theme: { background: 'none', spacing: 'normal', imageRatio: 'wide', buttonStyle: 'solid' } },
+  reserved3: { enabled: false, style: 'banner', imageId: '', title: '', description: '', buttonText: '', href: '', text: '', theme: { background: 'none', spacing: 'normal', imageRatio: 'wide', buttonStyle: 'solid' } },
+  reserved4: { enabled: false, style: 'banner', imageId: '', title: '', description: '', buttonText: '', href: '', text: '', theme: { background: 'none', spacing: 'normal', imageRatio: 'wide', buttonStyle: 'solid' } },
   reviews: { enabled: true, limit: 20, style: 'list' },
   returns: { enabled: false, title: '', body: '' },
   other: { enabled: false, title: '', body: '' },
 };
 function bannerModuleOf(value) {
   const row = value && typeof value === 'object' && !Array.isArray(value) ? value : {};
-  return { enabled: row.enabled === true, imageId: assetId(row.imageId ?? ''), href: link(row.href ?? ''), text: text(row.text ?? '', 600) };
+  const theme = row.theme && typeof row.theme === 'object' && !Array.isArray(row.theme) ? row.theme : {};
+  return {
+    enabled: row.enabled === true,
+    style: BANNER_STYLES.includes(row.style) ? row.style : 'banner',
+    imageId: assetId(row.imageId ?? ''),
+    title: text(row.title ?? '', 120),
+    description: text(row.description ?? '', 400),
+    buttonText: text(row.buttonText ?? '', 40),
+    href: link(row.href ?? ''),
+    text: text(row.text ?? '', 600),
+    theme: {
+      background: BANNER_THEME.background.includes(theme.background) ? theme.background : 'none',
+      spacing: BANNER_THEME.spacing.includes(theme.spacing) ? theme.spacing : 'normal',
+      imageRatio: BANNER_THEME.imageRatio.includes(theme.imageRatio) ? theme.imageRatio : 'wide',
+      buttonStyle: BANNER_THEME.buttonStyle.includes(theme.buttonStyle) ? theme.buttonStyle : 'solid',
+    },
+  };
 }
 function copyModuleOf(value) {
   const row = value && typeof value === 'object' && !Array.isArray(value) ? value : {};

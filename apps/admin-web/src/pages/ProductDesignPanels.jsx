@@ -6,17 +6,24 @@ import { api } from '../api.js';
 // - StandardDetailPanel：「商品详情页（图文）」按商品维护 ① 主图 + ⑤ 图文详情，走商品发布流。
 // - GlobalModulesPanel：「商品详情页（公共模块）」②营销 ③④预留 ⑥评价 ⑦退换货 ⑧其他，存 product_template 页草稿，更新 1 处全部商品生效。
 
+// 营销/预留模块默认值：三种标准样式共用一套内容 + 显示样式字段，与 server 端保持一致
+const BANNER_DEFAULT = {
+  enabled: false, style: 'banner', imageId: '', title: '', description: '', buttonText: '', href: '', text: '',
+  theme: { background: 'none', spacing: 'normal', imageRatio: 'wide', buttonStyle: 'solid' },
+};
 const DEFAULT_MODULES = {
-  marketing: { enabled: false, imageId: '', href: '', text: '' },
-  reserved3: { enabled: false, imageId: '', href: '', text: '' },
-  reserved4: { enabled: false, imageId: '', href: '', text: '' },
+  marketing: { ...BANNER_DEFAULT },
+  reserved3: { ...BANNER_DEFAULT, theme: { ...BANNER_DEFAULT.theme } },
+  reserved4: { ...BANNER_DEFAULT, theme: { ...BANNER_DEFAULT.theme } },
   reviews: { enabled: true, limit: 20, style: 'list' },
   returns: { enabled: false, title: '', body: '' },
   other: { enabled: false, title: '', body: '' },
 };
 
 // 读取 product_template 页面草稿并维护本地副本 + 乐观锁 revision。
-function useCmsDocument(row) {
+// 公共模块把它提升到工作区层调用：保存/发布/发布记录要统一放在顶部动作条，
+// 状态留在面板里的话，父级拿不到 dirty，按钮就没法点亮。
+export function useCmsDocument(row, enabled = true) {
   const [page, setPage] = useState(null);
   const [doc, setDoc] = useState(null);
   const [baseline, setBaseline] = useState('');
@@ -24,7 +31,7 @@ function useCmsDocument(row) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const load = useCallback(() => {
-    if (!row) return undefined;
+    if (!row || !enabled) return undefined;
     let alive = true;
     setDoc(null); setError('');
     api.cmsPage(row.id).then(p => {
@@ -34,7 +41,7 @@ function useCmsDocument(row) {
       setPage(p); setDoc(clone); setBaseline(JSON.stringify(clone)); setRevision(p.revision);
     }).catch(e => { if (alive) setError(e.message || '读取页面草稿失败'); });
     return () => { alive = false; };
-  }, [row && row.id]);
+  }, [row && row.id, enabled]);
   useEffect(load, [load]);
   const dirty = Boolean(doc) && JSON.stringify(doc) !== baseline;
   const save = async () => {
@@ -79,17 +86,82 @@ function AssetImageSelect({ assets, value, onChange, placeholder = '从素材库
   </label>;
 }
 
-function BannerEditor({ title, note, value, assets, onChange }) {
-  const module = { ...DEFAULT_MODULES.marketing, ...(value || {}) };
+// 营销组件：三种标准样式（不做自由拖拽），内容 + 显示样式统一
+const MARKET_STYLES = [
+  ['banner', '横幅广告', '整图铺满，文案在下方'],
+  ['imageText', '图片 + 文案', '左图右文，带按钮'],
+  ['promoBar', '促销信息条', '细横条，文字 + 按钮'],
+];
+const THEME_OPTIONS = {
+  background: [['none', '透明'], ['soft', '浅色底'], ['dark', '深色底']],
+  spacing: [['compact', '紧凑'], ['normal', '标准'], ['loose', '宽松']],
+  imageRatio: [['wide', '宽图 16:9'], ['square', '方图 1:1'], ['auto', '原图比例']],
+  buttonStyle: [['solid', '实心按钮'], ['outline', '描边按钮'], ['text', '文字链接']],
+};
+// 多语言：营销内容按语言分别落库（每个语言一条 product_template 记录），
+// 这里只负责在编辑区就地切换，省得用户来回跑去顶部工具条。
+const LOCALE_TABS = [['zh', '中文'], ['de', 'Deutsch'], ['en', 'English']];
+
+// 样式缩略：直接用当前模块的真实图片与文案渲染三种版式，
+// 选之前就能看到「选完长什么样」，比灰色占位条有说服力。
+function StyleThumb({ styleKey, module }) {
+  const src = module.imageId ? api.assetUrl(module.imageId) : '';
+  const title = module.title || module.text || '标题预览';
+  const desc = module.description || '';
+  const button = module.buttonText || '';
+  const media = <span className="sdpv__media">{src ? <img src={src} alt=""/> : <i className="sdpv__ph" aria-hidden="true"/>}</span>;
+  if (styleKey === 'promoBar') return <div className="sdpv sdpv--bar">
+    <b>{title}</b>{desc && <i>{desc}</i>}{button && <em>{button}</em>}
+  </div>;
+  if (styleKey === 'imageText') return <div className="sdpv sdpv--split">
+    {media}
+    <span className="sdpv__copy"><b>{title}</b>{desc && <i>{desc}</i>}{button && <em>{button}</em>}</span>
+  </div>;
+  return <div className="sdpv sdpv--banner">
+    {media}
+    <span className="sdpv__copy"><b>{title}</b>{desc && <i>{desc}</i>}{button && <em>{button}</em>}</span>
+  </div>;
+}
+
+function MarketingEditor({ title, note, value, assets, locale, onChange, onSwitchLocale }) {
+  const module = { ...BANNER_DEFAULT, ...(value || {}) };
+  const theme = { ...BANNER_DEFAULT.theme, ...(module.theme || {}) };
   const patch = next => onChange({ ...module, ...next });
+  const patchTheme = next => patch({ theme: { ...theme, ...next } });
   return <section className="sdp__module">
     <header><strong>{title}</strong>{note && <span className="hint">{note}</span>}</header>
     <label className="sdp__check"><input type="checkbox" checked={module.enabled} onChange={e => patch({ enabled: e.target.checked })}/> 启用</label>
     {module.enabled && <>
+      <div className="sdp__group">选择模块样式</div>
+      <div className="sdp__styles">
+        {MARKET_STYLES.map(([key, label, desc]) => <button type="button" key={key} className={'sdp__style' + (module.style === key ? ' is-active' : '')} onClick={() => patch({ style: key })}>
+          <StyleThumb styleKey={key} module={module}/>
+          <span className="sdp__style-label"><b>{label}</b><small>{desc}</small></span>
+        </button>)}
+      </div>
+      <div className="sdp__group">营销内容</div>
       <AssetImageSelect assets={assets} value={module.imageId} onChange={imageId => patch({ imageId })}/>
       {module.imageId && <img className="sdp__thumb" src={api.assetUrl(module.imageId)} alt=""/>}
+      <label className="sdp__field">标题<input value={module.title} maxLength={120} placeholder="如 Discover Your Freedom" onChange={e => patch({ title: e.target.value })}/></label>
+      <label className="sdp__field">描述<textarea rows={2} maxLength={400} value={module.description} placeholder="一句话说明，可留空" onChange={e => patch({ description: e.target.value })}/></label>
+      <label className="sdp__field">按钮文字<input value={module.buttonText} maxLength={40} placeholder="如 了解详情，留空则不显示" onChange={e => patch({ buttonText: e.target.value })}/></label>
       <label className="sdp__field">跳转链接<input value={module.href} maxLength={500} placeholder="/www/zh/products/… 或 https://…" onChange={e => patch({ href: e.target.value })}/></label>
-      <label className="sdp__field">促销文案<textarea rows={2} maxLength={600} value={module.text} onChange={e => patch({ text: e.target.value })}/></label>
+      <div className="sdp__group">显示样式</div>
+      <div className="sdp__grid2">
+        <label className="sdp__field">背景<select value={theme.background} onChange={e => patchTheme({ background: e.target.value })}>{THEME_OPTIONS.background.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select></label>
+        <label className="sdp__field">间距<select value={theme.spacing} onChange={e => patchTheme({ spacing: e.target.value })}>{THEME_OPTIONS.spacing.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select></label>
+        <label className="sdp__field">图片比例<select value={theme.imageRatio} onChange={e => patchTheme({ imageRatio: e.target.value })}>{THEME_OPTIONS.imageRatio.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select></label>
+        <label className="sdp__field">按钮<select value={theme.buttonStyle} onChange={e => patchTheme({ buttonStyle: e.target.value })}>{THEME_OPTIONS.buttonStyle.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select></label>
+      </div>
+      <div className="sdp__group">多语言</div>
+      <div className="sdp__locales">
+        {LOCALE_TABS.map(([code, label]) => <button type="button" key={code}
+          className={'sdp__locale' + (code === locale ? ' is-active' : '')}
+          onClick={() => onSwitchLocale?.(code)}>
+          {label}{code === locale && <small>当前</small>}
+        </button>)}
+      </div>
+      <p className="hint">每个语言各自保存一份营销内容，切换后编辑的就是该语言的草稿；当前为 {locale}。</p>
     </>}
   </section>;
 }
@@ -196,32 +268,82 @@ export function StandardDetailPanel({ locale, products, publishedMap, productId 
     } catch (e) { setError(e.message || '发布失败'); } finally { setBusy(false); }
   };
   const detailBlocks = localeDoc?.detailBlocks || [];
-  const blockImageOptions = [...(product?.images || []).map(image => ({ id: image.id, label: `商品图 · ${image.label || image.id}` })), ...assets.map(asset => ({ id: asset.id, label: `素材库 · ${asset.label || asset.fileName || asset.id}` }))];
-  const imagePreview = id => (product?.images || []).some(image => image.id === id) ? `/api/products/${encodeURIComponent(productId)}/media/${encodeURIComponent(id)}` : api.assetUrl(id);
+  const productImages = product?.images || [];
+  // 主图与图文详情共用同一份商品素材库，但顺序各管各的：
+  // mediaIds 决定主图顺序（第一张是封面），detailBlocks 里的 imageId 只决定详情段落顺序。
+  const poolImages = productImages.filter(image => !mediaIds.includes(image.id));
+  const imageLabel = id => {
+    const found = productImages.find(image => image.id === id);
+    return found?.label || '未命名图片';
+  };
+  const setCover = index => {
+    if (index <= 0) return;
+    const next = [...mediaIds];
+    const [moved] = next.splice(index, 1);
+    next.unshift(moved);
+    patchMedia(next);
+  };
+  const moveMedia = (index, delta) => {
+    const target = index + delta;
+    if (target < 0 || target >= mediaIds.length) return;
+    const next = [...mediaIds];
+    [next[index], next[target]] = [next[target], next[index]];
+    patchMedia(next);
+  };
+  const blockImageOptions = [...productImages.map((image, index) => ({ id: image.id, label: `商品图 ${index + 1}${image.label ? ` · ${image.label}` : ''}` })), ...assets.map(asset => ({ id: asset.id, label: `素材库 · ${asset.label || asset.fileName || asset.id}` }))];
+  const imagePreview = id => productImages.some(image => image.id === id) ? `/api/products/${encodeURIComponent(productId)}/media/${encodeURIComponent(id)}` : api.assetUrl(id);
   return <div className="sdp">
     <SaveBar dirty={dirty} busy={busy} error={error} onSave={doSave} onPublish={doPublish} publishedVersion={listing.published ? 1 : null}/>
-    <section className="sdp__module">
-      <header><strong>① 商品主图</strong><span className="hint">第一张为封面</span></header>
-      <div className="sdp__images">
-        {(product?.images || []).map(image => {
-          const order = mediaIds.indexOf(image.id);
-          return <button type="button" key={image.id} className={'sdp__image' + (order >= 0 ? ' is-on' : '')} onClick={() => patchMedia(order >= 0 ? mediaIds.filter(id => id !== image.id) : [...mediaIds, image.id])}>
-            <img src={`/api/products/${encodeURIComponent(productId)}/media/${encodeURIComponent(image.id)}`} alt={image.label || ''}/>
-            {order >= 0 && <i className="sdp__image-order">{order + 1}</i>}
-          </button>;
-        })}
-        {!product?.images?.length && <p className="hint">该商品还没有图片，请先在产品研发里上传。</p>}
-      </div>
-      {mediaIds.length > 1 && <div className="sdp__order">
-        主图顺序：{mediaIds.map((id, index) => <span key={id} className="sdp__order-chip">
-          {index + 1}. {(product?.images || []).find(image => image.id === id)?.label || id.slice(0, 8)}
-          <button type="button" aria-label="前移" disabled={index === 0} onClick={() => { const next = [...mediaIds]; [next[index - 1], next[index]] = [next[index], next[index - 1]]; patchMedia(next); }}>↑</button>
-          <button type="button" aria-label="后移" disabled={index === mediaIds.length - 1} onClick={() => { const next = [...mediaIds]; [next[index + 1], next[index]] = [next[index], next[index + 1]]; patchMedia(next); }}>↓</button>
-        </span>)}
+    <section className="sdp__module sdp__gallery">
+      <header className="sdg__head">
+        <div className="sdg__head-main">
+          <strong>① 商品主图 / 图片图库</strong>
+          <p className="hint">固定位置，第一张作为商品封面，PC 与移动端共用</p>
+        </div>
+        <span className="sdg__count">{mediaIds.length} 张已选</span>
+      </header>
+
+      {!mediaIds.length && <div className="sdg__empty">
+        <strong>当前商品还没有选择主图</strong>
+        <p>图片在「产品研发 → 素材」维护；这里只保存引用和展示顺序，不重复上传原图。</p>
       </div>}
+
+      {mediaIds.length > 0 && <div className="sdg__grid">
+        {mediaIds.map((id, index) => <article className="sdg__card" key={id}>
+          <div className="sdg__thumb">
+            <img src={`/api/products/${encodeURIComponent(productId)}/media/${encodeURIComponent(id)}`} alt={imageLabel(id)} loading="lazy"/>
+            {index === 0 && <span className="sdg__cover">商品封面</span>}
+            <span className="sdg__no">{String(index + 1).padStart(2, '0')}</span>
+          </div>
+          <div className="sdg__meta" title={imageLabel(id)}>{imageLabel(id)}</div>
+          <div className="sdg__ops">
+            {index !== 0 && <button type="button" onClick={() => setCover(index)}>设为封面</button>}
+            <button type="button" aria-label="前移" disabled={index === 0} onClick={() => moveMedia(index, -1)}>↑</button>
+            <button type="button" aria-label="后移" disabled={index === mediaIds.length - 1} onClick={() => moveMedia(index, 1)}>↓</button>
+            <button type="button" className="sdg__remove" onClick={() => patchMedia(mediaIds.filter(item => item !== id))}>移除</button>
+          </div>
+        </article>)}
+      </div>}
+
+      <div className="sdg__pool">
+        <div className="sdg__pool-head">
+          <strong>从商品素材库添加</strong>
+          <span className="hint">{poolImages.length ? `还有 ${poolImages.length} 张未使用` : '商品图片已全部加入'}</span>
+        </div>
+        {poolImages.length > 0 && <div className="sdg__pool-grid">
+          {poolImages.map(image => <button type="button" key={image.id} className="sdg__pool-item" onClick={() => patchMedia([...mediaIds, image.id])} title={`加入主图：${image.label || '未命名图片'}`}>
+            <img src={`/api/products/${encodeURIComponent(productId)}/media/${encodeURIComponent(image.id)}`} alt="" loading="lazy"/>
+            <span aria-hidden="true">＋</span>
+          </button>)}
+        </div>}
+        {!poolImages.length && !productImages.length && <p className="hint">该商品在产品研发里还没有图片，先去「产品研发 → 素材」上传。</p>}
+      </div>
+
+      <p className="sdg__tip">只保存素材引用与展示顺序，不会删除原始素材，也不影响 SKU 与库存。</p>
     </section>
     <section className="sdp__module">
-      <header><strong>⑤ 图文详情</strong><span className="hint">为空时回退商品描述</span></header>
+      <header><strong>⑤ 图文详情</strong><span className="hint">按商品 · 与主图是两套配置</span></header>
+      <p className="hint">主图管封面与顺序，图文详情管内容段落顺序；两者共用同一份商品素材库，互不影响。</p>
       {!localeDoc && <p className="hint">该商品尚未提供 {locale} 语言内容，请先在「商品列表」补充该语言后再装修图文详情。</p>}
       {localeDoc && <>
         {detailBlocks.map((block, index) => <div className="sdp__block" key={index}>
@@ -256,6 +378,29 @@ const GLOBAL_MODULES = [
   ['other', '08', '其他说明'],
 ];
 
+// 每个模块在编辑区顶部的定位说明 + 预览侧是否有对应区块（决定点击能否真的滚过去）
+const MODULE_META = {
+  info: { desc: '固定模块，由商品数据自动生成', anchor: () => true },
+  marketing: { desc: '促销展现 · 标准模板 3 选 1' },
+  reserved3: { desc: '预留位 · 未配置内容时自动隐藏' },
+  reserved4: { desc: '预留位 · 未配置内容时自动隐藏' },
+  detail: { desc: '按商品维护，位置固定', anchor: () => true },
+  reviews: { desc: '读取「评价管理」真实评价', anchor: (m) => m?.enabled !== false },
+  returns: { desc: '全局文案，所有商品共用', anchor: (m) => Boolean(m?.enabled && (m.title || m.body)) },
+  other: { desc: '全局文案，所有商品共用', anchor: (m) => Boolean(m?.enabled && (m.title || m.body)) },
+};
+const BANNER_KEYS = ['marketing', 'reserved3', 'reserved4'];
+// 预览端（CatalogPage）只渲染「已启用且填了内容」的模块，没内容就没有锚点，
+// 提前算出来，免得点了目录什么都没发生还不给提示。
+function moduleAnchor(key, modules) {
+  const module = modules?.[key] || {};
+  if (MODULE_META[key]?.anchor) return MODULE_META[key].anchor(module);
+  if (BANNER_KEYS.includes(key)) {
+    return Boolean(module.enabled && (module.imageId || module.title || module.description || module.text || module.href));
+  }
+  return false;
+}
+
 function moduleBadge(key, modules) {
   if (key === 'info') return '固定';
   if (key === 'detail') return '按商品';
@@ -266,19 +411,31 @@ function moduleBadge(key, modules) {
   return modules[key]?.enabled ? '已启用' : '已关闭';
 }
 
-export function GlobalModulesPanel({ row, locale, products = [], productId, onProductChange, onPublished, notify, onEditGraphic }) {
-  const { doc, setDoc, dirty, busy, error, save, publish } = useCmsDocument(row);
+export function GlobalModulesPanel({ cms, row, locale, onEditGraphic, onSelectModule, onLocaleChange }) {
+  const { doc, setDoc, dirty } = cms;
   const [assets, setAssets] = useState([]);
   const [active, setActive] = useState('marketing');
   useEffect(() => { api.assetsAll({ category: 'page', kind: 'image' }).then(rows => setAssets(Array.isArray(rows) ? rows : [])).catch(() => setAssets([])); }, []);
-  if (!doc) return <p className="sdw__tip">{error || '正在读取公共模块配置…'}</p>;
+  if (!doc) return <p className="sdw__tip">{cms.error || '正在读取公共模块配置…'}</p>;
   const modules = { ...DEFAULT_MODULES, ...(doc.modules || {}) };
   const patchModules = next => setDoc({ ...doc, modules: { ...modules, ...next } });
   const productLayout = { gallery: 'standard', specifications: 'list', reviews: 'list', ...(doc.productLayout || {}) };
-  const doSave = async () => { if (await save()) notify('公共模块草稿已保存'); };
-  const doPublish = async () => { if (await publish()) { notify('公共模块已发布，全部商品详情页生效'); onPublished?.(); } };
   const current = GLOBAL_MODULES.find(([key]) => key === active) || GLOBAL_MODULES[1];
   const [no, name] = [current[1], current[2]];
+  const meta = MODULE_META[active] || {};
+  const anchor = moduleAnchor(active, modules);
+  // 目录点击与「在预览中定位」共用同一套载荷：预览侧据此决定滚不滚、并给一句人话提示
+  const focusModule = key => {
+    const item = GLOBAL_MODULES.find(([itemKey]) => itemKey === key);
+    onSelectModule?.({ key, no: item?.[1], name: item?.[2], anchor: moduleAnchor(key, modules) });
+  };
+  const pickModule = key => { setActive(key); focusModule(key); };
+  // 切语言会换成另一条 product_template 记录，有未保存修改必须先确认，不能静默丢弃
+  const switchLocale = code => {
+    if (code === locale) return;
+    if (dirty && !window.confirm('当前语言还有未保存的修改，切换语言会离开这份草稿，未保存内容将丢失。继续切换？')) return;
+    onLocaleChange?.(code);
+  };
 
   const editor = (() => {
     if (active === 'info') return <div className="sdp">
@@ -311,27 +468,34 @@ export function GlobalModulesPanel({ row, locale, products = [], productId, onPr
       <CopyEditor title="08 其他说明" defaultTitle="其他说明" value={modules.other} onChange={other => patchModules({ other })}/>
     </div>;
     return <div className="sdp">
-      <BannerEditor title={`${no} ${name}`} note={active === 'marketing' ? '图片 + 链接 + 文案' : '空则自动隐藏'} value={modules[active]} assets={assets} onChange={next => patchModules({ [active]: next })}/>
+      <MarketingEditor title={`${no} ${name}`} note={meta.desc} value={modules[active]} assets={assets} locale={locale} onSwitchLocale={switchLocale} onChange={next => patchModules({ [active]: next })}/>
     </div>;
   })();
 
   return <>
     <aside className="sdw__panel gmp__nav">
-      <div className="sdw__side-head"><h3 className="sdw__side-title">模块目录</h3></div>
-      <label className="sdp__field">预览商品
-        <select value={productId || ''} onChange={e => onProductChange?.(e.target.value)}>
-          {products.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-        </select>
-      </label>
+      <div className="sdw__side-head">
+        <h3 className="sdw__side-title">模块目录</h3>
+        <span className="gmp__fixed">固定顺序</span>
+      </div>
+      <p className="sdw__tip gmp__hint">8 个模块位置固定，不可拖动、不可调整顺序。</p>
       <div className="gmp__list">
-        {GLOBAL_MODULES.map(([key, itemNo, itemName]) => <button type="button" key={key} className={'gmp__item' + (active === key ? ' is-active' : '')} onClick={() => setActive(key)}>
+        {GLOBAL_MODULES.map(([key, itemNo, itemName]) => <button type="button" key={key} className={'gmp__item' + (active === key ? ' is-active' : '')} onClick={() => pickModule(key)}>
           <b>{itemNo}</b><span>{itemName}</span><i className={'gmp__badge' + (moduleBadge(key, modules) === '已启用' || moduleBadge(key, modules) === '已配置' ? ' is-on' : '')}>{moduleBadge(key, modules)}</i>
         </button>)}
       </div>
-      <SaveBar dirty={dirty} busy={busy} error={error} onSave={doSave} onPublish={doPublish} publishedVersion={row.publishedVersion}/>
+      <p className="sdw__tip">保存草稿 / 发布 / 发布记录统一在页面顶部动作条，此处只管选模块。</p>
     </aside>
     <section className="sdw__panel sdw__panel--editor">
-      <div className="sdw__side-head"><h3 className="sdw__side-title">{no} {name}</h3></div>
+      <div className="sdp__cast">
+        <div className="sdp__cast-main">
+          <span className="sdp__cast-no">{no}</span>
+          <b>{name}</b>
+          {meta.desc && <small>{meta.desc}</small>}
+        </div>
+        <button type="button" className="btn small" onClick={() => focusModule(active)}
+          title={anchor ? '在右侧官网预览里滚动到该模块并高亮' : '该模块当前未启用或没有内容，官网预览里没有对应区块'}>在预览中定位</button>
+      </div>
       {editor}
     </section>
   </>;

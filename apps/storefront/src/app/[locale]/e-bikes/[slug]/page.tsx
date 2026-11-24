@@ -57,7 +57,11 @@ export default async function ProductPage({ params }: Props) {
   const templateBlocks = template?.blocks.filter(block => block.visible !== false && productContentKeys.has(block.componentKey)) || [];
   // 详情页 8 模块（顺序固定）：①主图+SKU（上方数据驱动区）②营销 ③④预留（空则隐藏）⑤图文详情 ⑥评价 ⑦退换货 ⑧其他。
   const modules = template?.modules;
-  const banners = [modules?.marketing, modules?.reserved3, modules?.reserved4].filter((banner): banner is ProductModuleBanner => !!banner?.enabled && !!(banner.imageId || banner.text || banner.href));
+  const banners = ([
+    { key: 'marketing', banner: modules?.marketing },
+    { key: 'reserved3', banner: modules?.reserved3 },
+    { key: 'reserved4', banner: modules?.reserved4 },
+  ] as { key: string; banner: ProductModuleBanner | undefined }[]).filter((row): row is { key: string; banner: ProductModuleBanner } => !!row.banner?.enabled && !!(row.banner.imageId || row.banner.title || row.banner.description || row.banner.text || row.banner.href));
   const detailBlocks = (product.detailBlocks || []).filter(block => (block.type === 'image' && block.url) || (block.type === 'text' && block.text));
   const reviewsConfig = modules?.reviews || { enabled: true, limit: 20, style: 'list' };
   const copyModules = [modules?.returns, modules?.other].filter((row): row is ProductModuleCopy => !!row?.enabled && !!(row.title || row.body));
@@ -81,12 +85,7 @@ export default async function ProductPage({ params }: Props) {
           {product.warranty && <section className="product-business-module"><h2>{UI.warranty[locale]}</h2><p>{product.warranty}</p></section>}
         </section>
       </div>
-      {banners.map((banner, index) => <section className="product-marketing-banner" key={index}>
-        {banner.imageId && (banner.href
-          ? <a href={bannerHref(banner.href)}><img src={publicAssetUrl(banner.imageId)} alt={banner.text || product.title} loading="lazy" /></a>
-          : <img src={publicAssetUrl(banner.imageId)} alt={banner.text || product.title} loading="lazy" />)}
-        {banner.text && <p>{banner.text}</p>}
-      </section>)}
+      {banners.map(({ key, banner }) => <MarketingBlock key={key} name={key} banner={banner} alt={product.title} href={bannerHref(banner.href)}/>)}
       {detailBlocks.length > 0 && <section className="product-detail-blocks">
         <h2>{UI.detailDescription[locale]}</h2>
         {detailBlocks.map((block, index) => block.type === 'image'
@@ -103,4 +102,15 @@ export default async function ProductPage({ params }: Props) {
       {copyModules.map((row, index) => <section className="product-business-module product-standard-module" key={`standard-${index}`}><h2>{row.title || (index === 0 ? UI.returns[locale] : UI.other[locale])}</h2><p>{row.body}</p></section>)}
     </main>
   );
+}
+
+// 公共模块里的营销组件：三种标准样式（横幅广告 / 图片+文案 / 促销信息条），与后台预览同一套规则
+function MarketingBlock({ name, banner, alt, href }: { name: string; banner: ProductModuleBanner; alt: string; href: string }) {
+  const theme = banner.theme || { background: 'none', spacing: 'normal', imageRatio: 'wide', buttonStyle: 'solid' };
+  const cls = `product-mkt is-${banner.style} bg-${theme.background} sp-${theme.spacing} ratio-${theme.imageRatio}`;
+  const title = banner.title || banner.text;
+  const button = banner.buttonText && href ? <a className={`product-mkt__btn is-${theme.buttonStyle}`} href={href}>{banner.buttonText}</a> : null;
+  const media = banner.imageId ? <img className="product-mkt__media" src={publicAssetUrl(banner.imageId)} alt={title || alt} loading="lazy" /> : null;
+  if (banner.style === 'promoBar') return <section className={cls} data-module={name}>{title && <strong>{title}</strong>}{banner.description && <span>{banner.description}</span>}{button}</section>;
+  return <section className={cls} data-module={name}>{media}{(title || banner.description || button) && <div className="product-mkt__copy">{title && <h2>{title}</h2>}{banner.description && <p>{banner.description}</p>}{button}</div>}</section>;
 }

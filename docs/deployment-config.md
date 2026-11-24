@@ -24,11 +24,15 @@
 > 内部地址与对外地址必须分开配：`ALSVID_STOREFRONT_ORIGIN` 走内网，浏览器访问不到；
 > `ALSVID_STOREFRONT_PUBLIC_ORIGIN` 是对外域名。混用会导致「预览打不开」或「刷新连不上」。
 
+**启动方式**：`npm start` 走 `secret-bootstrap.js`（先取运行时配置再拉起 `index.js`），
+这是唯一正确的生产方式 —— 直接用 `node index.js` 会绕过密钥加载，起不来或跑在缺配置状态。
+调试时若环境变量已备齐，可用 `npm run start:direct` 跳过 bootstrap，**不要用于部署**。
+
 ## 二、8091（Next.js 独立商城）
 
 | 变量 | 必填 | 说明 |
 |---|---|---|
-| `ALSVID_API_ORIGIN` | 是 | 服务端访问 8089 的内部地址。**生产缺失会返回 503 并提示变量名**，不再回退 localhost |
+| `ALSVID_API_ORIGIN` | 是 | 服务端访问 8089 的内部地址。**生产缺失时 `/api` 代理返回 503，页面渲染直接抛 `ApiConfigurationError`（不再降级成空白页）** |
 | `SITE_ORIGINS` | 是 | 浏览器访问本站的来源，逗号分隔。**决定会话 Cookie 是否加 `Secure`**，必须与真实协议一致 |
 | `ALSVID_REVALIDATE_TOKEN` | 是 | 与 8089 同值，校验刷新请求 |
 | `NODE_ENV` | 是 | `production` 时才启用「缺配置就报错」的行为 |

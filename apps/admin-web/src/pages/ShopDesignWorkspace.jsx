@@ -1,11 +1,13 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '../api.js';
-import { CatalogLayoutPanel, StandardDetailPanel, GlobalModulesPanel } from './ProductDesignPanels.jsx';
+import { CatalogLayoutPanel, StandardDetailPanel, GlobalModulesPanel, useCmsDocument } from './ProductDesignPanels.jsx';
 
 // 店铺装修工作区：页面 TAB + 工具条 + 左侧按版本模块操作 + 右侧全铺开真实预览。
 // 产品拆成 3 个同级页面：全部产品（列表页版式）、商品详情页（图文，按商品）、商品详情页（公共模块，全局）。
 const LOCALES = [['zh', '中文'], ['de', 'Deutsch'], ['en', 'English']];
 const PATH_ORDER = ['/', '/products', '/dealers', '/services', '/brand'];
+// 首页历史版本走 layout-draft 快照，和普通 CMS 页面共用同一套展示，但来源标签不同。
+const LAYOUT_VERSION_ORIGIN = { publish: '发布', rollback: '回滚', manual: '手动保存' };
 
 function fmt(value) {
   if (!value) return '—';
@@ -25,12 +27,15 @@ export default function ShopDesignWorkspace({ active = true, user, onSectionChan
   const [selected, setSelected] = useState('live');
   const [device, setDevice] = useState('desktop');
   const [versions, setVersions] = useState([]);
+  // 首页版本历史在 layout-draft 表里，不在 CMS 页面版本表里；编辑器里能看到但列表页一直空，原因就在这里。
+  const [layoutVersions, setLayoutVersions] = useState({ available: true, items: [], reason: '' });
   // 商品详情页装修：需要真实商品清单与在售映射（productId → slug），预览与左列商品列表共用。
   const [products, setProducts] = useState([]);
   const [publishedMap, setPublishedMap] = useState(() => new Map());
   const [designProductId, setDesignProductId] = useState('');
   const [productQuery, setProductQuery] = useState('');
   const [notice, setNotice] = useState('');
+  const [historyOpen, setHistoryOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [layoutLoaded, setLayoutLoaded] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -86,13 +91,39 @@ export default function ShopDesignWorkspace({ active = true, user, onSectionChan
     return current.rows.find(r => r.locale === locale) || null;
   }, [current, locale]);
 
-  // 切页面/语言时拉该页面的历史版本快照列表
+  // 公共模块的草稿状态提升到这里：保存 / 发布 / 发布记录要统一在顶部动作条上，
+  // 状态留在编辑面板内部父级拿不到 dirty，按钮就没法点亮。
+  // 只在公共模块页启用，别的页面不用白拉一次上百 KB 的 page 草稿。
+  const globalCms = useCmsDocument(row, current?.type === 'product_template' && subPage === 'global');
+
+  // 切页面/语言时拉该页面的历史版本快照列表。
+  // 首页走 storefront layout 版本表；其它 CMS 页面走 site_page_versions。
   useEffect(() => {
-    if (!row) { setVersions([]); return; }
+    if (!row) {
+      setVersions([]);
+      setLayoutVersions({ available: true, items: [], reason: '' });
+      return undefined;
+    }
     let alive = true;
-    api.cmsVersions(row.id).then(list => { if (alive) setVersions(Array.isArray(list) ? list : []); }).catch(() => { if (alive) setVersions([]); });
+    api.cmsVersions(row.id)
+      .then(list => { if (alive) setVersions(Array.isArray(list) ? list : []); })
+      .catch(() => { if (alive) setVersions([]); });
+    if (current?.path === '/') {
+      api.layoutVersions(50)
+        .then(result => {
+          if (!alive) return;
+          setLayoutVersions({
+            available: result?.available !== false,
+            items: Array.isArray(result?.items) ? result.items : [],
+            reason: result?.reason || '',
+          });
+        })
+        .catch(() => { if (alive) setLayoutVersions({ available: true, items: [], reason: '' }); });
+    } else {
+      setLayoutVersions({ available: true, items: [], reason: '' });
+    }
     return () => { alive = false; };
-  }, [row && row.id]);
+  }, [row && row.id, current?.path]);
 
   // 内容状态分层：线上 / 未发布草稿 / 历史版本（各自带可重命名的别名）
   const liveItem = useMemo(() => {
@@ -154,6 +185,37 @@ export default function ShopDesignWorkspace({ active = true, user, onSectionChan
     return base;
   }, [current, locale, selected, subPage, designProductId, publishedMap]);
 
+  // 点击模块目录 → 通知预览 iframe 滚动到该模块并高亮。
+  // iframe 可能正在加载（换语言/换商品会重载），所以点一下先记成「待定位」，
+  // 等 onLoad 触发后再补发，否则消息会打在还没注册监听器的页面上直接丢掉。
+  const frameRef = useRef(null);
+  const [focusModule, setFocusModule] = useState(null);
+  const pendingFocus = useRef(null);
+
+  const postFocus = useCallback(key => {
+    const win = frameRef.current?.contentWindow;
+    if (!win || !key) return;
+    win.postMessage({ type: 'alsvid:focus-module', key }, '*');
+  }, []);
+
+  useEffect(() => {
+    if (!focusModule) return undefined;
+    if (!focusModule.anchor) { pendingFocus.current = null; return undefined; }
+    pendingFocus.current = focusModule.key;
+    // 这里不清 pendingFocus：如果 iframe 正在重载，650ms 这次会打在旧页面上丢掉，
+    // 留给 onLoad 补发才有意义。
+    const timer = setTimeout(() => postFocus(focusModule.key), 650);
+    return () => clearTimeout(timer);
+  }, [focusModule, previewUrl, postFocus]);
+
+  // 预览页的商品数据是异步拉的，锚点比 onLoad 晚出现，所以补发几次而不是只发一次
+  const handleFrameLoad = () => {
+    const key = pendingFocus.current;
+    if (!key) return;
+    pendingFocus.current = null;
+    [350, 1200, 2400].forEach(ms => setTimeout(() => postFocus(key), ms));
+  };
+
   const status = useMemo(() => {
     if (!current) return { text: '—', tone: 'none' };
     if (current.path === '/') return layout?.publishedVersion ? { text: '线上版本正常', tone: 'live' } : { text: '尚未发布', tone: 'draft' };
@@ -199,6 +261,26 @@ export default function ShopDesignWorkspace({ active = true, user, onSectionChan
     if (!row) return;
     const list = await api.cmsVersions(row.id);
     setVersions(Array.isArray(list) ? list : []);
+  };
+
+  // 顶部动作条：公共模块的保存 / 发布（状态来自提升到本层的 useCmsDocument）
+  const doGlobalSave = async () => { if (await globalCms.save()) setNotice('公共模块草稿已保存'); };
+  const doGlobalPublish = async () => {
+    if (await globalCms.publish()) { setNotice('公共模块已发布，全部商品详情页生效'); await refreshPages(); }
+  };
+  // 发布记录里的「载入为草稿」：换草稿内容，不动线上，也不覆盖原始快照
+  const loadVersionAsDraft = async version => {
+    if (!row || busy) return;
+    if (!window.confirm(`以 v${version.version}（${fmt(version.createdAt)}）为基础生成新草稿？\n线上版本与原始历史快照都不受影响。`)) return;
+    setBusy(true);
+    try {
+      await api.restoreCmsVersionDraft(row.id, version.version, row.revision);
+      await refreshPages();
+      await globalCms.reload();
+      setHistoryOpen(false);
+      setNotice(`已载入 v${version.version} 为草稿，检查后重新发布`);
+    } catch (e) { window.alert(`载入失败：${e.message}`); }
+    finally { setBusy(false); }
   };
 
   // 基于历史版本重建草稿：不改线上、不覆盖原历史快照
@@ -301,11 +383,6 @@ export default function ShopDesignWorkspace({ active = true, user, onSectionChan
         <span className={'sdw__state is-' + status.tone}>{status.text}</span>
       </div>
       <div className="sdw__tools">
-        {current?.type === 'product_template' && <select className="sdw__vselect" aria-label="预览版本" value={selected} onChange={e => setSelected(e.target.value)}>
-          <option value="live">预览：线上版本</option>
-          {row?.hasDraft && <option value="draft">预览：未发布草稿</option>}
-          {historyItems.map(item => <option key={item.key} value={item.key}>预览：历史 {item.label || fmt(item.time)}</option>)}
-        </select>}
         <nav className="sdw__locales" role="tablist" aria-label="页面语言">
           {LOCALES.map(([code, label]) => <button key={code} type="button" role="tab" aria-selected={code === locale}
             className={'sdw__ltab' + (code === locale ? ' is-active' : '')}
@@ -319,6 +396,32 @@ export default function ShopDesignWorkspace({ active = true, user, onSectionChan
         </div>
       </div>
     </div>
+
+    {/* 公共模块专用动作条：保存 / 发布记录 / 发布都在顶部，左栏只留模块目录 */}
+    {isProduct && subPage === 'global' && <div className="sdw__actionbar">
+      <span className={'sdw__ab-status' + (globalCms.dirty ? ' is-dirty' : '')}>
+        {globalCms.dirty ? '有未保存修改' : (row?.publishedVersion ? `线上 v${row.publishedVersion}` : '尚未发布')}
+      </span>
+      {globalCms.error && <span className="error-text">{globalCms.error}</span>}
+      <div className="sdw__ab-actions">
+        <button type="button" className="btn small" disabled={!globalCms.dirty || globalCms.busy} onClick={doGlobalSave}>{globalCms.busy ? '处理中…' : '保存草稿'}</button>
+        <div className="sdw__hist">
+          <button type="button" className="btn small" aria-expanded={historyOpen} onClick={() => setHistoryOpen(open => !open)}>发布记录{versions.length ? ` (${versions.length})` : ''}</button>
+          {historyOpen && <div className="sdw__hist-menu">
+            <strong>历史发布版本</strong>
+            {!versions.length && <p className="sdw__tip">暂无发布记录，每次发布会自动留档。</p>}
+            {versions.map(version => <div className="sdw__hist-row" key={version.version}>
+              <span className="sdw__hist-main">
+                <b>v{version.version}</b>
+                <small>{fmt(version.createdAt)}{version.createdBy ? ` · ${version.createdBy}` : ''}</small>
+              </span>
+              <button type="button" className="btn small" disabled={busy} onClick={() => loadVersionAsDraft(version)}>载入为草稿</button>
+            </div>)}
+          </div>}
+        </div>
+        <button type="button" className="btn small primary" disabled={globalCms.busy} onClick={doGlobalPublish}>{globalCms.busy ? '发布中…' : '发布'}</button>
+      </div>
+    </div>}
 
     {notice && <p className="sdw__notice" role="status">{notice}<button type="button" aria-label="关闭提示" onClick={() => setNotice('')}>×</button></p>}
 
@@ -348,7 +451,7 @@ export default function ShopDesignWorkspace({ active = true, user, onSectionChan
           </>
           // 公共模块：左模块目录（01-08）+ 中当前模块编辑区 + 右预览
           : row
-            ? <GlobalModulesPanel row={row} products={products} productId={designProductId} onProductChange={id => { setDesignProductId(id); setSelected('live'); }} onPublished={refreshPages} notify={setNotice} onEditGraphic={() => setSubPage('graphic')}/>
+            ? <GlobalModulesPanel cms={globalCms} row={row} locale={locale} onEditGraphic={() => setSubPage('graphic')} onLocaleChange={code => { setLocale(code); setSelected('live'); }} onSelectModule={payload => setFocusModule({ ...payload, at: Date.now() })}/>
             : <aside className="sdw__panel"><p className="sdw__tip">该语言（{locale}）还没有产品页模板记录，无法装修公共模块。</p></aside>
         )
         // 其余页面：左侧版本列表 + 右侧预览
@@ -413,11 +516,29 @@ export default function ShopDesignWorkspace({ active = true, user, onSectionChan
         </>
       </aside>}
 
-      {/* 右侧：全铺开的真实页面预览 */}
+      {/* 右侧：官网实时预览（预览自己的工具条：看哪个商品、哪个版本） */}
       <section className="sdw__preview">
+        <div className="sdw__preview-head">
+          <span className="sdw__preview-title">官网实时预览</span>
+          <div className="sdw__preview-tools">
+            {isProduct && subPage !== 'list' && <select className="sdw__vselect" aria-label="预览商品" value={designProductId || ''} onChange={e => { setDesignProductId(e.target.value); setSelected('live'); }}>
+              {products.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+            </select>}
+            {current?.type === 'product_template' && <select className="sdw__vselect" aria-label="预览版本" value={selected} onChange={e => setSelected(e.target.value)}>
+              <option value="live">预览：线上版本</option>
+              {row?.hasDraft && <option value="draft">预览：未发布草稿</option>}
+              {historyItems.map(item => <option key={item.key} value={item.key}>预览：历史 {item.label || fmt(item.time)}</option>)}
+            </select>}
+          </div>
+        </div>
+        {focusModule && <p className={'sdw__focus' + (focusModule.anchor ? ' is-ok' : ' is-miss')}>
+          {focusModule.anchor
+            ? <>已定位到预览：<b>{focusModule.no} {focusModule.name}</b></>
+            : <><b>{focusModule.no} {focusModule.name}</b> 当前未启用或没有内容，官网预览里没有这个区块</>}
+        </p>}
         <div className={'sdw__frame' + (device === 'mobile' ? ' is-mobile' : '')}>
           {canPreview
-            ? <iframe title={`${current?.label || '页面'}预览`} src={previewUrl} />
+            ? <iframe ref={frameRef} onLoad={handleFrameLoad} title={`${current?.label || '页面'}预览`} src={previewUrl} />
             : <div className="sdw__noview">{current?.path === '/' ? '可视化装修草稿需进入编辑器查看' : '该版本暂无可预览内容'}</div>}
           {canPreview && previewFlag && <span className="sdw__flag">{previewFlag}</span>}
         </div>

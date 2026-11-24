@@ -1,4 +1,4 @@
-import { apiUrl as buildApiUrl, siteUrl as canonicalSiteUrl } from './origins';
+import { apiUrl as buildApiUrl, isApiConfigurationError, siteUrl as canonicalSiteUrl } from './origins';
 
 export type Locale = 'de' | 'en' | 'zh';
 
@@ -21,7 +21,17 @@ export type CatalogProduct = {
 };
 
 // 商品详情页 8 模块中的全局模块配置（②营销 ③④预留 ⑥评价开关 ⑦退换货 ⑧其他）。
-export type ProductModuleBanner = { enabled: boolean; imageId: string; href: string; text: string };
+export type ProductModuleBanner = {
+  enabled: boolean;
+  style: 'banner' | 'imageText' | 'promoBar';
+  imageId: string;
+  title: string;
+  description: string;
+  buttonText: string;
+  href: string;
+  text: string;
+  theme: { background: 'none' | 'soft' | 'dark'; spacing: 'compact' | 'normal' | 'loose'; imageRatio: 'wide' | 'square' | 'auto'; buttonStyle: 'solid' | 'outline' | 'text' };
+};
 export type ProductModuleCopy = { enabled: boolean; title: string; body: string };
 export type ProductTemplateModules = {
   marketing: ProductModuleBanner;
@@ -46,6 +56,22 @@ function apiUrl(path: string) {
   return buildApiUrl(path);
 }
 
+/** 解析后端 URL，并区分两类失败。
+ *
+ * 下面的 getJson* 原本用一个大 try 包住「拼地址 + 发请求」，于是连
+ * 「生产环境没配 ALSVID_API_ORIGIN」这种部署错误也被吞成 null，
+ * 表现是整站渲染成空白页、日志里却一片安静。现在把拼地址单独拆出来：
+ * 配置错误向上抛，其余错误（网络、超时、5xx）仍然降级成空数据。
+ */
+function resolveUrl(path: string): URL | null {
+  try {
+    return apiUrl(path);
+  } catch (error) {
+    if (isApiConfigurationError(error)) throw error;
+    return null;
+  }
+}
+
 /** 浏览器渲染用的媒体地址：保持同源相对路径。
  *
  * 关键：8091 有 /api/* 同域代理（route.ts 白名单已覆盖商品图与 cms-media），
@@ -66,8 +92,10 @@ export function absoluteApiUrl(path: string) {
 }
 
 async function getJson<T>(path: string): Promise<T | null> {
+  const url = resolveUrl(path);
+  if (!url) return null;
   try {
-    const response = await fetch(apiUrl(path), { next: { revalidate: 60 } });
+    const response = await fetch(url, { next: { revalidate: 60 } });
     if (!response.ok) return null;
     return await response.json() as T;
   } catch {
@@ -76,8 +104,10 @@ async function getJson<T>(path: string): Promise<T | null> {
 }
 
 async function getJsonLive<T>(path: string): Promise<T | null> {
+  const url = resolveUrl(path);
+  if (!url) return null;
   try {
-    const response = await fetch(apiUrl(path), { cache: 'no-store' });
+    const response = await fetch(url, { cache: 'no-store' });
     if (!response.ok) return null;
     return await response.json() as T;
   } catch {
@@ -117,10 +147,12 @@ export type StorefrontLayout = { html: string; css: string; version: number | nu
 export const LAYOUT_CACHE_TAG = 'storefront-layout';
 
 async function getJsonTagged<T>(path: string, tag: string): Promise<T | null> {
+  const url = resolveUrl(path);
+  if (!url) return null;
   try {
     // revalidate 只作为兜底（1 小时）；真正的失效靠 /api/revalidate 主动触发，
     // 这样「后台点发布 → 前台立刻新」，不必等 TTL。
-    const response = await fetch(apiUrl(path), { next: { tags: [tag], revalidate: 3600 } });
+    const response = await fetch(url, { next: { tags: [tag], revalidate: 3600 } });
     if (!response.ok) return null;
     return await response.json() as T;
   } catch {
@@ -136,11 +168,10 @@ export async function getPublishedLayout(locale: Locale) {
 // 令牌由 8091 的 /api/preview 存进 HttpOnly Cookie，页面渲染时取出这里用。
 // 绝不缓存、绝不透出给客户端脚本。
 export async function getPreviewLayout(locale: Locale, token: string) {
+  const url = resolveUrl(`/api/public/layout-preview?locale=${locale}&token=${encodeURIComponent(token)}`);
+  if (!url) return null;
   try {
-    const response = await fetch(
-      apiUrl(`/api/public/layout-preview?locale=${locale}&token=${encodeURIComponent(token)}`),
-      { cache: 'no-store' },
-    );
+    const response = await fetch(url, { cache: 'no-store' });
     if (!response.ok) return null;
     return await response.json() as StorefrontLayout;
   } catch {

@@ -5,14 +5,14 @@ import 'grapesjs/dist/css/grapes.min.css';
 import { api } from '../api.js';
 import StorefrontLayoutVersions from './StorefrontLayoutVersions.jsx';
 import './storefront-builder.css';
-import { LAYOUT_LANGS, canvasStrings, translateHtml, localeDocument, coverageOf, nameLayers, findBlocks, migrateLegacyTranslations, translationValue, entryStatus } from '../storefront-i18n.js';
+import { LAYOUT_LANGS, canvasStrings, translateHtml, localeDocument, coverageOf, nameLayers, migrateLegacyTranslations, translationValue, entryStatus } from '../storefront-i18n.js';
 
 
 const INITIAL_HTML = `<main class="alsvid-storefront">
   <header class="storefront-nav"><a class="brand" href="/"><img src="/alsvid-logo.png" alt="ALSVID" style="display:block;width:140px;height:30px;object-fit:cover"></a><nav>整车　车型　配件　品牌故事</nav><span>购物袋</span></header>
   <section class="hero" data-alsvid-block="hero"><div class="hero-copy"><p class="eyebrow">ALSVID ELECTRIC MOBILITY</p><h1>为每一段旅程<br>重新定义自由。</h1><p class="hero-subtitle">轻量设计，城市灵感，开启属于你的骑行方式。</p><a class="button" href="/www/zh/products">探索整车　→</a></div><div class="hero-visual"><div class="bike-placeholder">双击此处，替换为整车主视觉图片</div><span class="visual-note">首页主视觉 · 可自由替换</span></div><span class="hero-index">01 / 04</span></section>
   <section class="intro"><p class="eyebrow">CHOOSE YOUR RIDE</p><h2>找到适合你的骑行方式</h2><p>拖动左侧模块，自由组合商城首页。当前是独立预览，不会修改正式官网。</p></section>
-  <section class="model-grid" data-alsvid-block="product-grid"><article class="model-card"><div class="product-image">插入已发布商品模块</div><p class="eyebrow">FOLDING SERIES</p><h3>商品展示</h3><p>使用上方“插入商品模块”绑定 V2 已发布商品</p></article><article class="model-card"><div class="product-image product-image-alt">插入已发布商品模块</div><p class="eyebrow">CITY SERIES</p><h3>商品展示</h3><p>可拖动、复制、删除并调整样式</p></article><article class="model-card"><div class="product-image product-image-third">插入已发布商品模块</div><p class="eyebrow">TOURING SERIES</p><h3>商品展示</h3><p>正式商城和订单功能独立管理</p></article></section>
+  <section class="model-grid" data-alsvid-block="product-grid"><article class="model-card"><div class="product-image">插入已发布商品模块</div><p class="eyebrow">FOLDING SERIES</p><h3>商品展示</h3><p>商品发布到官网后，这里会自动显示真实商品</p></article><article class="model-card"><div class="product-image product-image-alt">插入已发布商品模块</div><p class="eyebrow">CITY SERIES</p><h3>商品展示</h3><p>可拖动、复制、删除并调整样式</p></article><article class="model-card"><div class="product-image product-image-third">插入已发布商品模块</div><p class="eyebrow">TOURING SERIES</p><h3>商品展示</h3><p>正式商城和订单功能独立管理</p></article></section>
   <section class="editorial" data-alsvid-block="image-text"><div><p class="eyebrow">MADE FOR YOUR EVERYDAY</p><h2>把日常骑行<br>变成喜欢的生活。</h2><p>在这里编辑品牌故事、产品优势和骑行场景。图片、文字、布局与按钮都可以调整。</p><a class="text-link" href="#">了解 ALSVID　→</a></div><div class="editorial-image">品牌故事图片区域</div></section>
   <section class="service-row" data-alsvid-block="service"><div><strong>01</strong><h3>欧洲配送</h3><p>配置真实的配送范围与时效。</p></div><div><strong>02</strong><h3>质保支持</h3><p>展示经过确认的质保政策。</p></div><div><strong>03</strong><h3>售后与配件</h3><p>让客户快速找到服务支持。</p></div></section>
   <footer class="storefront-footer"><a class="brand" href="/"><img src="/alsvid-logo.png" alt="ALSVID" style="display:block;width:140px;height:30px;object-fit:cover"></a><p>骑行自由，从这里开始。</p><span>帮助中心　配送政策　退货政策　联系我们</span></footer>
@@ -137,14 +137,6 @@ function homepageWith(items) {
   if (!items.length) return INITIAL_HTML;
   return INITIAL_HTML.replace(/<section class="model-grid"[\s\S]*?<\/section>/, gridSection(items));
 }
-function productBlock(product, lang) {
-  const title = product.titles[lang] || product.titles.zh || product.titles.en || product.titles.de || 'ALSVID';
-  const image = product.images[lang] || product.images.zh || product.images.en || product.images.de || '';
-  const href = '/www/' + encodeURIComponent(lang) + '/products/' + encodeURIComponent(product.slug);
-  return '<article class="model-card" data-alsvid-product-id="' + escapeHtml(product.id) + '"><a class="text-link" href="' + escapeHtml(href) + '">' +
-    (image ? '<div class="product-image"><img src="' + escapeHtml(image) + '" alt="' + escapeHtml(title) + '" style="width:100%;height:100%;object-fit:contain"></div>' : '<div class="product-image">暂无商品图片</div>') +
-    '<p class="eyebrow">' + escapeHtml(product.model || product.kind) + '</p><h3>' + escapeHtml(title) + '</h3><span>查看详情 →</span></a></article>';
-}
 
 export default function StorefrontBuilderAdmin({ active = true, user, onDirtyChange, onClose }) {
   const canvasRef = useRef(null), blocksRef = useRef(null), layersRef = useRef(null), stylesRef = useRef(null), fileRef = useRef(null), i18nFileRef = useRef(null), editorRef = useRef(null);
@@ -164,10 +156,10 @@ export default function StorefrontBuilderAdmin({ active = true, user, onDirtyCha
   const [lang, setLang] = useState('zh'), [i18nLang, setI18nLang] = useState('en');
   const [translations, setTranslations] = useState({ en: {}, de: {} });
   const [strings, setStrings] = useState([]), [langDoc, setLangDoc] = useState(''), [selectedInfo, setSelectedInfo] = useState('');
-  const [products, setProducts] = useState([]), [productState, setProductState] = useState('loading'), [productError, setProductError] = useState('');
-  const [productReload, setProductReload] = useState(0);
-  const [selectedProductId, setSelectedProductId] = useState(''), [productLocale, setProductLocale] = useState('de');
-  const [mediaAssets, setMediaAssets] = useState([]), [selectedAssetId, setSelectedAssetId] = useState('');
+  // 已发布商品（含三语标题/主图）：仅用于「云端无草稿时自动生成首页」的数据源
+  const [products, setProducts] = useState([]);
+  // 自动生成首页时取德语标题/主图（站点默认语言）；生成后运营可在编辑器里逐处改
+  const productLocale = 'de';
   // 各语言各自的线上状态（中文/英文/德文分别上线），null 表示还没读到
   const [localeStatus, setLocaleStatus] = useState(null);
 
@@ -180,13 +172,6 @@ export default function StorefrontBuilderAdmin({ active = true, user, onDirtyCha
       setRegistry((rows || []).filter(row => row.status !== '停用'));
       setRegistryState('ready');
     }).catch(() => { if (!cancelled) setRegistryState('error'); });
-    return () => { cancelled = true; };
-  }, [active, user?.role]);
-
-  useEffect(() => {
-    if (!active || user?.role !== 'admin') return undefined;
-    let cancelled = false;
-    api.assetsAll({ category: 'page', kind: 'image' }).then(rows => { if (!cancelled) setMediaAssets(rows || []); }).catch(() => {});
     return () => { cancelled = true; };
   }, [active, user?.role]);
 
@@ -206,12 +191,13 @@ export default function StorefrontBuilderAdmin({ active = true, user, onDirtyCha
         if (item.images?.[0]?.url) current.images[lang] = item.images[0].url;
         merged.set(item.productId, current);
       }
-      if (!controller.signal.aborted) { setProducts(Array.from(merged.values())); setProductState('ready'); }
-    }).catch(reason => {
-      if (!controller.signal.aborted) { setProducts([]); setProductError(reason.message || '商品目录读取失败'); setProductState('error'); }
+      if (!controller.signal.aborted) setProducts(Array.from(merged.values()));
+    }).catch(() => {
+      // 读不到已发布商品时保持空数组：自动生成首页会回退到产品主档，不必打断装修
+      if (!controller.signal.aborted) setProducts([]);
     });
     return () => controller.abort();
-  }, [active, user?.role, productReload]);
+  }, [active, user?.role]);
 
   useEffect(() => {
     if (user?.role !== 'admin' || !canvasRef.current || !blocksRef.current || !layersRef.current || !stylesRef.current) return undefined;
@@ -253,7 +239,7 @@ export default function StorefrontBuilderAdmin({ active = true, user, onDirtyCha
       if (disposed) return;
       const draft = result.data;
       if (draft) { importedRef.current = applyDraftToEditor(editor, draft); ensureMotionCss(editor); setMotionEffects(motionIds(editor)); nameLayers(editor); setVersion(draft.version); setPublishedVersion(draft.publishedVersion || null); setPublishedAt(draft.publishedAt || ''); const adopted = adoptTranslations(editor, draft.translations); setDirty(adopted.migrated > 0); setNotice((isImportedLayout(draft.project) ? '已读取导入版式草稿（以 HTML/CSS 为准，可直接可视化编辑）。' : '已读取 V2 云端商城装修草稿。') + (adopted.migrated ? ' 已把 ' + adopted.migrated + ' 条旧格式译文升级为内容 ID 格式（原文未变，译文照常生效），请保存草稿固化。' : '')); }
-      else { setVersion(0); setPublishedVersion(null); setNotice('V2 云端尚无装修草稿；可直接「用商品生成首页」再发布。'); }
+      else { setVersion(0); setPublishedVersion(null); setNotice('V2 云端尚无装修草稿；已按现有商品自动生成一版首页，确认后点「发布到官网首页」。'); }
       initialLoadComplete = true;
       setReady(true);
     }).catch(reason => {
@@ -679,38 +665,6 @@ export default function StorefrontBuilderAdmin({ active = true, user, onDirtyCha
     setNotice('云端尚无装修草稿：已按 ' + shopItems.length + ' 个商品反向生成首页草稿，确认后点「发布到官网首页」。');
   }, [ready, version, dirty, registryState, products.length, registry.length, productLocale]);
 
-  const rebuildProductGrid = () => {
-    const editor = editorRef.current;
-    if (!ready || !editor || preview) return;
-    if (!shopItems.length) { setNotice('没有可用商品：请先在「产品」模块建档，或在商品列表发布到官网。'); return; }
-    const existing = findBlocks(editor, 'product-grid');
-    if (existing.length) { existing[0].replaceWith(gridSection(shopItems)); for (const extra of existing.slice(1)) extra.remove(); }
-    else editor.addComponents(gridSection(shopItems));
-    refreshLayers();
-    setDirty(true);
-    setNotice('已用 ' + shopItems.length + ' 个' + (products.length ? '已发布商品' : '商品主档') + '重建首页商品区；保存并发布后访客可见。');
-  };
-  const generateHomepage = () => {
-    const editor = editorRef.current;
-    if (!ready || !editor) return;
-    if (dirty && !window.confirm('用商品重新生成整页会覆盖当前未保存的编辑，确定继续？')) return;
-    importedRef.current = false; editor.setComponents(homepageWith(shopItems));
-    editor.setStyle(INITIAL_CSS);
-    refreshLayers();
-    setDirty(true);
-    setNotice(shopItems.length ? '已按 ' + shopItems.length + ' 个商品生成完整首页（含主视觉、商品区、服务保障）；请保存并发布。' : '没有可用商品，已恢复示例首页。');
-  };
-  const insertProduct = () => {
-    const product = products.find(item => item.id === selectedProductId), editor = editorRef.current;
-    if (!ready || !editor || preview || !product) { setNotice('请选择已发布商品后再插入。'); return; }
-    editor.addComponents(productBlock(product, productLocale)); setDirty(true); setNotice('已插入真实商品模块，并保留 V2 商品 ID 关联；当前仍是草稿。');
-  };
-  const insertAsset = () => {
-    const asset = mediaAssets.find(item => item.id === selectedAssetId), editor = editorRef.current;
-    if (!ready || !editor || preview || !asset) { setNotice('请选择素材库中的页面素材后再插入。'); return; }
-    editor.addComponents('<div style="padding:24px 8%;text-align:center;"><img src="' + escapeHtml(api.assetUrl(asset.id)) + '" alt="' + escapeHtml(asset.label || asset.fileName || 'ALSVID') + '" style="max-width:100%;height:auto;display:inline-block;"></div>');
-    setDirty(true); setNotice('已插入素材库图片；保存草稿后保留对素材的引用。');
-  };
   // 在新站（8091）里预览草稿：走 Draft Mode，看到的是真实商城的渲染结果，
   // 而不是把编辑器 HTML 塞进空白页 —— 后者无法反映语言快照、商品卡片注入与 CSS 作用域。
   // 必须先在点击栈里开窗，再异步换地址，否则会被拦弹窗。
@@ -954,38 +908,6 @@ export default function StorefrontBuilderAdmin({ active = true, user, onDirtyCha
         }}
       />
     </div>}
-    <details className="storefront-editor__tools">
-      <summary><strong>生成与素材工具</strong><span>用商品生成首页 · 插入商品模块 · 插入素材图片</span></summary>
-      <div className="storefront-editor__toolsgrid">
-        <section className="storefront-editor__tool">
-          <div className="storefront-editor__toolhead"><strong>用商品反向生成首页</strong><p>{products.length ? '数据源：官网已发布商品 ' + products.length + ' 个。' : '数据源：产品主档 ' + registry.length + ' 个（官网尚未发布商品，卡片会标注「待发布到官网」）。'}</p></div>
-          <div className="storefront-editor__toolrow">
-            <button className="btn primary" type="button" onClick={generateHomepage} disabled={!ready || preview || registryState === 'loading'}>用商品生成首页</button>
-            <button className="btn" type="button" onClick={rebuildProductGrid} disabled={!ready || preview || (!products.length && !registry.length)}>只重建商品区</button>
-            <button className="btn" type="button" onClick={async () => { const next = await api.publishedLayout().catch(() => null); setNotice(next ? '官网首页已发布版本 v' + next.version + '，可直接打开 /www/zh 查看。' : '官网首页暂无已发布装修方案。'); }} disabled={!ready}>检查线上效果</button>
-          </div>
-        </section>
-        <section className="storefront-editor__tool">
-          <div className="storefront-editor__toolhead"><strong>插入 V2 已发布商品</strong><p>商品使用 V2 商品 ID；不生成价格、库存或订单。</p></div>
-          <div className="storefront-editor__toolrow">
-            <label>商品<select value={selectedProductId} onChange={event => setSelectedProductId(event.target.value)} disabled={productState !== 'ready'}><option value="">选择商品</option>{products.map(product => <option key={product.id} value={product.id}>{product.titles.zh || product.titles.en || product.titles.de} · {product.model || product.id}</option>)}</select></label>
-            <label>语言<select value={productLocale} onChange={event => setProductLocale(event.target.value)}><option value="de">德语</option><option value="en">英语</option><option value="zh">中文</option></select></label>
-          </div>
-          <div className="storefront-editor__toolrow">
-            <button className="btn primary" type="button" onClick={insertProduct} disabled={!ready || preview || productState !== 'ready' || !selectedProductId}>插入商品模块</button>
-            <button className="btn" type="button" disabled={productState === 'loading'} onClick={() => { setProductState('loading'); setProductError(''); setProductReload(value => value + 1); }}>刷新商品</button>
-          </div>
-          {productState === 'error' && <p className="error-text" role="alert">商品目录读取失败：{productError}</p>}
-        </section>
-        <section className="storefront-editor__tool">
-          <div className="storefront-editor__toolhead"><strong>插入素材库图片</strong><p>引用统一素材库的页面素材，不重复上传。</p></div>
-          <div className="storefront-editor__toolrow">
-            <label>素材<select value={selectedAssetId} onChange={event => setSelectedAssetId(event.target.value)}><option value="">选择图片</option>{mediaAssets.map(asset => <option key={asset.id} value={asset.id}>{asset.label || asset.fileName || asset.id}</option>)}</select></label>
-            <button className="btn" type="button" onClick={insertAsset} disabled={!ready || preview || !selectedAssetId}>插入图片</button>
-          </div>
-        </section>
-      </div>
-    </details>
     <div className="storefront-editor__toolbar"><div className="storefront-editor__toolgroup"><button className="btn" type="button" onClick={() => editorRef.current?.runCommand('core:undo')} disabled={!ready}>撤销</button><button className="btn" type="button" onClick={() => editorRef.current?.runCommand('core:redo')} disabled={!ready}>重做</button><span className="hint" /></div><div className="storefront-editor__toolgroup storefront-editor__langbar" role="group" aria-label="编辑语言">{[...LAYOUT_LANGS].map(([code, label]) => <button className={'btn' + (lang === code ? ' primary' : '')} type="button" key={code} disabled={!ready} onClick={() => switchLang(code)}>{code === 'zh' ? label + '（编辑）' : label}</button>)}<span className="hint" /></div><div className="storefront-editor__toolgroup">{['桌面端', '平板端', '手机端'].map(name => <button className={'btn' + (device === name ? ' primary' : '')} type="button" key={name} disabled={!ready} onClick={() => { editorRef.current?.setDevice(name); setDevice(name);  }}>{name}</button>)}<button className="btn" type="button" onClick={openPreview} disabled={!ready}>预览页面</button></div></div>
     <div className="storefront-editor__layout">
       <aside className="storefront-editor__left"><div className="storefront-editor__panelhead"><strong>页面结构</strong><span>拖拽添加</span></div><div className="storefront-editor__tabs"><button className={leftTab === 'blocks' ? 'active' : ''} type="button" onClick={() => setLeftTab('blocks')}>模块库</button><button className={leftTab === 'layers' ? 'active' : ''} type="button" onClick={() => setLeftTab('layers')}>图层</button><button className={leftTab === 'motion' ? 'active' : ''} type="button" onClick={() => setLeftTab('motion')}>交互动效</button><button className={leftTab === 'i18n' ? 'active' : ''} type="button" onClick={() => setLeftTab('i18n')}>翻译</button></div>

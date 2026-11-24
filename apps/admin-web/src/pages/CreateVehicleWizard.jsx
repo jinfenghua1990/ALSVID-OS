@@ -285,6 +285,14 @@ export default function CreateVehicleWizard({meta,onBack,onCreated,workspaceKey,
       return;
     }
     setInvalid({});
+    // SEO 商品 ID 会直接变成商城 URL（/de/e-bikes/{id}）：格式不合规就不让保存，
+    // 否则服务端拒绝、或者带着空格/大写进库，都会让前台链接打不开。
+    const seoId=seoProductIdOf(draft);
+    if(seoId&&!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(seoId)){
+      setError('SEO 商品 ID 只能包含小写字母、数字和单个短横线，且不能以短横线开头或结尾（示例：carbon-e-bike-klapprad-a1）');
+      onNotify?.('保存失败：SEO 商品 ID 格式不合规',true);
+      return;
+    }
     const enabledColors=new Set((colors||[]).map(c=>c.code));
     const badColor=draft.skus.find(s=>!enabledColors.has(s.color));
     if(badColor){notify(`保存失败：颜色 ${badColor.color} 不是已启用的外观颜色，请在第 3 步重新选择`,true);setTab('basic');return}
@@ -392,6 +400,11 @@ export default function CreateVehicleWizard({meta,onBack,onCreated,workspaceKey,
   const labelSku=draft.skus[0];
   const labelColor=labelSku?colorOf(labelSku.color):null;
   const labelCode=labelSku?buildVehicleSku(draft.model,labelSku.spec,labelSku.color,labelSku.region||draft.skuRegionSelection||'EUR'):'';
+  // SEO 商品 ID 的建议只在「与当前值不同」时提示。
+  // 已经采用建议或手填成同一值时，再挂一个「采用建议」按钮没有任何信息量，
+  // 只会让人误点（点完看起来也没变化，反而怀疑没保存），因此直接不显示。
+  const seoSuggestion=seoSuggestionOf(draft);
+  const seoPending=seoSuggestion&&seoSuggestion!==seoProductIdOf(draft)?seoSuggestion:'';
 
   // 第三方链接模板：按当前产品替换占位符，打开的就是「对应产品」的工厂资料页。
   const linkValues={model:draft.model,name:draft.name,sku:labelCode,id:productId||draft.id||''};
@@ -508,13 +521,14 @@ export default function CreateVehicleWizard({meta,onBack,onCreated,workspaceKey,
       <aside className="wizard-side">
         <div className="card side-card">
           <div className="card-title">SEO 商品 ID</div>
+          <div className="hint" style={{marginBottom:8}}>该 ID 就是商城商品地址（/de/e-bikes/…），也是前台唯一的商品入口；保存后自动同步到各渠道商品链接。</div>
           <div className="table-scroll">
             <table className="table">
               <thead><tr><th>市场</th><th>SEO 商品 ID</th><th>操作</th></tr></thead>
               <tbody><tr>
                 <td>德国<br/><small>de-DE</small></td>
-                <td><input className="mono" aria-label="德国市场 SEO 商品 ID" value={seoProductIdOf(draft)} placeholder="输入 SEO 商品 ID" style={{width:'100%'}} onChange={e=>setDraft(d=>({...d,specs:{...d.specs,_seoProductId:e.target.value.toLowerCase()}}))}/>{seoSuggestionOf(draft)&&<div className="hint" style={{overflowWrap:'anywhere'}}>建议：{seoSuggestionOf(draft)}</div>}</td>
-                <td>{seoSuggestionOf(draft)?<button type="button" className="btn" title={seoSuggestionOf(draft)} onClick={()=>setDraft(d=>({...d,specs:{...d.specs,_seoProductId:seoSuggestionOf(d)}}))}>采用建议</button>:'—'}</td>
+                <td><input className="mono" aria-label="德国市场 SEO 商品 ID" value={seoProductIdOf(draft)} placeholder="输入 SEO 商品 ID" style={{width:'100%'}} onChange={e=>setDraft(d=>({...d,specs:{...d.specs,_seoProductId:e.target.value.toLowerCase()}}))}/>{seoPending&&<div className="hint" style={{overflowWrap:'anywhere'}}>建议：{seoPending}</div>}</td>
+                <td>{seoPending?<button type="button" className="btn" title={seoPending} onClick={()=>setDraft(d=>({...d,specs:{...d.specs,_seoProductId:seoPending}}))}>采用建议</button>:'—'}</td>
               </tr></tbody>
             </table>
           </div>

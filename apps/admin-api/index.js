@@ -667,7 +667,7 @@ app.post('/api/products/complete', async (req,reply)=>{
   try{
     for(const img of images){if(!/^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(img.id||'')||!/^image\/(jpeg|png|webp|avif)$/.test(img.contentType||'')||typeof img.data!=='string'||!/^[A-Za-z0-9+/]*={0,2}$/.test(img.data))throw Error('图片格式无效');const bytes=Buffer.from(img.data,'base64');total+=bytes.length;if(!bytes.length||bytes.length>10*1024*1024||total>20*1024*1024)throw Error('图片单张不能超过 10 MB，总计不能超过 20 MB');const m={id:img.id,key:`products/${b.id}/${img.id}`,contentType:img.contentType,label:String(img.label||'').slice(0,200)};await objectStorage.put({...m,body:bytes});uploaded.push(m.key);media.push(m);}
     const result=await completeProducts.create(b,media);return reply.code(201).send(result);
-  }catch(e){logServerError('PRODUCT_COMPLETE_SAVE_FAILED',{productId:b.id,kind:b.kind,model:b.model,message:String(e&&e.message||'').slice(0,500),stack:String(e&&e.stack||'').slice(0,1200)});let committed=true;try{committed=await completeProducts.exists(b.id)}catch(_){}if(!committed)await Promise.allSettled(uploaded.map(key=>objectStorage.remove(key)));const known=['图片格式无效','图片单张不能超过 10 MB，总计不能超过 20 MB','SKU 规格或颜色编码无效','SKU 配置版本、颜色或法规编码无效','SKU 配置版本或颜色编码无效','整车 SKU 必须为 14/15 位编码','历史 SKU 价格格式无效','整车档案状态无效','商城资料请在商城运营中维护','历史商城资料格式无效','产品型号或归属编码无效','请填写产品必填参数','产品参数格式无效','产品参数选项无效','产品参数必须为数字','整车不支持配件适配','适配整车不存在','适配整车编号无效','适配整车不存在或编号不匹配','请填写 BOM 版本','BOM 物料层级引用无效','BOM 物料层级存在循环','BOM 物料、图纸编号和数量必填','BOM 配件 SKU 不存在','BOM 图纸标记无效','SKU 已被业务资料引用，无法替换删除'];return reply.code(e.code==='23505'||e.code==='ENTITY_REFERENCED'?409:400).send({error:e.code==='23505'?'产品或 SKU 已存在':known.includes(e.message)||/^欧盟 EN 15194 合规校验未通过/.test(e.message)||/^该车型代际下的配置版本已被其他车型占用/.test(e.message)?e.message:'保存失败，请检查网络和输入后重试',...(e.code==='ENTITY_REFERENCED'?{code:e.code,references:e.references}: {})});}
+  }catch(e){logServerError('PRODUCT_COMPLETE_SAVE_FAILED',{productId:b.id,kind:b.kind,model:b.model,message:String(e&&e.message||'').slice(0,500),stack:String(e&&e.stack||'').slice(0,1200)});let committed=true;try{committed=await completeProducts.exists(b.id)}catch(_){}if(!committed)await Promise.allSettled(uploaded.map(key=>objectStorage.remove(key)));const known=['图片格式无效','图片单张不能超过 10 MB，总计不能超过 20 MB','SKU 规格或颜色编码无效','SKU 配置版本、颜色或法规编码无效','SKU 配置版本或颜色编码无效','整车 SKU 必须为 14/15 位编码','历史 SKU 价格格式无效','整车档案状态无效','商城资料请在商城运营中维护','历史商城资料格式无效','产品型号或归属编码无效','请填写产品必填参数','产品参数格式无效','产品参数选项无效','产品参数必须为数字','整车不支持配件适配','适配整车不存在','适配整车编号无效','适配整车不存在或编号不匹配','请填写 BOM 版本','BOM 物料层级引用无效','BOM 物料层级存在循环','BOM 物料、图纸编号和数量必填','BOM 配件 SKU 不存在','BOM 图纸标记无效','SKU 已被业务资料引用，无法替换删除'];return reply.code(e.code==='23505'||e.code==='ENTITY_REFERENCED'?409:400).send({error:e.code==='23505'?'产品或 SKU 已存在':known.includes(e.message)||/^欧盟 EN 15194 合规校验未通过/.test(e.message)||/^该车型代际下的配置版本已被其他车型占用/.test(e.message)||/^SEO 商品 ID/.test(e.message)?e.message:'保存失败，请检查网络和输入后重试',...(e.code==='ENTITY_REFERENCED'?{code:e.code,references:e.references}: {})});}
 });
 
 app.post('/api/products', async (req, reply) => {
@@ -679,7 +679,7 @@ app.post('/api/products', async (req, reply) => {
   if (tpl.kind !== b.kind) { reply.code(400).send({ error: '产品类型与业务类型不匹配' }); return; }
   const ownership = b.ownership || (b.kind === 'vehicle' ? (b.model || '').toUpperCase() : 'UN');
   if ((b.kind==='vehicle'&&(b.productType!=='EBI'))||!validProductSkuBase(b.kind,ownership,b.productType,b.model,store.TEMPLATES,store.OWNERSHIP)) return reply.code(400).send({error:'产品型号或归属编码无效'});
-  if (pgProducts) { try { const product = await pgProducts.create({ ...b, ownership: b.ownership || (b.kind === 'vehicle' ? (b.model || '').toUpperCase() : 'UN') }); reply.code(201).send(product); } catch (e) { const known=['请填写产品必填参数','产品参数格式无效','产品参数选项无效','产品参数必须为数字'];reply.code(400).send({ error: known.includes(e.message)||/^欧盟 EN 15194 合规校验未通过/.test(e.message)||/^该车型代际下的配置版本已被其他车型占用/.test(e.message)?e.message:'产品写入失败，请检查品类、归属和字段' }); } return; }
+  if (pgProducts) { try { const product = await pgProducts.create({ ...b, ownership: b.ownership || (b.kind === 'vehicle' ? (b.model || '').toUpperCase() : 'UN') }); reply.code(201).send(product); } catch (e) { const known=['请填写产品必填参数','产品参数格式无效','产品参数选项无效','产品参数必须为数字'];reply.code(400).send({ error: known.includes(e.message)||/^欧盟 EN 15194 合规校验未通过/.test(e.message)||/^该车型代际下的配置版本已被其他车型占用/.test(e.message)||/^SEO 商品 ID/.test(e.message)?e.message:'产品写入失败，请检查品类、归属和字段' }); } return; }
   const p = {
     id: 'p-' + (++db.counters.product) + '-' + Date.now().toString(36),
     kind: b.kind,
@@ -732,7 +732,7 @@ app.post('/api/products/:id/versions', async (req,reply) => {
 });
 
 app.route({ method: ['PUT', 'PATCH'], url: '/api/products/:id', handler: async (req, reply) => {
-  if (pgProducts) { try { return reply.send(await pgProducts.update(req.params.id, req.body || {})); } catch (e) { return reply.code(e.code === 'VERSION_CONFLICT' || e.code === 'PRODUCT_DELETED' ? 409 : e.message === '产品不存在' ? 404 : 400).send({ error: ['产品不存在','产品型号或归属编码无效','请填写产品必填参数','产品参数格式无效','产品参数选项无效','产品参数必须为数字','已存在 SKU 的产品不能修改归属、型号或品类','已建立业务关联的产品不能修改车型代号','适配整车编号无效','请选择适配整车','适配整车不存在','车型对应多辆整车，请明确选择整车产品','适配整车重复','只有零配件可以设置车型适配','已删除商品请先恢复，再编辑'].includes(e.message) || e.code === 'VERSION_CONFLICT' ? e.message : '产品更新失败' }); } }
+  if (pgProducts) { try { return reply.send(await pgProducts.update(req.params.id, req.body || {})); } catch (e) { return reply.code(e.code === 'VERSION_CONFLICT' || e.code === 'PRODUCT_DELETED' ? 409 : e.message === '产品不存在' ? 404 : 400).send({ error: ['产品不存在','产品型号或归属编码无效','请填写产品必填参数','产品参数格式无效','产品参数选项无效','产品参数必须为数字','已存在 SKU 的产品不能修改归属、型号或品类','已建立业务关联的产品不能修改车型代号','适配整车编号无效','请选择适配整车','适配整车不存在','车型对应多辆整车，请明确选择整车产品','适配整车重复','只有零配件可以设置车型适配','已删除商品请先恢复，再编辑'].includes(e.message) || e.code === 'VERSION_CONFLICT' || /^SEO 商品 ID/.test(e.message || '') ? e.message : '产品更新失败' }); } }
   const p = db.products.find(x => x.id === req.params.id);
   if (!p) { reply.code(404).send({ error: '产品不存在' }); return; }
   if (p.deletedAt) return reply.code(409).send({ code: 'PRODUCT_DELETED', error: '已删除商品请先恢复，再编辑' });
@@ -1065,11 +1065,18 @@ app.get('/api/search', async (req) => {
 });
 
 // 崩溃留痕：后台进程被终止或异常退出时，至少能查到原因
-const ERR_LOG = path.join(__dirname, '..', 'data', 'server-error.log');
+// 注意：data/ 目录可能不存在（干净部署、首次启动、被清理过）。
+// 这里必须自己建目录，并在文件写入失败时退回 stderr；否则致命错误会静默丢失。
+const ERR_DIR = path.join(__dirname, '..', 'data');
+const ERR_LOG = path.join(ERR_DIR, 'server-error.log');
 function logFatal(tag, e) {
+  const line = `[${new Date().toISOString()}] ${tag}: ${e && e.stack ? e.stack : e}\n`;
   try {
-    fs.appendFileSync(ERR_LOG, `[${new Date().toISOString()}] ${tag}: ${e && e.stack ? e.stack : e}\n`, 'utf8');
-  } catch (_) { /* 日志写入失败不影响主流程 */ }
+    fs.mkdirSync(ERR_DIR, { recursive: true });
+    fs.appendFileSync(ERR_LOG, line, 'utf8');
+  } catch (_) {
+    try { console.error(line.trimEnd()); } catch (_) { /* 连 stderr 都不可用，只能放弃 */ }
+  }
 }
 process.on('uncaughtException', (e) => { logFatal('uncaughtException', e); process.exit(1); });
 process.on('unhandledRejection', (e) => logFatal('unhandledRejection', e));

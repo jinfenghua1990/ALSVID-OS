@@ -99,16 +99,16 @@ export default function ShopDesignWorkspace({ active = true, user, onSectionChan
   // 切页面/语言时拉该页面的历史版本快照列表。
   // 首页走 storefront layout 版本表；其它 CMS 页面走 site_page_versions。
   useEffect(() => {
-    if (!row) {
-      setVersions([]);
-      setLayoutVersions({ available: true, items: [], reason: '' });
-      return undefined;
-    }
+    if (!current) { setVersions([]); setLayoutVersions({ available: true, items: [], reason: '' }); return undefined; }
     let alive = true;
-    api.cmsVersions(row.id)
-      .then(list => { if (alive) setVersions(Array.isArray(list) ? list : []); })
-      .catch(() => { if (alive) setVersions([]); });
-    if (current?.path === '/') {
+    if (row) {
+      api.cmsVersions(row.id)
+        .then(list => { if (alive) setVersions(Array.isArray(list) ? list : []); })
+        .catch(() => { if (alive) setVersions([]); });
+    } else {
+      setVersions([]);
+    }
+    if (current.path === '/') {
       api.layoutVersions(50)
         .then(result => {
           if (!alive) return;

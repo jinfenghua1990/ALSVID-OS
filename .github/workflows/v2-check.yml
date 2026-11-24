@@ -1,0 +1,18 @@
+name: ALSVID V2 build checks (no deployment)
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths: ['apps/admin-api/**', 'apps/admin-web/**', 'apps/storefront/**', 'scripts/verify-v2.mjs', '.github/workflows/v2-check.yml']
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node scripts/verify-v2.mjs --install

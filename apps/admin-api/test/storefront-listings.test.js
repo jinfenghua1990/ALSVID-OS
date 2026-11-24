@@ -27,6 +27,7 @@ test('one physical product supports independent channel listings and prices', { 
     INSERT INTO alsvid_v2.products VALUES('a','00000000-0000-4000-8000-000000000001','启用','{"motor":"250W"}'),('b','00000000-0000-4000-8000-000000000002','启用','{}');
     INSERT INTO alsvid_v2.skus VALUES('10000000-0000-4000-8000-000000000001','00000000-0000-4000-8000-000000000001','A1-EBI-450-BLK'),('10000000-0000-4000-8000-000000000002','00000000-0000-4000-8000-000000000002','B1-EBI-450-BLK');`);
   await admin.query(readFileSync(path.join(__dirname,'../migrations/082_storefront_listings.sql'),'utf8'));
+  await admin.query(readFileSync(path.join(__dirname,'../migrations/183_storefront_listing_versions.sql'),'utf8'));
   store=createStorefrontListingStore(url.toString());
   const document=(title,slug)=>({model:'A1',languages:{de:{title,description:'',specifications:[]}},mediaIds:[],seo:{slug,title:'',description:'',keywords:'',canonical:''}});
   const sku=(price)=>[{sku:'A1-EBI-450-BLK',prices:[{currency:'EUR',unitPrice:price,published:true}]}];
@@ -40,5 +41,15 @@ test('one physical product supports independent channel listings and prices', { 
   await assert.rejects(store.create({productId:'a',channel:'other',document:document('Wrong SKU','other'),skus:[{sku:'B1-EBI-450-BLK',prices:[]}]}),/SKU 不属于/);
   const published=await store.publish(first.id,{revision:first.revision});
   await assert.rejects(store.update(first.id,{revision:published.revision,channel:'website',document:document('Changed','a1'),skus:sku('1')}),/先下架/);
+  const changed=await store.update(first.id,{revision:published.revision,channel:'website',document:document('New title','a1'),skus:sku('1299.00')});
+  const next=await store.publish(first.id,{revision:changed.revision});
+  const restored=await store.rollback(first.id,{revision:next.revision,targetRevision:published.revision});
+  assert.equal(restored.published.languages.de.title,'Site title');
+  assert.equal(restored.draft.languages.de.title,'New title');
+  assert.equal(restored.skus[0].prices[0].unitPrice,'1299.00');
+  assert.equal((await store.history(first.id)).length,3);
+  const down=await store.unpublish(first.id,{revision:restored.revision});
+  assert.equal(down.published,null);
+  assert.equal((await store.history(first.id,down.revision)).action,'unpublish');
   assert.deepEqual((await admin.query("SELECT specs FROM alsvid_v2.products WHERE id='a'")).rows[0].specs,{motor:'250W'});
 });

@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { adminFetch } from '../api.js';
+import ListingVersions from './ListingVersions.jsx';
 
 const languages=[['zh','中文'],['en','英文'],['de','德文']];
 const seoSlug=value=>String(value||'').trim().toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,80);
@@ -63,6 +64,7 @@ export default function StorefrontListingsAdmin({ products, initialProductId='',
       <button type="button" className="btn primary mt16" disabled={busy||!dirty} onClick={save}>保存商品草稿</button>
     </fieldset>}
     {selectedRow&&<div className="row mt16"><span>{hasUnpublishedChanges?'有待发布的详情更新':selectedRow.published?'已发布':'草稿'} · 版本 {selectedRow.revision}</span><button type="button" className="btn" disabled={busy||dirty||(!selectedRow.published&&product?.status!=='启用')} onClick={()=>transition(selectedRow.published?(hasUnpublishedChanges?'publish':'unpublish'):'publish')}>{selectedRow.published?(hasUnpublishedChanges?'发布详情更新':'下架'):'发布'}</button></div>}
+    {selectedRow&&<ListingVersions key={selectedRow.id} listing={selectedRow} disabled={busy||dirty} onRolledBack={()=>load(productId)}/>}
     {message&&<p role="status">{message}</p>}
   </section>;
 }

@@ -217,6 +217,8 @@ export function CatalogLayoutPanel({ row, locale, products, publishedMap, onPubl
   </div>;
 }
 
+import ListingVersions from './ListingVersions.jsx';
+
 export function StandardDetailPanel({ locale, products, publishedMap, productId }) {
   const [listing, setListing] = useState(null);
   const [doc, setDoc] = useState(null);
@@ -293,7 +295,8 @@ export function StandardDetailPanel({ locale, products, publishedMap, productId 
   const blockImageOptions = [...productImages.map((image, index) => ({ id: image.id, label: `商品图 ${index + 1}${image.label ? ` · ${image.label}` : ''}` })), ...assets.map(asset => ({ id: asset.id, label: `素材库 · ${asset.label || asset.fileName || asset.id}` }))];
   const imagePreview = id => productImages.some(image => image.id === id) ? `/api/products/${encodeURIComponent(productId)}/media/${encodeURIComponent(id)}` : api.assetUrl(id);
   return <div className="sdp">
-    <SaveBar dirty={dirty} busy={busy} error={error} onSave={doSave} onPublish={doPublish} publishedVersion={listing.published ? 1 : null}/>
+    <SaveBar dirty={dirty} busy={busy} error={error} onSave={doSave} onPublish={doPublish} publishedVersion={listing.publishedRevision}/>
+    <ListingVersions key={listing.id} listing={{...listing,revision}} disabled={dirty||busy} onRolledBack={updated=>{setListing(updated);setRevision(updated.revision);const clone=JSON.parse(JSON.stringify(updated.draft||updated.published||{}));setDoc(clone);setBaseline(JSON.stringify(clone));}}/>
     <section className="sdp__module sdp__gallery">
       <header className="sdg__head">
         <div className="sdg__head-main">

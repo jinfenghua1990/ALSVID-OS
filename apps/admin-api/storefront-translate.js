@@ -46,10 +46,12 @@ function batchSize() {
 // ── 占位符保护 ────────────────────────────────────────────────────────────
 // 用 ⟦n⟧ 这种不参与正常文本的记号。多数引擎会原样保留；万一被拆散，
 // restore 时占位符对不上，就判这条失败而不是交出一条缺词的译文。
-function protectTerms(text) {
+// terms 由调用方传入（代码里的品牌词 + 数据库术语库），长词优先替换，
+// 否则 'A1' 会先吃掉 'A1 Ultra' 的前半段。
+function protectTerms(text, terms) {
   const tokens = [];
   let out = String(text);
-  const sorted = [...GLOSSARY].sort((a, b) => b.length - a.length);
+  const sorted = [...(terms && terms.length ? terms : GLOSSARY)].sort((a, b) => b.length - a.length);
   for (const term of sorted) {
     const pattern = new RegExp(term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g');
     out = out.replace(pattern, () => {
@@ -201,30 +203,60 @@ function translateStatus() {
  * @param {string[]} strings 中文原文清单（已去重）
  * @param {string[]} targets 目标语言，交集 LAYOUT_TARGETS
  * @param {object} existing 现有译文 {en:{中文:译文}, de:{...}}，其中的键一律视为「已有人工结果」，不覆盖
+ * @param {{protect?:string[], prefer?:object}} [glossary] 术语库：protect=不许翻译的串，prefer={en:{中文:固定译法}}
+ * @param {{lookup?:Function, save?:Function}} [memory] 翻译记忆适配器，命中就不再调引擎
  * @returns {{provider:string, translations:object, stats:object}}
  */
-async function translateLayoutStrings({ strings, targets, existing }) {
+async function translateLayoutStrings({ strings, targets, existing, glossary, memory }) {
   const list = Array.isArray(strings)
     ? [...new Set(strings.map((s) => String(s == null ? '' : s).replace(/\s+/g, ' ').trim()).filter(Boolean))]
     : [];
-  if (!list.length) return { provider: providerName(), translations: {}, stats: { requested: 0, filled: 0, skipped: 0, failed: 0, batches: 0 } };
+  if (!list.length) return { provider: providerName(), translations: {}, stats: { requested: 0, filled: 0, skipped: 0, reused: 0, preferred: 0, failed: 0, batches: 0 } };
 
   const wanted = (Array.isArray(targets) ? targets : LAYOUT_TARGETS).filter((code) => LAYOUT_TARGETS.includes(code));
   if (!wanted.length) throw new Error('没有可翻译的目标语言');
 
   const { name, impl } = resolveProvider();
   const translations = {};
-  const stats = { requested: list.length, filled: 0, skipped: 0, failed: 0, batches: 0, errors: [] };
+  const stats = { requested: list.length, filled: 0, skipped: 0, reused: 0, preferred: 0, failed: 0, batches: 0, errors: [] };
   for (const code of wanted) translations[code] = {};
 
+  // 翻译记忆：先查再翻。跨区数据库慢，查一次拿全语言，不要按语言循环查。
+  let remembered = { en: {}, de: {} };
+  if (memory && typeof memory.lookup === 'function') {
+    try { remembered = (await memory.lookup(list, wanted)) || remembered; }
+    catch (error) { stats.errors.push(`memory: ${String(error?.message || error).slice(0, 160)}`); }
+  }
+  const protect = [...GLOSSARY, ...((glossary && Array.isArray(glossary.protect)) ? glossary.protect : [])];
+  const prefer = (glossary && glossary.prefer) || {};
+  const learned = []; // 本次新产出的译文，最后一次性写回记忆
+
   for (const target of wanted) {
-    const already = existing && typeof existing[target] === 'object' && existing[target] ? existing[target] : {};
+    const human = existing && typeof existing[target] === 'object' && existing[target] ? existing[target] : {};
+    // 人工结果优先于记忆：记忆里可能是旧的机翻，人工改过的不该被它盖回去
+    const already = { ...(remembered[target] || {}), ...human };
     // 只补缺：已有非空译文的一律跳过，哪怕它只是机翻——覆盖与否由人在翻译面板决定
-    const pending = list.filter((text) => !String(already[text] || '').trim());
-    stats.skipped += list.length - pending.length;
+    const pending = [];
+    for (const text of list) {
+      const value = String(already[text] || '').trim();
+      if (value) {
+        if (!String(human[text] || '').trim() && remembered[target] && remembered[target][text]) {
+          // 记忆命中：直接复用，不花引擎调用
+          translations[target][text] = value;
+          stats.reused += 1;
+        } else {
+          stats.skipped += 1;
+        }
+        continue;
+      }
+      // 术语库固定译法：命中就不再送引擎，保证「折叠车」永远是同一个词
+      const fixed = prefer[target] && prefer[target][text];
+      if (fixed) { translations[target][text] = fixed; stats.preferred += 1; continue; }
+      pending.push(text);
+    }
     if (!pending.length) continue;
 
-    const protectedList = pending.map((text) => protectTerms(text));
+    const protectedList = pending.map((text) => protectTerms(text, protect));
     for (let offset = 0; offset < protectedList.length; offset += batchSize()) {
       const slice = protectedList.slice(offset, offset + batchSize());
       stats.batches += 1;
@@ -244,8 +276,15 @@ async function translateLayoutStrings({ strings, targets, existing }) {
         if (!value) { stats.failed += 1; continue; }
         translations[target][source] = value;
         stats.filled += 1;
+        learned.push({ source, locale: target, target: value, engine: name });
       }
     }
+  }
+
+  // 写回记忆：失败不影响已拿到的译文
+  if (learned.length && memory && typeof memory.save === 'function') {
+    try { await memory.save(learned); }
+    catch (error) { stats.errors.push(`memory-save: ${String(error?.message || error).slice(0, 160)}`); }
   }
 
   return { provider: name, translations, stats };

@@ -4,6 +4,7 @@ const { isUuidv7 } = require('./uuidv7');
 const { syncHomeLayout, syncStatus, syncConfigured } = require('./production-sync');
 const { revalidateStorefront, revalidateStatus } = require('./storefront-revalidate');
 const { translateLayoutStrings, translateStatus } = require('./storefront-translate');
+const { loadGlossary, lookupMemory, saveMemory, glossarySummary } = require('./translation-memory');
 const { signPreviewToken, verifyPreviewToken } = require('./layout-preview-token');
 const traffic = require('./traffic');
 const sanitizeHtml = require('sanitize-html');
@@ -559,6 +560,52 @@ function createCatalogStore(connectionString) {
       de:localeOf(row?.deLen,row?.deVersion,row?.dePublishedAt),
     };
   }
+  // ── 术语库管理（迁移 182）──────────────────────────────────────────────
+  // 放在 store 里而不是路由里：路由层拿不到连接池，之前直接在路由里用 pool
+  // 会报 "pool is not defined"，被全局错误处理吞成「产品目录操作失败」。
+  async function translationGlossaryList(){
+    try{
+      const rows=(await pool.query('SELECT id,term,locale,kind,translation,note FROM translation_glossary ORDER BY kind,locale,term')).rows;
+      return {available:true,items:rows};
+    }catch(error){
+      if(error?.code==='42P01')return {available:false,items:[],reason:'术语库表尚未建立（迁移 182 未执行）'};
+      throw error;
+    }
+  }
+  async function translationGlossarySave(input={}){
+    const term=String(input.term||'').trim(), kind=input.kind==='prefer'?'prefer':'protect';
+    if(!term)fail('术语不能为空');
+    if(term.length>200)fail('术语不能超过 200 字');
+    const locale=kind==='prefer'?(input.locale==='de'?'de':input.locale==='en'?'en':null):'*';
+    if(kind==='prefer'&&!locale)fail('固定译法必须指定语言（en 或 de）');
+    const translation=kind==='prefer'?String(input.translation||'').trim():null;
+    if(kind==='prefer'&&!translation)fail('固定译法不能为空');
+    const note=input.note?String(input.note).trim().slice(0,300):null;
+    return (await pool.query(
+      `INSERT INTO translation_glossary(term,locale,kind,translation,note) VALUES($1,$2,$3,$4,$5)
+       ON CONFLICT (term,locale,kind) DO UPDATE SET translation=EXCLUDED.translation,note=EXCLUDED.note,updated_at=now()
+       RETURNING id,term,locale,kind,translation,note`,[term,locale,kind,translation,note])).rows[0];
+  }
+  async function translationGlossaryRemove(id){
+    const removed=(await pool.query('DELETE FROM translation_glossary WHERE id=$1 RETURNING id,term',[id])).rows[0];
+    if(!removed)fail('该术语不存在',404);
+    return removed;
+  }
+  async function translationGlossarySummary(){ return glossarySummary(pool); }
+  // 自动翻译入口：术语库与记忆都要连库，所以必须在这里组装后注入纯函数模块
+  async function autoTranslateLayout({strings,targets,existing}){
+    let glossary=null, memory=null;
+    try{
+      glossary=await loadGlossary(pool);
+      memory={
+        lookup:(texts,codes)=>lookupMemory(pool,texts,codes),
+        save:rows=>saveMemory(pool,rows),
+      };
+    }catch(error){
+      console.error(JSON.stringify({level:'warn',code:'TRANSLATION_GLOSSARY_LOAD_FAILED',message:String(error?.message||'').slice(0,200)}));
+    }
+    return translateLayoutStrings({strings,targets,existing,glossary,memory});
+  }
   // 手动重试：把「当前线上快照」再推一次生产（发布时推送失败后补推，不用重新发布）
   async function syncPublishedLayoutToProduction() {
     // 没配置同步就别去读那份几百 KB 的快照，直接告诉调用方为什么没推
@@ -753,6 +800,12 @@ function createCatalogStore(connectionString) {
     publishStorefrontLocale,
     unpublishStorefrontLocale,
     storefrontLocaleStatus,
+    // 术语库与翻译记忆（迁移 182）
+    translationGlossaryList,
+    translationGlossarySave,
+    translationGlossaryRemove,
+    translationGlossarySummary,
+    autoTranslateLayout,
     syncPublishedLayoutToProduction,
     productionSyncStatus: () => syncStatus(),
     // 新站 8091 的缓存刷新状态（与上面推旧站 V1.0 的通道是两套，不要混用）
@@ -883,7 +936,25 @@ function registerCatalogRoutes(app, { catalog, objectStorage }) {
   // 装修文案自动翻译：只补缺失条目，已有译文（无论人工还是上次机翻）一律不覆盖。
   // 引擎由 TRANSLATE_PROVIDER 决定，业务侧不感知厂商；未配置时返回 placeholder 标记，
   // 前端据此要求人工确认，避免「[DE] 原文」这种占位文本被当成正式译文自动上线。
-  route('GET','/api/site/layout-translations/status',req=>{if(req.user?.role!=='admin')fail('仅管理员可管理商城装修',403);return {data:translateStatus()}});
+  route('GET','/api/site/layout-translations/status',async req=>{
+    if(req.user?.role!=='admin')fail('仅管理员可管理商城装修',403);
+    // 顺带带上术语库与记忆的规模，面板上能直接看出「记忆有没有在积累」
+    const glossary=await catalog.translationGlossarySummary().catch(()=>({available:false,protect:0,prefer:0,memory:{en:0,de:0}}));
+    return {data:{...translateStatus(),glossary}};
+  });
+  // 术语库管理：protect=任何语言都不许翻译的串，prefer=指定语言的固定译法
+  route('GET','/api/site/layout-translations/glossary',async req=>{
+    if(req.user?.role!=='admin')fail('仅管理员可管理商城装修',403);
+    return {data:await catalog.translationGlossaryList()};
+  });
+  route('POST','/api/site/layout-translations/glossary',async req=>{
+    if(req.user?.role!=='admin')fail('仅管理员可管理商城装修',403);
+    return {data:await catalog.translationGlossarySave(req.body||{})};
+  });
+  route('DELETE','/api/site/layout-translations/glossary/:id',async req=>{
+    if(req.user?.role!=='admin')fail('仅管理员可管理商城装修',403);
+    return {data:await catalog.translationGlossaryRemove(req.params.id)};
+  });
   route('POST','/api/site/layout-translations/auto',async req=>{
     if(req.user?.role!=='admin')fail('仅管理员可管理商城装修',403);
     const body=req.body||{};
@@ -892,7 +963,10 @@ function registerCatalogRoutes(app, { catalog, objectStorage }) {
     for(const item of strings){if(typeof item!=='string')fail('文案格式无效');if(item.length>2000)fail('单条文案过长');}
     const targets=Array.isArray(body.targets)?body.targets.filter(code=>code==='en'||code==='de'):['en','de'];
     const existing=body.existing&&typeof body.existing==='object'&&!Array.isArray(body.existing)?body.existing:{};
-    const result=await translateLayoutStrings({strings,targets,existing});
+    // 术语库与翻译记忆：命中记忆就不再调引擎，固定译法命中就不必送翻。
+    // 组装在 store 里完成（路由层拿不到连接池），迁移未执行时自动退化为
+    // 只有代码里的品牌词保护。
+    const result=await catalog.autoTranslateLayout({strings,targets,existing});
     return {data:result};
   },false,5*1024*1024);
   // 生产同步：状态查询 + 手动重推（发布时自动推送失败后补推）

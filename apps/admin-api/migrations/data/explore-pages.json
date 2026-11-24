@@ -1,0 +1,3707 @@
+{
+  "generatedAt": "2026-11-24T07:10:07.846Z",
+  "production": "https://www.alsvidbike.com",
+  "slugs": [
+    "about-design",
+    "about-engineering",
+    "about-manufacturing",
+    "about-news",
+    "about-story",
+    "accessory-basket",
+    "accessory-cup-holder",
+    "accessory-light",
+    "accessory-mudguard",
+    "accessory-parts",
+    "accessory-rack",
+    "ct",
+    "fc",
+    "fc1",
+    "fc2",
+    "ft",
+    "gt",
+    "l1",
+    "l7",
+    "technology-assist",
+    "technology-battery",
+    "technology-folding",
+    "technology-material",
+    "technology-safety"
+  ],
+  "locales": [
+    "zh",
+    "en",
+    "de"
+  ],
+  "pages": [
+    {
+      "locale": "zh",
+      "path": "/explore/about-design",
+      "pageType": "custom",
+      "name": "设计理念",
+      "seo": {
+        "title": "设计理念",
+        "description": "功能美学与人本体验的平衡"
+      },
+      "blocks": [
+        {
+          "id": "b-explore-about-design",
+          "componentKey": "article",
+          "visible": true,
+          "props": {
+            "heading": "设计理念",
+            "intro": "功能美学与人本体验的平衡",
+            "imageId": "",
+            "imageAlt": "旅行骑行概念图",
+            "sections": [
+              {
+                "heading": "设计概念",
+                "body": "通过平台与技术概念了解 ALSVID 的设计方向。更多品牌故事、制造信息与动态将在确认后公布。",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "接下来",
+                "body": "A1 Ultra 目前仅用于产品展示与车型、颜色意向参考。预约咨询只通过官方邮件进行，邮箱入口开通前不会收集预约或生成订单。本网站暂不接受在线购买、付款或库存预留。",
+                "imageId": "",
+                "imageAlt": ""
+              }
+            ]
+          },
+          "bindings": {}
+        },
+        {
+          "id": "b-explore-about-design-cta",
+          "componentKey": "cta",
+          "visible": true,
+          "props": {
+            "title": "",
+            "text": "",
+            "buttonLabel": "进入车主服务",
+            "buttonHref": "https://my.alsvidbike.com"
+          },
+          "bindings": {}
+        }
+      ],
+      "meta": {
+        "sourceUrl": "https://www.alsvidbike.com/zh/explore/about-design",
+        "slug": "about-design",
+        "isModelPage": false,
+        "heroImageSource": "/home/original/scene-touring.webp",
+        "heroImageAlt": "旅行骑行概念图"
+      }
+    },
+    {
+      "locale": "zh",
+      "path": "/explore/about-engineering",
+      "pageType": "custom",
+      "name": "工程技术",
+      "seo": {
+        "title": "工程技术",
+        "description": "材料、结构与创新的融合"
+      },
+      "blocks": [
+        {
+          "id": "b-explore-about-engineering",
+          "componentKey": "article",
+          "visible": true,
+          "props": {
+            "heading": "工程技术",
+            "intro": "材料、结构与创新的融合",
+            "imageId": "",
+            "imageAlt": "旅行骑行概念图",
+            "sections": [
+              {
+                "heading": "设计概念",
+                "body": "通过平台与技术概念了解 ALSVID 的设计方向。更多品牌故事、制造信息与动态将在确认后公布。",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "接下来",
+                "body": "A1 Ultra 目前仅用于产品展示与车型、颜色意向参考。预约咨询只通过官方邮件进行，邮箱入口开通前不会收集预约或生成订单。本网站暂不接受在线购买、付款或库存预留。",
+                "imageId": "",
+                "imageAlt": ""
+              }
+            ]
+          },
+          "bindings": {}
+        },
+        {
+          "id": "b-explore-about-engineering-cta",
+          "componentKey": "cta",
+          "visible": true,
+          "props": {
+            "title": "",
+            "text": "",
+            "buttonLabel": "进入车主服务",
+            "buttonHref": "https://my.alsvidbike.com"
+          },
+          "bindings": {}
+        }
+      ],
+      "meta": {
+        "sourceUrl": "https://www.alsvidbike.com/zh/explore/about-engineering",
+        "slug": "about-engineering",
+        "isModelPage": false,
+        "heroImageSource": "/home/original/scene-touring.webp",
+        "heroImageAlt": "旅行骑行概念图"
+      }
+    },
+    {
+      "locale": "zh",
+      "path": "/explore/about-manufacturing",
+      "pageType": "custom",
+      "name": "制造工艺",
+      "seo": {
+        "title": "制造工艺",
+        "description": "了解产品的设计与制造过程"
+      },
+      "blocks": [
+        {
+          "id": "b-explore-about-manufacturing",
+          "componentKey": "article",
+          "visible": true,
+          "props": {
+            "heading": "制造工艺",
+            "intro": "了解产品的设计与制造过程",
+            "imageId": "",
+            "imageAlt": "旅行骑行概念图",
+            "sections": [
+              {
+                "heading": "设计概念",
+                "body": "通过平台与技术概念了解 ALSVID 的设计方向。更多品牌故事、制造信息与动态将在确认后公布。",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "接下来",
+                "body": "A1 Ultra 目前仅用于产品展示与车型、颜色意向参考。预约咨询只通过官方邮件进行，邮箱入口开通前不会收集预约或生成订单。本网站暂不接受在线购买、付款或库存预留。",
+                "imageId": "",
+                "imageAlt": ""
+              }
+            ]
+          },
+          "bindings": {}
+        },
+        {
+          "id": "b-explore-about-manufacturing-cta",
+          "componentKey": "cta",
+          "visible": true,
+          "props": {
+            "title": "",
+            "text": "",
+            "buttonLabel": "进入车主服务",
+            "buttonHref": "https://my.alsvidbike.com"
+          },
+          "bindings": {}
+        }
+      ],
+      "meta": {
+        "sourceUrl": "https://www.alsvidbike.com/zh/explore/about-manufacturing",
+        "slug": "about-manufacturing",
+        "isModelPage": false,
+        "heroImageSource": "/home/original/scene-touring.webp",
+        "heroImageAlt": "旅行骑行概念图"
+      }
+    },
+    {
+      "locale": "zh",
+      "path": "/explore/about-news",
+      "pageType": "custom",
+      "name": "新闻动态",
+      "seo": {
+        "title": "新闻动态",
+        "description": "探索 ALSVID 最新资讯"
+      },
+      "blocks": [
+        {
+          "id": "b-explore-about-news",
+          "componentKey": "article",
+          "visible": true,
+          "props": {
+            "heading": "新闻动态",
+            "intro": "探索 ALSVID 最新资讯",
+            "imageId": "",
+            "imageAlt": "旅行骑行概念图",
+            "sections": [
+              {
+                "heading": "设计概念",
+                "body": "通过平台与技术概念了解 ALSVID 的设计方向。更多品牌故事、制造信息与动态将在确认后公布。",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "接下来",
+                "body": "A1 Ultra 目前仅用于产品展示与车型、颜色意向参考。预约咨询只通过官方邮件进行，邮箱入口开通前不会收集预约或生成订单。本网站暂不接受在线购买、付款或库存预留。",
+                "imageId": "",
+                "imageAlt": ""
+              }
+            ]
+          },
+          "bindings": {}
+        },
+        {
+          "id": "b-explore-about-news-cta",
+          "componentKey": "cta",
+          "visible": true,
+          "props": {
+            "title": "",
+            "text": "",
+            "buttonLabel": "进入车主服务",
+            "buttonHref": "https://my.alsvidbike.com"
+          },
+          "bindings": {}
+        }
+      ],
+      "meta": {
+        "sourceUrl": "https://www.alsvidbike.com/zh/explore/about-news",
+        "slug": "about-news",
+        "isModelPage": false,
+        "heroImageSource": "/home/original/scene-touring.webp",
+        "heroImageAlt": "旅行骑行概念图"
+      }
+    },
+    {
+      "locale": "zh",
+      "path": "/explore/about-story",
+      "pageType": "custom",
+      "name": "品牌故事",
+      "seo": {
+        "title": "品牌故事",
+        "description": "从热爱出发，走向更大的世界"
+      },
+      "blocks": [
+        {
+          "id": "b-explore-about-story",
+          "componentKey": "article",
+          "visible": true,
+          "props": {
+            "heading": "品牌故事",
+            "intro": "从热爱出发，走向更大的世界",
+            "imageId": "",
+            "imageAlt": "旅行骑行概念图",
+            "sections": [
+              {
+                "heading": "设计概念",
+                "body": "通过平台与技术概念了解 ALSVID 的设计方向。更多品牌故事、制造信息与动态将在确认后公布。",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "接下来",
+                "body": "A1 Ultra 目前仅用于产品展示与车型、颜色意向参考。预约咨询只通过官方邮件进行，邮箱入口开通前不会收集预约或生成订单。本网站暂不接受在线购买、付款或库存预留。",
+                "imageId": "",
+                "imageAlt": ""
+              }
+            ]
+          },
+          "bindings": {}
+        },
+        {
+          "id": "b-explore-about-story-cta",
+          "componentKey": "cta",
+          "visible": true,
+          "props": {
+            "title": "",
+            "text": "",
+            "buttonLabel": "进入车主服务",
+            "buttonHref": "https://my.alsvidbike.com"
+          },
+          "bindings": {}
+        }
+      ],
+      "meta": {
+        "sourceUrl": "https://www.alsvidbike.com/zh/explore/about-story",
+        "slug": "about-story",
+        "isModelPage": false,
+        "heroImageSource": "/home/original/scene-touring.webp",
+        "heroImageAlt": "旅行骑行概念图"
+      }
+    },
+    {
+      "locale": "zh",
+      "path": "/explore/accessory-basket",
+      "pageType": "custom",
+      "name": "前置车篮",
+      "seo": {
+        "title": "前置车篮",
+        "description": "收纳日常随行物品"
+      },
+      "blocks": [
+        {
+          "id": "b-explore-accessory-basket",
+          "componentKey": "article",
+          "visible": true,
+          "props": {
+            "heading": "前置车篮",
+            "intro": "收纳日常随行物品",
+            "imageId": "",
+            "imageAlt": "折叠自行车整体概念图",
+            "sections": [
+              {
+                "heading": "设计概念",
+                "body": "此配件属于 ALSVID 展示与设计概念。适配车型、安装要求、价格及供应信息均待确认，暂未开放在线购买。\n此处仅保存车型或配件类别的选购意向；并非可售 SKU，不保证配件适配、价格或库存。",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "接下来",
+                "body": "A1 Ultra 目前仅用于产品展示与车型、颜色意向参考。预约咨询只通过官方邮件进行，邮箱入口开通前不会收集预约或生成订单。本网站暂不接受在线购买、付款或库存预留。",
+                "imageId": "",
+                "imageAlt": ""
+              }
+            ]
+          },
+          "bindings": {}
+        },
+        {
+          "id": "b-explore-accessory-basket-cta",
+          "componentKey": "cta",
+          "visible": true,
+          "props": {
+            "title": "",
+            "text": "",
+            "buttonLabel": "进入车主服务",
+            "buttonHref": "https://my.alsvidbike.com"
+          },
+          "bindings": {}
+        }
+      ],
+      "meta": {
+        "sourceUrl": "https://www.alsvidbike.com/zh/explore/accessory-basket",
+        "slug": "accessory-basket",
+        "isModelPage": false,
+        "heroImageSource": "/home/original/fc1-product.webp",
+        "heroImageAlt": "折叠自行车整体概念图"
+      }
+    },
+    {
+      "locale": "zh",
+      "path": "/explore/accessory-light",
+      "pageType": "custom",
+      "name": "自行车灯",
+      "seo": {
+        "title": "自行车灯",
+        "description": "了解照明设计选项"
+      },
+      "blocks": [
+        {
+          "id": "b-explore-accessory-light",
+          "componentKey": "article",
+          "visible": true,
+          "props": {
+            "heading": "自行车灯",
+            "intro": "了解照明设计选项",
+            "imageId": "",
+            "imageAlt": "折叠自行车整体概念图",
+            "sections": [
+              {
+                "heading": "设计概念",
+                "body": "此配件属于 ALSVID 展示与设计概念。适配车型、安装要求、价格及供应信息均待确认，暂未开放在线购买。\n此处仅保存车型或配件类别的选购意向；并非可售 SKU，不保证配件适配、价格或库存。",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "接下来",
+                "body": "A1 Ultra 目前仅用于产品展示与车型、颜色意向参考。预约咨询只通过官方邮件进行，邮箱入口开通前不会收集预约或生成订单。本网站暂不接受在线购买、付款或库存预留。",
+                "imageId": "",
+                "imageAlt": ""
+              }
+            ]
+          },
+          "bindings": {}
+        },
+        {
+          "id": "b-explore-accessory-light-cta",
+          "componentKey": "cta",
+          "visible": true,
+          "props": {
+            "title": "",
+            "text": "",
+            "buttonLabel": "进入车主服务",
+            "buttonHref": "https://my.alsvidbike.com"
+          },
+          "bindings": {}
+        }
+      ],
+      "meta": {
+        "sourceUrl": "https://www.alsvidbike.com/zh/explore/accessory-light",
+        "slug": "accessory-light",
+        "isModelPage": false,
+        "heroImageSource": "/home/original/fc1-product.webp",
+        "heroImageAlt": "折叠自行车整体概念图"
+      }
+    },
+    {
+      "locale": "zh",
+      "path": "/explore/accessory-mudguard",
+      "pageType": "custom",
+      "name": "挡泥板",
+      "seo": {
+        "title": "挡泥板",
+        "description": "面向日常通勤"
+      },
+      "blocks": [
+        {
+          "id": "b-explore-accessory-mudguard",
+          "componentKey": "article",
+          "visible": true,
+          "props": {
+            "heading": "挡泥板",
+            "intro": "面向日常通勤",
+            "imageId": "",
+            "imageAlt": "折叠自行车整体概念图",
+            "sections": [
+              {
+                "heading": "设计概念",
+                "body": "此配件属于 ALSVID 展示与设计概念。适配车型、安装要求、价格及供应信息均待确认，暂未开放在线购买。\n此处仅保存车型或配件类别的选购意向；并非可售 SKU，不保证配件适配、价格或库存。",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "接下来",
+                "body": "A1 Ultra 目前仅用于产品展示与车型、颜色意向参考。预约咨询只通过官方邮件进行，邮箱入口开通前不会收集预约或生成订单。本网站暂不接受在线购买、付款或库存预留。",
+                "imageId": "",
+                "imageAlt": ""
+              }
+            ]
+          },
+          "bindings": {}
+        },
+        {
+          "id": "b-explore-accessory-mudguard-cta",
+          "componentKey": "cta",
+          "visible": true,
+          "props": {
+            "title": "",
+            "text": "",
+            "buttonLabel": "进入车主服务",
+            "buttonHref": "https://my.alsvidbike.com"
+          },
+          "bindings": {}
+        }
+      ],
+      "meta": {
+        "sourceUrl": "https://www.alsvidbike.com/zh/explore/accessory-mudguard",
+        "slug": "accessory-mudguard",
+        "isModelPage": false,
+        "heroImageSource": "/home/original/fc1-product.webp",
+        "heroImageAlt": "折叠自行车整体概念图"
+      }
+    },
+    {
+      "locale": "zh",
+      "path": "/explore/accessory-parts",
+      "pageType": "custom",
+      "name": "电池与升级配件",
+      "seo": {
+        "title": "电池与升级配件",
+        "description": "适配车型待确认"
+      },
+      "blocks": [
+        {
+          "id": "b-explore-accessory-parts",
+          "componentKey": "article",
+          "visible": true,
+          "props": {
+            "heading": "电池与升级配件",
+            "intro": "适配车型待确认",
+            "imageId": "",
+            "imageAlt": "折叠自行车整体概念图",
+            "sections": [
+              {
+                "heading": "设计概念",
+                "body": "此配件属于 ALSVID 展示与设计概念。适配车型、安装要求、价格及供应信息均待确认，暂未开放在线购买。\n此处仅保存车型或配件类别的选购意向；并非可售 SKU，不保证配件适配、价格或库存。",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "接下来",
+                "body": "A1 Ultra 目前仅用于产品展示与车型、颜色意向参考。预约咨询只通过官方邮件进行，邮箱入口开通前不会收集预约或生成订单。本网站暂不接受在线购买、付款或库存预留。",
+                "imageId": "",
+                "imageAlt": ""
+              }
+            ]
+          },
+          "bindings": {}
+        },
+        {
+          "id": "b-explore-accessory-parts-cta",
+          "componentKey": "cta",
+          "visible": true,
+          "props": {
+            "title": "",
+            "text": "",
+            "buttonLabel": "进入车主服务",
+            "buttonHref": "https://my.alsvidbike.com"
+          },
+          "bindings": {}
+        }
+      ],
+      "meta": {
+        "sourceUrl": "https://www.alsvidbike.com/zh/explore/accessory-parts",
+        "slug": "accessory-parts",
+        "isModelPage": false,
+        "heroImageSource": "/home/original/fc1-product.webp",
+        "heroImageAlt": "折叠自行车整体概念图"
+      }
+    },
+    {
+      "locale": "zh",
+      "path": "/explore/accessory-rack",
+      "pageType": "custom",
+      "name": "后货架",
+      "seo": {
+        "title": "后货架",
+        "description": "面向日常出行与旅行"
+      },
+      "blocks": [
+        {
+          "id": "b-explore-accessory-rack",
+          "componentKey": "article",
+          "visible": true,
+          "props": {
+            "heading": "后货架",
+            "intro": "面向日常出行与旅行",
+            "imageId": "",
+            "imageAlt": "折叠自行车整体概念图",
+            "sections": [
+              {
+                "heading": "设计概念",
+                "body": "此配件属于 ALSVID 展示与设计概念。适配车型、安装要求、价格及供应信息均待确认，暂未开放在线购买。\n此处仅保存车型或配件类别的选购意向；并非可售 SKU，不保证配件适配、价格或库存。",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "接下来",
+                "body": "A1 Ultra 目前仅用于产品展示与车型、颜色意向参考。预约咨询只通过官方邮件进行，邮箱入口开通前不会收集预约或生成订单。本网站暂不接受在线购买、付款或库存预留。",
+                "imageId": "",
+                "imageAlt": ""
+              }
+            ]
+          },
+          "bindings": {}
+        },
+        {
+          "id": "b-explore-accessory-rack-cta",
+          "componentKey": "cta",
+          "visible": true,
+          "props": {
+            "title": "",
+            "text": "",
+            "buttonLabel": "进入车主服务",
+            "buttonHref": "https://my.alsvidbike.com"
+          },
+          "bindings": {}
+        }
+      ],
+      "meta": {
+        "sourceUrl": "https://www.alsvidbike.com/zh/explore/accessory-rack",
+        "slug": "accessory-rack",
+        "isModelPage": false,
+        "heroImageSource": "/home/original/fc1-product.webp",
+        "heroImageAlt": "折叠自行车整体概念图"
+      }
+    },
+    {
+      "locale": "zh",
+      "path": "/explore/ct",
+      "pageType": "custom",
+      "name": "城市通勤平台",
+      "seo": {
+        "title": "城市通勤平台",
+        "description": "日常出行 · 城市生活"
+      },
+      "blocks": [
+        {
+          "id": "b-explore-ct",
+          "componentKey": "article",
+          "visible": true,
+          "props": {
+            "heading": "城市通勤平台",
+            "intro": "日常出行 · 城市生活",
+            "imageId": "",
+            "imageAlt": "城市骑行概念图",
+            "sections": [
+              {
+                "heading": "设计概念",
+                "body": "本页展示平台设计概念。最终配置、尺寸、重量、续航和供应信息尚未公布。图片用于表达设计方向，不代表已经确认的产品规格。",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "为骑行而设计",
+                "body": "探索 ALSVID 平台的系统与设计思路，正式技术参数将在车型确认后公布。",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "接下来",
+                "body": "A1 Ultra 目前仅用于产品展示与车型、颜色意向参考。预约咨询只通过官方邮件进行，邮箱入口开通前不会收集预约或生成订单。本网站暂不接受在线购买、付款或库存预留。",
+                "imageId": "",
+                "imageAlt": ""
+              }
+            ]
+          },
+          "bindings": {}
+        },
+        {
+          "id": "b-explore-ct-cta",
+          "componentKey": "cta",
+          "visible": true,
+          "props": {
+            "title": "",
+            "text": "",
+            "buttonLabel": "进入车主服务",
+            "buttonHref": "https://my.alsvidbike.com"
+          },
+          "bindings": {}
+        }
+      ],
+      "meta": {
+        "sourceUrl": "https://www.alsvidbike.com/zh/explore/ct",
+        "slug": "ct",
+        "isModelPage": false,
+        "heroImageSource": "/home/original/scene-city.webp",
+        "heroImageAlt": "城市骑行概念图"
+      }
+    },
+    {
+      "locale": "zh",
+      "path": "/explore/fc",
+      "pageType": "custom",
+      "name": "折叠出行",
+      "seo": {
+        "title": "折叠出行",
+        "description": "通勤 · 旅行 · 折叠设计"
+      },
+      "blocks": [
+        {
+          "id": "b-explore-fc",
+          "componentKey": "article",
+          "visible": true,
+          "props": {
+            "heading": "折叠出行",
+            "intro": "通勤 · 旅行 · 折叠设计",
+            "imageId": "",
+            "imageAlt": "折叠自行车整体概念图",
+            "sections": [
+              {
+                "heading": "设计概念",
+                "body": "本页展示平台设计概念。最终配置、尺寸、重量、续航和供应信息尚未公布。图片用于表达设计方向，不代表已经确认的产品规格。",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "为骑行而设计",
+                "body": "探索 ALSVID 平台的系统与设计思路，正式技术参数将在车型确认后公布。",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "接下来",
+                "body": "A1 Ultra 目前仅用于产品展示与车型、颜色意向参考。预约咨询只通过官方邮件进行，邮箱入口开通前不会收集预约或生成订单。本网站暂不接受在线购买、付款或库存预留。",
+                "imageId": "",
+                "imageAlt": ""
+              }
+            ]
+          },
+          "bindings": {}
+        },
+        {
+          "id": "b-explore-fc-cta",
+          "componentKey": "cta",
+          "visible": true,
+          "props": {
+            "title": "",
+            "text": "",
+            "buttonLabel": "进入车主服务",
+            "buttonHref": "https://my.alsvidbike.com"
+          },
+          "bindings": {}
+        }
+      ],
+      "meta": {
+        "sourceUrl": "https://www.alsvidbike.com/zh/explore/fc",
+        "slug": "fc",
+        "isModelPage": false,
+        "heroImageSource": "/home/original/fc1-product.webp",
+        "heroImageAlt": "折叠自行车整体概念图"
+      }
+    },
+    {
+      "locale": "zh",
+      "path": "/explore/ft",
+      "pageType": "custom",
+      "name": "胖胎探索平台",
+      "seo": {
+        "title": "胖胎探索平台",
+        "description": "新的路线 · 新的风景"
+      },
+      "blocks": [
+        {
+          "id": "b-explore-ft",
+          "componentKey": "article",
+          "visible": true,
+          "props": {
+            "heading": "胖胎探索平台",
+            "intro": "新的路线 · 新的风景",
+            "imageId": "",
+            "imageAlt": "户外骑行概念图",
+            "sections": [
+              {
+                "heading": "设计概念",
+                "body": "本页展示平台设计概念。最终配置、尺寸、重量、续航和供应信息尚未公布。图片用于表达设计方向，不代表已经确认的产品规格。",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "为骑行而设计",
+                "body": "探索 ALSVID 平台的系统与设计思路，正式技术参数将在车型确认后公布。",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "接下来",
+                "body": "A1 Ultra 目前仅用于产品展示与车型、颜色意向参考。预约咨询只通过官方邮件进行，邮箱入口开通前不会收集预约或生成订单。本网站暂不接受在线购买、付款或库存预留。",
+                "imageId": "",
+                "imageAlt": ""
+              }
+            ]
+          },
+          "bindings": {}
+        },
+        {
+          "id": "b-explore-ft-cta",
+          "componentKey": "cta",
+          "visible": true,
+          "props": {
+            "title": "",
+            "text": "",
+            "buttonLabel": "进入车主服务",
+            "buttonHref": "https://my.alsvidbike.com"
+          },
+          "bindings": {}
+        }
+      ],
+      "meta": {
+        "sourceUrl": "https://www.alsvidbike.com/zh/explore/ft",
+        "slug": "ft",
+        "isModelPage": false,
+        "heroImageSource": "/home/original/scene-fat-tire.webp",
+        "heroImageAlt": "户外骑行概念图"
+      }
+    },
+    {
+      "locale": "zh",
+      "path": "/explore/gt",
+      "pageType": "custom",
+      "name": "长途旅行平台",
+      "seo": {
+        "title": "长途旅行平台",
+        "description": "更远的旅途 · 新的视野"
+      },
+      "blocks": [
+        {
+          "id": "b-explore-gt",
+          "componentKey": "article",
+          "visible": true,
+          "props": {
+            "heading": "长途旅行平台",
+            "intro": "更远的旅途 · 新的视野",
+            "imageId": "",
+            "imageAlt": "旅行骑行概念图",
+            "sections": [
+              {
+                "heading": "设计概念",
+                "body": "本页展示平台设计概念。最终配置、尺寸、重量、续航和供应信息尚未公布。图片用于表达设计方向，不代表已经确认的产品规格。",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "为骑行而设计",
+                "body": "探索 ALSVID 平台的系统与设计思路，正式技术参数将在车型确认后公布。",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "接下来",
+                "body": "A1 Ultra 目前仅用于产品展示与车型、颜色意向参考。预约咨询只通过官方邮件进行，邮箱入口开通前不会收集预约或生成订单。本网站暂不接受在线购买、付款或库存预留。",
+                "imageId": "",
+                "imageAlt": ""
+              }
+            ]
+          },
+          "bindings": {}
+        },
+        {
+          "id": "b-explore-gt-cta",
+          "componentKey": "cta",
+          "visible": true,
+          "props": {
+            "title": "",
+            "text": "",
+            "buttonLabel": "进入车主服务",
+            "buttonHref": "https://my.alsvidbike.com"
+          },
+          "bindings": {}
+        }
+      ],
+      "meta": {
+        "sourceUrl": "https://www.alsvidbike.com/zh/explore/gt",
+        "slug": "gt",
+        "isModelPage": false,
+        "heroImageSource": "/home/original/scene-touring.webp",
+        "heroImageAlt": "旅行骑行概念图"
+      }
+    },
+    {
+      "locale": "zh",
+      "path": "/explore/technology-assist",
+      "pageType": "custom",
+      "name": "电动助力",
+      "seo": {
+        "title": "电动助力",
+        "description": "了解不同车型的助力模式与使用方式。"
+      },
+      "blocks": [
+        {
+          "id": "b-explore-technology-assist",
+          "componentKey": "article",
+          "visible": true,
+          "props": {
+            "heading": "电动助力",
+            "intro": "了解不同车型的助力模式与使用方式。",
+            "imageId": "",
+            "imageAlt": "折叠自行车整体概念图",
+            "sections": [
+              {
+                "heading": "设计概念",
+                "body": "本页为平台概念的技术概览。实际使用或保养车辆前，请查看对应车型已确认的参数与正式手册。",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "接下来",
+                "body": "A1 Ultra 目前仅用于产品展示与车型、颜色意向参考。预约咨询只通过官方邮件进行，邮箱入口开通前不会收集预约或生成订单。本网站暂不接受在线购买、付款或库存预留。",
+                "imageId": "",
+                "imageAlt": ""
+              }
+            ]
+          },
+          "bindings": {}
+        },
+        {
+          "id": "b-explore-technology-assist-cta",
+          "componentKey": "cta",
+          "visible": true,
+          "props": {
+            "title": "",
+            "text": "",
+            "buttonLabel": "进入车主服务",
+            "buttonHref": "https://my.alsvidbike.com"
+          },
+          "bindings": {}
+        }
+      ],
+      "meta": {
+        "sourceUrl": "https://www.alsvidbike.com/zh/explore/technology-assist",
+        "slug": "technology-assist",
+        "isModelPage": false,
+        "heroImageSource": "/home/original/fc1-product.webp",
+        "heroImageAlt": "折叠自行车整体概念图"
+      }
+    },
+    {
+      "locale": "zh",
+      "path": "/explore/technology-battery",
+      "pageType": "custom",
+      "name": "电池设计",
+      "seo": {
+        "title": "电池设计",
+        "description": "电池配置与续航将在车型参数确认后公布。"
+      },
+      "blocks": [
+        {
+          "id": "b-explore-technology-battery",
+          "componentKey": "article",
+          "visible": true,
+          "props": {
+            "heading": "电池设计",
+            "intro": "电池配置与续航将在车型参数确认后公布。",
+            "imageId": "",
+            "imageAlt": "折叠自行车整体概念图",
+            "sections": [
+              {
+                "heading": "设计概念",
+                "body": "本页为平台概念的技术概览。实际使用或保养车辆前，请查看对应车型已确认的参数与正式手册。",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "接下来",
+                "body": "A1 Ultra 目前仅用于产品展示与车型、颜色意向参考。预约咨询只通过官方邮件进行，邮箱入口开通前不会收集预约或生成订单。本网站暂不接受在线购买、付款或库存预留。",
+                "imageId": "",
+                "imageAlt": ""
+              }
+            ]
+          },
+          "bindings": {}
+        },
+        {
+          "id": "b-explore-technology-battery-cta",
+          "componentKey": "cta",
+          "visible": true,
+          "props": {
+            "title": "",
+            "text": "",
+            "buttonLabel": "进入车主服务",
+            "buttonHref": "https://my.alsvidbike.com"
+          },
+          "bindings": {}
+        }
+      ],
+      "meta": {
+        "sourceUrl": "https://www.alsvidbike.com/zh/explore/technology-battery",
+        "slug": "technology-battery",
+        "isModelPage": false,
+        "heroImageSource": "/home/original/fc1-product.webp",
+        "heroImageAlt": "折叠自行车整体概念图"
+      }
+    },
+    {
+      "locale": "zh",
+      "path": "/explore/technology-folding",
+      "pageType": "custom",
+      "name": "折叠结构",
+      "seo": {
+        "title": "折叠结构",
+        "description": "了解折叠概念与收纳方式。"
+      },
+      "blocks": [
+        {
+          "id": "b-explore-technology-folding",
+          "componentKey": "article",
+          "visible": true,
+          "props": {
+            "heading": "折叠结构",
+            "intro": "了解折叠概念与收纳方式。",
+            "imageId": "",
+            "imageAlt": "折叠自行车整体概念图",
+            "sections": [
+              {
+                "heading": "设计概念",
+                "body": "本页为平台概念的技术概览。实际使用或保养车辆前，请查看对应车型已确认的参数与正式手册。",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "接下来",
+                "body": "A1 Ultra 目前仅用于产品展示与车型、颜色意向参考。预约咨询只通过官方邮件进行，邮箱入口开通前不会收集预约或生成订单。本网站暂不接受在线购买、付款或库存预留。",
+                "imageId": "",
+                "imageAlt": ""
+              }
+            ]
+          },
+          "bindings": {}
+        },
+        {
+          "id": "b-explore-technology-folding-cta",
+          "componentKey": "cta",
+          "visible": true,
+          "props": {
+            "title": "",
+            "text": "",
+            "buttonLabel": "进入车主服务",
+            "buttonHref": "https://my.alsvidbike.com"
+          },
+          "bindings": {}
+        }
+      ],
+      "meta": {
+        "sourceUrl": "https://www.alsvidbike.com/zh/explore/technology-folding",
+        "slug": "technology-folding",
+        "isModelPage": false,
+        "heroImageSource": "/home/original/fc1-product.webp",
+        "heroImageAlt": "折叠自行车整体概念图"
+      }
+    },
+    {
+      "locale": "zh",
+      "path": "/explore/technology-material",
+      "pageType": "custom",
+      "name": "车架材料",
+      "seo": {
+        "title": "车架材料",
+        "description": "材料与重量以最终车型规格为准。"
+      },
+      "blocks": [
+        {
+          "id": "b-explore-technology-material",
+          "componentKey": "article",
+          "visible": true,
+          "props": {
+            "heading": "车架材料",
+            "intro": "材料与重量以最终车型规格为准。",
+            "imageId": "",
+            "imageAlt": "折叠自行车整体概念图",
+            "sections": [
+              {
+                "heading": "设计概念",
+                "body": "本页为平台概念的技术概览。实际使用或保养车辆前，请查看对应车型已确认的参数与正式手册。",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "接下来",
+                "body": "A1 Ultra 目前仅用于产品展示与车型、颜色意向参考。预约咨询只通过官方邮件进行，邮箱入口开通前不会收集预约或生成订单。本网站暂不接受在线购买、付款或库存预留。",
+                "imageId": "",
+                "imageAlt": ""
+              }
+            ]
+          },
+          "bindings": {}
+        },
+        {
+          "id": "b-explore-technology-material-cta",
+          "componentKey": "cta",
+          "visible": true,
+          "props": {
+            "title": "",
+            "text": "",
+            "buttonLabel": "进入车主服务",
+            "buttonHref": "https://my.alsvidbike.com"
+          },
+          "bindings": {}
+        }
+      ],
+      "meta": {
+        "sourceUrl": "https://www.alsvidbike.com/zh/explore/technology-material",
+        "slug": "technology-material",
+        "isModelPage": false,
+        "heroImageSource": "/home/original/fc1-product.webp",
+        "heroImageAlt": "折叠自行车整体概念图"
+      }
+    },
+    {
+      "locale": "zh",
+      "path": "/explore/technology-safety",
+      "pageType": "custom",
+      "name": "安全与保养",
+      "seo": {
+        "title": "安全与保养",
+        "description": "正式车型发布后提供使用说明与保养指南。"
+      },
+      "blocks": [
+        {
+          "id": "b-explore-technology-safety",
+          "componentKey": "article",
+          "visible": true,
+          "props": {
+            "heading": "安全与保养",
+            "intro": "正式车型发布后提供使用说明与保养指南。",
+            "imageId": "",
+            "imageAlt": "折叠自行车整体概念图",
+            "sections": [
+              {
+                "heading": "设计概念",
+                "body": "本页为平台概念的技术概览。实际使用或保养车辆前，请查看对应车型已确认的参数与正式手册。",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "接下来",
+                "body": "A1 Ultra 目前仅用于产品展示与车型、颜色意向参考。预约咨询只通过官方邮件进行，邮箱入口开通前不会收集预约或生成订单。本网站暂不接受在线购买、付款或库存预留。",
+                "imageId": "",
+                "imageAlt": ""
+              }
+            ]
+          },
+          "bindings": {}
+        },
+        {
+          "id": "b-explore-technology-safety-cta",
+          "componentKey": "cta",
+          "visible": true,
+          "props": {
+            "title": "",
+            "text": "",
+            "buttonLabel": "进入车主服务",
+            "buttonHref": "https://my.alsvidbike.com"
+          },
+          "bindings": {}
+        }
+      ],
+      "meta": {
+        "sourceUrl": "https://www.alsvidbike.com/zh/explore/technology-safety",
+        "slug": "technology-safety",
+        "isModelPage": false,
+        "heroImageSource": "/home/original/fc1-product.webp",
+        "heroImageAlt": "折叠自行车整体概念图"
+      }
+    },
+    {
+      "locale": "en",
+      "path": "/explore/about-design",
+      "pageType": "custom",
+      "name": "Design philosophy",
+      "seo": {
+        "title": "Design philosophy",
+        "description": "Balancing function and everyday experience"
+      },
+      "blocks": [
+        {
+          "id": "b-explore-about-design",
+          "componentKey": "article",
+          "visible": true,
+          "props": {
+            "heading": "Design philosophy",
+            "intro": "Balancing function and everyday experience",
+            "imageId": "",
+            "imageAlt": "Touring bicycle concept",
+            "sections": [
+              {
+                "heading": "Design concept",
+                "body": "Explore the ALSVID design direction through the platform and technology concepts. Further brand stories, manufacturing information and updates will be published when confirmed.",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "Next steps",
+                "body": "A1 Ultra is currently for product discovery and model/colour preference only. Reservation enquiries will be handled by official email once the address is configured. This website does not currently accept online purchases, payments or stock reservations.",
+                "imageId": "",
+                "imageAlt": ""
+              }
+            ]
+          },
+          "bindings": {}
+        },
+        {
+          "id": "b-explore-about-design-cta",
+          "componentKey": "cta",
+          "visible": true,
+          "props": {
+            "title": "",
+            "text": "",
+            "buttonLabel": "Open owner support",
+            "buttonHref": "https://my.alsvidbike.com"
+          },
+          "bindings": {}
+        }
+      ],
+      "meta": {
+        "sourceUrl": "https://www.alsvidbike.com/en/explore/about-design",
+        "slug": "about-design",
+        "isModelPage": false,
+        "heroImageSource": "/home/original/scene-touring.webp",
+        "heroImageAlt": "Touring bicycle concept"
+      }
+    },
+    {
+      "locale": "en",
+      "path": "/explore/about-engineering",
+      "pageType": "custom",
+      "name": "Engineering",
+      "seo": {
+        "title": "Engineering",
+        "description": "Materials, structure and new ideas"
+      },
+      "blocks": [
+        {
+          "id": "b-explore-about-engineering",
+          "componentKey": "article",
+          "visible": true,
+          "props": {
+            "heading": "Engineering",
+            "intro": "Materials, structure and new ideas",
+            "imageId": "",
+            "imageAlt": "Touring bicycle concept",
+            "sections": [
+              {
+                "heading": "Design concept",
+                "body": "Explore the ALSVID design direction through the platform and technology concepts. Further brand stories, manufacturing information and updates will be published when confirmed.",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "Next steps",
+                "body": "A1 Ultra is currently for product discovery and model/colour preference only. Reservation enquiries will be handled by official email once the address is configured. This website does not currently accept online purchases, payments or stock reservations.",
+                "imageId": "",
+                "imageAlt": ""
+              }
+            ]
+          },
+          "bindings": {}
+        },
+        {
+          "id": "b-explore-about-engineering-cta",
+          "componentKey": "cta",
+          "visible": true,
+          "props": {
+            "title": "",
+            "text": "",
+            "buttonLabel": "Open owner support",
+            "buttonHref": "https://my.alsvidbike.com"
+          },
+          "bindings": {}
+        }
+      ],
+      "meta": {
+        "sourceUrl": "https://www.alsvidbike.com/en/explore/about-engineering",
+        "slug": "about-engineering",
+        "isModelPage": false,
+        "heroImageSource": "/home/original/scene-touring.webp",
+        "heroImageAlt": "Touring bicycle concept"
+      }
+    },
+    {
+      "locale": "en",
+      "path": "/explore/about-manufacturing",
+      "pageType": "custom",
+      "name": "Manufacturing",
+      "seo": {
+        "title": "Manufacturing",
+        "description": "Discover the process behind the product"
+      },
+      "blocks": [
+        {
+          "id": "b-explore-about-manufacturing",
+          "componentKey": "article",
+          "visible": true,
+          "props": {
+            "heading": "Manufacturing",
+            "intro": "Discover the process behind the product",
+            "imageId": "",
+            "imageAlt": "Touring bicycle concept",
+            "sections": [
+              {
+                "heading": "Design concept",
+                "body": "Explore the ALSVID design direction through the platform and technology concepts. Further brand stories, manufacturing information and updates will be published when confirmed.",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "Next steps",
+                "body": "A1 Ultra is currently for product discovery and model/colour preference only. Reservation enquiries will be handled by official email once the address is configured. This website does not currently accept online purchases, payments or stock reservations.",
+                "imageId": "",
+                "imageAlt": ""
+              }
+            ]
+          },
+          "bindings": {}
+        },
+        {
+          "id": "b-explore-about-manufacturing-cta",
+          "componentKey": "cta",
+          "visible": true,
+          "props": {
+            "title": "",
+            "text": "",
+            "buttonLabel": "Open owner support",
+            "buttonHref": "https://my.alsvidbike.com"
+          },
+          "bindings": {}
+        }
+      ],
+      "meta": {
+        "sourceUrl": "https://www.alsvidbike.com/en/explore/about-manufacturing",
+        "slug": "about-manufacturing",
+        "isModelPage": false,
+        "heroImageSource": "/home/original/scene-touring.webp",
+        "heroImageAlt": "Touring bicycle concept"
+      }
+    },
+    {
+      "locale": "en",
+      "path": "/explore/about-news",
+      "pageType": "custom",
+      "name": "News & stories",
+      "seo": {
+        "title": "News & stories",
+        "description": "Explore what is next for ALSVID"
+      },
+      "blocks": [
+        {
+          "id": "b-explore-about-news",
+          "componentKey": "article",
+          "visible": true,
+          "props": {
+            "heading": "News & stories",
+            "intro": "Explore what is next for ALSVID",
+            "imageId": "",
+            "imageAlt": "Touring bicycle concept",
+            "sections": [
+              {
+                "heading": "Design concept",
+                "body": "Explore the ALSVID design direction through the platform and technology concepts. Further brand stories, manufacturing information and updates will be published when confirmed.",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "Next steps",
+                "body": "A1 Ultra is currently for product discovery and model/colour preference only. Reservation enquiries will be handled by official email once the address is configured. This website does not currently accept online purchases, payments or stock reservations.",
+                "imageId": "",
+                "imageAlt": ""
+              }
+            ]
+          },
+          "bindings": {}
+        },
+        {
+          "id": "b-explore-about-news-cta",
+          "componentKey": "cta",
+          "visible": true,
+          "props": {
+            "title": "",
+            "text": "",
+            "buttonLabel": "Open owner support",
+            "buttonHref": "https://my.alsvidbike.com"
+          },
+          "bindings": {}
+        }
+      ],
+      "meta": {
+        "sourceUrl": "https://www.alsvidbike.com/en/explore/about-news",
+        "slug": "about-news",
+        "isModelPage": false,
+        "heroImageSource": "/home/original/scene-touring.webp",
+        "heroImageAlt": "Touring bicycle concept"
+      }
+    },
+    {
+      "locale": "en",
+      "path": "/explore/about-story",
+      "pageType": "custom",
+      "name": "Our story",
+      "seo": {
+        "title": "Our story",
+        "description": "From a love of riding to new horizons"
+      },
+      "blocks": [
+        {
+          "id": "b-explore-about-story",
+          "componentKey": "article",
+          "visible": true,
+          "props": {
+            "heading": "Our story",
+            "intro": "From a love of riding to new horizons",
+            "imageId": "",
+            "imageAlt": "Touring bicycle concept",
+            "sections": [
+              {
+                "heading": "Design concept",
+                "body": "Explore the ALSVID design direction through the platform and technology concepts. Further brand stories, manufacturing information and updates will be published when confirmed.",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "Next steps",
+                "body": "A1 Ultra is currently for product discovery and model/colour preference only. Reservation enquiries will be handled by official email once the address is configured. This website does not currently accept online purchases, payments or stock reservations.",
+                "imageId": "",
+                "imageAlt": ""
+              }
+            ]
+          },
+          "bindings": {}
+        },
+        {
+          "id": "b-explore-about-story-cta",
+          "componentKey": "cta",
+          "visible": true,
+          "props": {
+            "title": "",
+            "text": "",
+            "buttonLabel": "Open owner support",
+            "buttonHref": "https://my.alsvidbike.com"
+          },
+          "bindings": {}
+        }
+      ],
+      "meta": {
+        "sourceUrl": "https://www.alsvidbike.com/en/explore/about-story",
+        "slug": "about-story",
+        "isModelPage": false,
+        "heroImageSource": "/home/original/scene-touring.webp",
+        "heroImageAlt": "Touring bicycle concept"
+      }
+    },
+    {
+      "locale": "en",
+      "path": "/explore/accessory-basket",
+      "pageType": "custom",
+      "name": "Front basket",
+      "seo": {
+        "title": "Front basket",
+        "description": "Carry everyday essentials"
+      },
+      "blocks": [
+        {
+          "id": "b-explore-accessory-basket",
+          "componentKey": "article",
+          "visible": true,
+          "props": {
+            "heading": "Front basket",
+            "intro": "Carry everyday essentials",
+            "imageId": "",
+            "imageAlt": "Complete folding bicycle concept",
+            "sections": [
+              {
+                "heading": "Design concept",
+                "body": "This accessory is an ALSVID design concept. Model compatibility, fitting instructions, pricing and availability require confirmation. Online purchases are not available yet.\nThis saves an interest selection only, not a purchasable SKU. Compatibility, pricing and stock are unconfirmed.",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "Next steps",
+                "body": "A1 Ultra is currently for product discovery and model/colour preference only. Reservation enquiries will be handled by official email once the address is configured. This website does not currently accept online purchases, payments or stock reservations.",
+                "imageId": "",
+                "imageAlt": ""
+              }
+            ]
+          },
+          "bindings": {}
+        },
+        {
+          "id": "b-explore-accessory-basket-cta",
+          "componentKey": "cta",
+          "visible": true,
+          "props": {
+            "title": "",
+            "text": "",
+            "buttonLabel": "Open owner support",
+            "buttonHref": "https://my.alsvidbike.com"
+          },
+          "bindings": {}
+        }
+      ],
+      "meta": {
+        "sourceUrl": "https://www.alsvidbike.com/en/explore/accessory-basket",
+        "slug": "accessory-basket",
+        "isModelPage": false,
+        "heroImageSource": "/home/original/fc1-product.webp",
+        "heroImageAlt": "Complete folding bicycle concept"
+      }
+    },
+    {
+      "locale": "en",
+      "path": "/explore/accessory-light",
+      "pageType": "custom",
+      "name": "Bike lights",
+      "seo": {
+        "title": "Bike lights",
+        "description": "Explore lighting options"
+      },
+      "blocks": [
+        {
+          "id": "b-explore-accessory-light",
+          "componentKey": "article",
+          "visible": true,
+          "props": {
+            "heading": "Bike lights",
+            "intro": "Explore lighting options",
+            "imageId": "",
+            "imageAlt": "Complete folding bicycle concept",
+            "sections": [
+              {
+                "heading": "Design concept",
+                "body": "This accessory is an ALSVID design concept. Model compatibility, fitting instructions, pricing and availability require confirmation. Online purchases are not available yet.\nThis saves an interest selection only, not a purchasable SKU. Compatibility, pricing and stock are unconfirmed.",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "Next steps",
+                "body": "A1 Ultra is currently for product discovery and model/colour preference only. Reservation enquiries will be handled by official email once the address is configured. This website does not currently accept online purchases, payments or stock reservations.",
+                "imageId": "",
+                "imageAlt": ""
+              }
+            ]
+          },
+          "bindings": {}
+        },
+        {
+          "id": "b-explore-accessory-light-cta",
+          "componentKey": "cta",
+          "visible": true,
+          "props": {
+            "title": "",
+            "text": "",
+            "buttonLabel": "Open owner support",
+            "buttonHref": "https://my.alsvidbike.com"
+          },
+          "bindings": {}
+        }
+      ],
+      "meta": {
+        "sourceUrl": "https://www.alsvidbike.com/en/explore/accessory-light",
+        "slug": "accessory-light",
+        "isModelPage": false,
+        "heroImageSource": "/home/original/fc1-product.webp",
+        "heroImageAlt": "Complete folding bicycle concept"
+      }
+    },
+    {
+      "locale": "en",
+      "path": "/explore/accessory-mudguard",
+      "pageType": "custom",
+      "name": "Mudguards",
+      "seo": {
+        "title": "Mudguards",
+        "description": "For daily commuting"
+      },
+      "blocks": [
+        {
+          "id": "b-explore-accessory-mudguard",
+          "componentKey": "article",
+          "visible": true,
+          "props": {
+            "heading": "Mudguards",
+            "intro": "For daily commuting",
+            "imageId": "",
+            "imageAlt": "Complete folding bicycle concept",
+            "sections": [
+              {
+                "heading": "Design concept",
+                "body": "This accessory is an ALSVID design concept. Model compatibility, fitting instructions, pricing and availability require confirmation. Online purchases are not available yet.\nThis saves an interest selection only, not a purchasable SKU. Compatibility, pricing and stock are unconfirmed.",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "Next steps",
+                "body": "A1 Ultra is currently for product discovery and model/colour preference only. Reservation enquiries will be handled by official email once the address is configured. This website does not currently accept online purchases, payments or stock reservations.",
+                "imageId": "",
+                "imageAlt": ""
+              }
+            ]
+          },
+          "bindings": {}
+        },
+        {
+          "id": "b-explore-accessory-mudguard-cta",
+          "componentKey": "cta",
+          "visible": true,
+          "props": {
+            "title": "",
+            "text": "",
+            "buttonLabel": "Open owner support",
+            "buttonHref": "https://my.alsvidbike.com"
+          },
+          "bindings": {}
+        }
+      ],
+      "meta": {
+        "sourceUrl": "https://www.alsvidbike.com/en/explore/accessory-mudguard",
+        "slug": "accessory-mudguard",
+        "isModelPage": false,
+        "heroImageSource": "/home/original/fc1-product.webp",
+        "heroImageAlt": "Complete folding bicycle concept"
+      }
+    },
+    {
+      "locale": "en",
+      "path": "/explore/accessory-parts",
+      "pageType": "custom",
+      "name": "Batteries & parts",
+      "seo": {
+        "title": "Batteries & parts",
+        "description": "Check model compatibility"
+      },
+      "blocks": [
+        {
+          "id": "b-explore-accessory-parts",
+          "componentKey": "article",
+          "visible": true,
+          "props": {
+            "heading": "Batteries & parts",
+            "intro": "Check model compatibility",
+            "imageId": "",
+            "imageAlt": "Complete folding bicycle concept",
+            "sections": [
+              {
+                "heading": "Design concept",
+                "body": "This accessory is an ALSVID design concept. Model compatibility, fitting instructions, pricing and availability require confirmation. Online purchases are not available yet.\nThis saves an interest selection only, not a purchasable SKU. Compatibility, pricing and stock are unconfirmed.",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "Next steps",
+                "body": "A1 Ultra is currently for product discovery and model/colour preference only. Reservation enquiries will be handled by official email once the address is configured. This website does not currently accept online purchases, payments or stock reservations.",
+                "imageId": "",
+                "imageAlt": ""
+              }
+            ]
+          },
+          "bindings": {}
+        },
+        {
+          "id": "b-explore-accessory-parts-cta",
+          "componentKey": "cta",
+          "visible": true,
+          "props": {
+            "title": "",
+            "text": "",
+            "buttonLabel": "Open owner support",
+            "buttonHref": "https://my.alsvidbike.com"
+          },
+          "bindings": {}
+        }
+      ],
+      "meta": {
+        "sourceUrl": "https://www.alsvidbike.com/en/explore/accessory-parts",
+        "slug": "accessory-parts",
+        "isModelPage": false,
+        "heroImageSource": "/home/original/fc1-product.webp",
+        "heroImageAlt": "Complete folding bicycle concept"
+      }
+    },
+    {
+      "locale": "en",
+      "path": "/explore/accessory-rack",
+      "pageType": "custom",
+      "name": "Rear rack",
+      "seo": {
+        "title": "Rear rack",
+        "description": "For everyday journeys and touring"
+      },
+      "blocks": [
+        {
+          "id": "b-explore-accessory-rack",
+          "componentKey": "article",
+          "visible": true,
+          "props": {
+            "heading": "Rear rack",
+            "intro": "For everyday journeys and touring",
+            "imageId": "",
+            "imageAlt": "Complete folding bicycle concept",
+            "sections": [
+              {
+                "heading": "Design concept",
+                "body": "This accessory is an ALSVID design concept. Model compatibility, fitting instructions, pricing and availability require confirmation. Online purchases are not available yet.\nThis saves an interest selection only, not a purchasable SKU. Compatibility, pricing and stock are unconfirmed.",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "Next steps",
+                "body": "A1 Ultra is currently for product discovery and model/colour preference only. Reservation enquiries will be handled by official email once the address is configured. This website does not currently accept online purchases, payments or stock reservations.",
+                "imageId": "",
+                "imageAlt": ""
+              }
+            ]
+          },
+          "bindings": {}
+        },
+        {
+          "id": "b-explore-accessory-rack-cta",
+          "componentKey": "cta",
+          "visible": true,
+          "props": {
+            "title": "",
+            "text": "",
+            "buttonLabel": "Open owner support",
+            "buttonHref": "https://my.alsvidbike.com"
+          },
+          "bindings": {}
+        }
+      ],
+      "meta": {
+        "sourceUrl": "https://www.alsvidbike.com/en/explore/accessory-rack",
+        "slug": "accessory-rack",
+        "isModelPage": false,
+        "heroImageSource": "/home/original/fc1-product.webp",
+        "heroImageAlt": "Complete folding bicycle concept"
+      }
+    },
+    {
+      "locale": "en",
+      "path": "/explore/ct",
+      "pageType": "custom",
+      "name": "City commuting",
+      "seo": {
+        "title": "City commuting",
+        "description": "Daily journeys · city living"
+      },
+      "blocks": [
+        {
+          "id": "b-explore-ct",
+          "componentKey": "article",
+          "visible": true,
+          "props": {
+            "heading": "City commuting",
+            "intro": "Daily journeys · city living",
+            "imageId": "",
+            "imageAlt": "City cycling concept",
+            "sections": [
+              {
+                "heading": "Design concept",
+                "body": "This page presents a platform concept. Final equipment, dimensions, weight, range and availability have not yet been released. The imagery illustrates the design direction and is not a confirmed product specification.",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "ENGINEERED TO RIDE",
+                "body": "Explore the systems and design choices behind the ALSVID platform concepts. Confirmed specifications will accompany each released model.",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "Next steps",
+                "body": "A1 Ultra is currently for product discovery and model/colour preference only. Reservation enquiries will be handled by official email once the address is configured. This website does not currently accept online purchases, payments or stock reservations.",
+                "imageId": "",
+                "imageAlt": ""
+              }
+            ]
+          },
+          "bindings": {}
+        },
+        {
+          "id": "b-explore-ct-cta",
+          "componentKey": "cta",
+          "visible": true,
+          "props": {
+            "title": "",
+            "text": "",
+            "buttonLabel": "Open owner support",
+            "buttonHref": "https://my.alsvidbike.com"
+          },
+          "bindings": {}
+        }
+      ],
+      "meta": {
+        "sourceUrl": "https://www.alsvidbike.com/en/explore/ct",
+        "slug": "ct",
+        "isModelPage": false,
+        "heroImageSource": "/home/original/scene-city.webp",
+        "heroImageAlt": "City cycling concept"
+      }
+    },
+    {
+      "locale": "en",
+      "path": "/explore/fc",
+      "pageType": "custom",
+      "name": "Folding mobility",
+      "seo": {
+        "title": "Folding mobility",
+        "description": "Commuting · travel · folding design"
+      },
+      "blocks": [
+        {
+          "id": "b-explore-fc",
+          "componentKey": "article",
+          "visible": true,
+          "props": {
+            "heading": "Folding mobility",
+            "intro": "Commuting · travel · folding design",
+            "imageId": "",
+            "imageAlt": "Complete folding bicycle concept",
+            "sections": [
+              {
+                "heading": "Design concept",
+                "body": "This page presents a platform concept. Final equipment, dimensions, weight, range and availability have not yet been released. The imagery illustrates the design direction and is not a confirmed product specification.",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "ENGINEERED TO RIDE",
+                "body": "Explore the systems and design choices behind the ALSVID platform concepts. Confirmed specifications will accompany each released model.",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "Next steps",
+                "body": "A1 Ultra is currently for product discovery and model/colour preference only. Reservation enquiries will be handled by official email once the address is configured. This website does not currently accept online purchases, payments or stock reservations.",
+                "imageId": "",
+                "imageAlt": ""
+              }
+            ]
+          },
+          "bindings": {}
+        },
+        {
+          "id": "b-explore-fc-cta",
+          "componentKey": "cta",
+          "visible": true,
+          "props": {
+            "title": "",
+            "text": "",
+            "buttonLabel": "Open owner support",
+            "buttonHref": "https://my.alsvidbike.com"
+          },
+          "bindings": {}
+        }
+      ],
+      "meta": {
+        "sourceUrl": "https://www.alsvidbike.com/en/explore/fc",
+        "slug": "fc",
+        "isModelPage": false,
+        "heroImageSource": "/home/original/fc1-product.webp",
+        "heroImageAlt": "Complete folding bicycle concept"
+      }
+    },
+    {
+      "locale": "en",
+      "path": "/explore/ft",
+      "pageType": "custom",
+      "name": "Outdoor exploring",
+      "seo": {
+        "title": "Outdoor exploring",
+        "description": "New routes · new scenery"
+      },
+      "blocks": [
+        {
+          "id": "b-explore-ft",
+          "componentKey": "article",
+          "visible": true,
+          "props": {
+            "heading": "Outdoor exploring",
+            "intro": "New routes · new scenery",
+            "imageId": "",
+            "imageAlt": "Outdoor bicycle concept",
+            "sections": [
+              {
+                "heading": "Design concept",
+                "body": "This page presents a platform concept. Final equipment, dimensions, weight, range and availability have not yet been released. The imagery illustrates the design direction and is not a confirmed product specification.",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "ENGINEERED TO RIDE",
+                "body": "Explore the systems and design choices behind the ALSVID platform concepts. Confirmed specifications will accompany each released model.",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "Next steps",
+                "body": "A1 Ultra is currently for product discovery and model/colour preference only. Reservation enquiries will be handled by official email once the address is configured. This website does not currently accept online purchases, payments or stock reservations.",
+                "imageId": "",
+                "imageAlt": ""
+              }
+            ]
+          },
+          "bindings": {}
+        },
+        {
+          "id": "b-explore-ft-cta",
+          "componentKey": "cta",
+          "visible": true,
+          "props": {
+            "title": "",
+            "text": "",
+            "buttonLabel": "Open owner support",
+            "buttonHref": "https://my.alsvidbike.com"
+          },
+          "bindings": {}
+        }
+      ],
+      "meta": {
+        "sourceUrl": "https://www.alsvidbike.com/en/explore/ft",
+        "slug": "ft",
+        "isModelPage": false,
+        "heroImageSource": "/home/original/scene-fat-tire.webp",
+        "heroImageAlt": "Outdoor bicycle concept"
+      }
+    },
+    {
+      "locale": "en",
+      "path": "/explore/gt",
+      "pageType": "custom",
+      "name": "Touring",
+      "seo": {
+        "title": "Touring",
+        "description": "Longer journeys · new horizons"
+      },
+      "blocks": [
+        {
+          "id": "b-explore-gt",
+          "componentKey": "article",
+          "visible": true,
+          "props": {
+            "heading": "Touring",
+            "intro": "Longer journeys · new horizons",
+            "imageId": "",
+            "imageAlt": "Touring bicycle concept",
+            "sections": [
+              {
+                "heading": "Design concept",
+                "body": "This page presents a platform concept. Final equipment, dimensions, weight, range and availability have not yet been released. The imagery illustrates the design direction and is not a confirmed product specification.",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "ENGINEERED TO RIDE",
+                "body": "Explore the systems and design choices behind the ALSVID platform concepts. Confirmed specifications will accompany each released model.",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "Next steps",
+                "body": "A1 Ultra is currently for product discovery and model/colour preference only. Reservation enquiries will be handled by official email once the address is configured. This website does not currently accept online purchases, payments or stock reservations.",
+                "imageId": "",
+                "imageAlt": ""
+              }
+            ]
+          },
+          "bindings": {}
+        },
+        {
+          "id": "b-explore-gt-cta",
+          "componentKey": "cta",
+          "visible": true,
+          "props": {
+            "title": "",
+            "text": "",
+            "buttonLabel": "Open owner support",
+            "buttonHref": "https://my.alsvidbike.com"
+          },
+          "bindings": {}
+        }
+      ],
+      "meta": {
+        "sourceUrl": "https://www.alsvidbike.com/en/explore/gt",
+        "slug": "gt",
+        "isModelPage": false,
+        "heroImageSource": "/home/original/scene-touring.webp",
+        "heroImageAlt": "Touring bicycle concept"
+      }
+    },
+    {
+      "locale": "en",
+      "path": "/explore/technology-assist",
+      "pageType": "custom",
+      "name": "Electric assistance",
+      "seo": {
+        "title": "Electric assistance",
+        "description": "Learn about assistance modes and their use on each model."
+      },
+      "blocks": [
+        {
+          "id": "b-explore-technology-assist",
+          "componentKey": "article",
+          "visible": true,
+          "props": {
+            "heading": "Electric assistance",
+            "intro": "Learn about assistance modes and their use on each model.",
+            "imageId": "",
+            "imageAlt": "Complete folding bicycle concept",
+            "sections": [
+              {
+                "heading": "Design concept",
+                "body": "This is a technology overview for the platform concept. Check the confirmed specification and released manual for the relevant model before operating or servicing a bicycle.",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "Next steps",
+                "body": "A1 Ultra is currently for product discovery and model/colour preference only. Reservation enquiries will be handled by official email once the address is configured. This website does not currently accept online purchases, payments or stock reservations.",
+                "imageId": "",
+                "imageAlt": ""
+              }
+            ]
+          },
+          "bindings": {}
+        },
+        {
+          "id": "b-explore-technology-assist-cta",
+          "componentKey": "cta",
+          "visible": true,
+          "props": {
+            "title": "",
+            "text": "",
+            "buttonLabel": "Open owner support",
+            "buttonHref": "https://my.alsvidbike.com"
+          },
+          "bindings": {}
+        }
+      ],
+      "meta": {
+        "sourceUrl": "https://www.alsvidbike.com/en/explore/technology-assist",
+        "slug": "technology-assist",
+        "isModelPage": false,
+        "heroImageSource": "/home/original/fc1-product.webp",
+        "heroImageAlt": "Complete folding bicycle concept"
+      }
+    },
+    {
+      "locale": "en",
+      "path": "/explore/technology-battery",
+      "pageType": "custom",
+      "name": "Battery design",
+      "seo": {
+        "title": "Battery design",
+        "description": "Battery configuration and range will be published with confirmed model data."
+      },
+      "blocks": [
+        {
+          "id": "b-explore-technology-battery",
+          "componentKey": "article",
+          "visible": true,
+          "props": {
+            "heading": "Battery design",
+            "intro": "Battery configuration and range will be published with confirmed model data.",
+            "imageId": "",
+            "imageAlt": "Complete folding bicycle concept",
+            "sections": [
+              {
+                "heading": "Design concept",
+                "body": "This is a technology overview for the platform concept. Check the confirmed specification and released manual for the relevant model before operating or servicing a bicycle.",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "Next steps",
+                "body": "A1 Ultra is currently for product discovery and model/colour preference only. Reservation enquiries will be handled by official email once the address is configured. This website does not currently accept online purchases, payments or stock reservations.",
+                "imageId": "",
+                "imageAlt": ""
+              }
+            ]
+          },
+          "bindings": {}
+        },
+        {
+          "id": "b-explore-technology-battery-cta",
+          "componentKey": "cta",
+          "visible": true,
+          "props": {
+            "title": "",
+            "text": "",
+            "buttonLabel": "Open owner support",
+            "buttonHref": "https://my.alsvidbike.com"
+          },
+          "bindings": {}
+        }
+      ],
+      "meta": {
+        "sourceUrl": "https://www.alsvidbike.com/en/explore/technology-battery",
+        "slug": "technology-battery",
+        "isModelPage": false,
+        "heroImageSource": "/home/original/fc1-product.webp",
+        "heroImageAlt": "Complete folding bicycle concept"
+      }
+    },
+    {
+      "locale": "en",
+      "path": "/explore/technology-folding",
+      "pageType": "custom",
+      "name": "Folding structure",
+      "seo": {
+        "title": "Folding structure",
+        "description": "Explore the folding concept and storage layout."
+      },
+      "blocks": [
+        {
+          "id": "b-explore-technology-folding",
+          "componentKey": "article",
+          "visible": true,
+          "props": {
+            "heading": "Folding structure",
+            "intro": "Explore the folding concept and storage layout.",
+            "imageId": "",
+            "imageAlt": "Complete folding bicycle concept",
+            "sections": [
+              {
+                "heading": "Design concept",
+                "body": "This is a technology overview for the platform concept. Check the confirmed specification and released manual for the relevant model before operating or servicing a bicycle.",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "Next steps",
+                "body": "A1 Ultra is currently for product discovery and model/colour preference only. Reservation enquiries will be handled by official email once the address is configured. This website does not currently accept online purchases, payments or stock reservations.",
+                "imageId": "",
+                "imageAlt": ""
+              }
+            ]
+          },
+          "bindings": {}
+        },
+        {
+          "id": "b-explore-technology-folding-cta",
+          "componentKey": "cta",
+          "visible": true,
+          "props": {
+            "title": "",
+            "text": "",
+            "buttonLabel": "Open owner support",
+            "buttonHref": "https://my.alsvidbike.com"
+          },
+          "bindings": {}
+        }
+      ],
+      "meta": {
+        "sourceUrl": "https://www.alsvidbike.com/en/explore/technology-folding",
+        "slug": "technology-folding",
+        "isModelPage": false,
+        "heroImageSource": "/home/original/fc1-product.webp",
+        "heroImageAlt": "Complete folding bicycle concept"
+      }
+    },
+    {
+      "locale": "en",
+      "path": "/explore/technology-material",
+      "pageType": "custom",
+      "name": "Frame materials",
+      "seo": {
+        "title": "Frame materials",
+        "description": "Materials and weight are subject to the final model specification."
+      },
+      "blocks": [
+        {
+          "id": "b-explore-technology-material",
+          "componentKey": "article",
+          "visible": true,
+          "props": {
+            "heading": "Frame materials",
+            "intro": "Materials and weight are subject to the final model specification.",
+            "imageId": "",
+            "imageAlt": "Complete folding bicycle concept",
+            "sections": [
+              {
+                "heading": "Design concept",
+                "body": "This is a technology overview for the platform concept. Check the confirmed specification and released manual for the relevant model before operating or servicing a bicycle.",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "Next steps",
+                "body": "A1 Ultra is currently for product discovery and model/colour preference only. Reservation enquiries will be handled by official email once the address is configured. This website does not currently accept online purchases, payments or stock reservations.",
+                "imageId": "",
+                "imageAlt": ""
+              }
+            ]
+          },
+          "bindings": {}
+        },
+        {
+          "id": "b-explore-technology-material-cta",
+          "componentKey": "cta",
+          "visible": true,
+          "props": {
+            "title": "",
+            "text": "",
+            "buttonLabel": "Open owner support",
+            "buttonHref": "https://my.alsvidbike.com"
+          },
+          "bindings": {}
+        }
+      ],
+      "meta": {
+        "sourceUrl": "https://www.alsvidbike.com/en/explore/technology-material",
+        "slug": "technology-material",
+        "isModelPage": false,
+        "heroImageSource": "/home/original/fc1-product.webp",
+        "heroImageAlt": "Complete folding bicycle concept"
+      }
+    },
+    {
+      "locale": "en",
+      "path": "/explore/technology-safety",
+      "pageType": "custom",
+      "name": "Riding & care",
+      "seo": {
+        "title": "Riding & care",
+        "description": "Find model instructions and maintenance guidance when available."
+      },
+      "blocks": [
+        {
+          "id": "b-explore-technology-safety",
+          "componentKey": "article",
+          "visible": true,
+          "props": {
+            "heading": "Riding & care",
+            "intro": "Find model instructions and maintenance guidance when available.",
+            "imageId": "",
+            "imageAlt": "Complete folding bicycle concept",
+            "sections": [
+              {
+                "heading": "Design concept",
+                "body": "This is a technology overview for the platform concept. Check the confirmed specification and released manual for the relevant model before operating or servicing a bicycle.",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "Next steps",
+                "body": "A1 Ultra is currently for product discovery and model/colour preference only. Reservation enquiries will be handled by official email once the address is configured. This website does not currently accept online purchases, payments or stock reservations.",
+                "imageId": "",
+                "imageAlt": ""
+              }
+            ]
+          },
+          "bindings": {}
+        },
+        {
+          "id": "b-explore-technology-safety-cta",
+          "componentKey": "cta",
+          "visible": true,
+          "props": {
+            "title": "",
+            "text": "",
+            "buttonLabel": "Open owner support",
+            "buttonHref": "https://my.alsvidbike.com"
+          },
+          "bindings": {}
+        }
+      ],
+      "meta": {
+        "sourceUrl": "https://www.alsvidbike.com/en/explore/technology-safety",
+        "slug": "technology-safety",
+        "isModelPage": false,
+        "heroImageSource": "/home/original/fc1-product.webp",
+        "heroImageAlt": "Complete folding bicycle concept"
+      }
+    },
+    {
+      "locale": "de",
+      "path": "/explore/about-design",
+      "pageType": "custom",
+      "name": "Designphilosophie",
+      "seo": {
+        "title": "Designphilosophie",
+        "description": "Funktion und Alltagserlebnis im Gleichgewicht"
+      },
+      "blocks": [
+        {
+          "id": "b-explore-about-design",
+          "componentKey": "article",
+          "visible": true,
+          "props": {
+            "heading": "Designphilosophie",
+            "intro": "Funktion und Alltagserlebnis im Gleichgewicht",
+            "imageId": "",
+            "imageAlt": "Tourenradkonzept",
+            "sections": [
+              {
+                "heading": "Designkonzept",
+                "body": "Entdecke die ALSVID-Designrichtung anhand der Plattform- und Technikkonzepte. Weitere Markengeschichten, Informationen zur Fertigung und Neuigkeiten folgen nach Bestätigung.",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "Nächste Schritte",
+                "body": "Der A1 Ultra dient derzeit nur zur Produktinformation sowie als Modell- und Farbvorschau. Reservierungsanfragen erfolgen nach Einrichtung der offiziellen Adresse per E-Mail. Diese Website ermöglicht derzeit weder Onlinekauf noch Zahlung oder Bestandsreservierung.",
+                "imageId": "",
+                "imageAlt": ""
+              }
+            ]
+          },
+          "bindings": {}
+        },
+        {
+          "id": "b-explore-about-design-cta",
+          "componentKey": "cta",
+          "visible": true,
+          "props": {
+            "title": "",
+            "text": "",
+            "buttonLabel": "Service für Besitzer öffnen",
+            "buttonHref": "https://my.alsvidbike.com"
+          },
+          "bindings": {}
+        }
+      ],
+      "meta": {
+        "sourceUrl": "https://www.alsvidbike.com/de/explore/about-design",
+        "slug": "about-design",
+        "isModelPage": false,
+        "heroImageSource": "/home/original/scene-touring.webp",
+        "heroImageAlt": "Tourenradkonzept"
+      }
+    },
+    {
+      "locale": "de",
+      "path": "/explore/about-engineering",
+      "pageType": "custom",
+      "name": "Entwicklung",
+      "seo": {
+        "title": "Entwicklung",
+        "description": "Materialien, Konstruktion und neue Ideen"
+      },
+      "blocks": [
+        {
+          "id": "b-explore-about-engineering",
+          "componentKey": "article",
+          "visible": true,
+          "props": {
+            "heading": "Entwicklung",
+            "intro": "Materialien, Konstruktion und neue Ideen",
+            "imageId": "",
+            "imageAlt": "Tourenradkonzept",
+            "sections": [
+              {
+                "heading": "Designkonzept",
+                "body": "Entdecke die ALSVID-Designrichtung anhand der Plattform- und Technikkonzepte. Weitere Markengeschichten, Informationen zur Fertigung und Neuigkeiten folgen nach Bestätigung.",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "Nächste Schritte",
+                "body": "Der A1 Ultra dient derzeit nur zur Produktinformation sowie als Modell- und Farbvorschau. Reservierungsanfragen erfolgen nach Einrichtung der offiziellen Adresse per E-Mail. Diese Website ermöglicht derzeit weder Onlinekauf noch Zahlung oder Bestandsreservierung.",
+                "imageId": "",
+                "imageAlt": ""
+              }
+            ]
+          },
+          "bindings": {}
+        },
+        {
+          "id": "b-explore-about-engineering-cta",
+          "componentKey": "cta",
+          "visible": true,
+          "props": {
+            "title": "",
+            "text": "",
+            "buttonLabel": "Service für Besitzer öffnen",
+            "buttonHref": "https://my.alsvidbike.com"
+          },
+          "bindings": {}
+        }
+      ],
+      "meta": {
+        "sourceUrl": "https://www.alsvidbike.com/de/explore/about-engineering",
+        "slug": "about-engineering",
+        "isModelPage": false,
+        "heroImageSource": "/home/original/scene-touring.webp",
+        "heroImageAlt": "Tourenradkonzept"
+      }
+    },
+    {
+      "locale": "de",
+      "path": "/explore/about-manufacturing",
+      "pageType": "custom",
+      "name": "Fertigung",
+      "seo": {
+        "title": "Fertigung",
+        "description": "Den Weg zum Produkt kennenlernen"
+      },
+      "blocks": [
+        {
+          "id": "b-explore-about-manufacturing",
+          "componentKey": "article",
+          "visible": true,
+          "props": {
+            "heading": "Fertigung",
+            "intro": "Den Weg zum Produkt kennenlernen",
+            "imageId": "",
+            "imageAlt": "Tourenradkonzept",
+            "sections": [
+              {
+                "heading": "Designkonzept",
+                "body": "Entdecke die ALSVID-Designrichtung anhand der Plattform- und Technikkonzepte. Weitere Markengeschichten, Informationen zur Fertigung und Neuigkeiten folgen nach Bestätigung.",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "Nächste Schritte",
+                "body": "Der A1 Ultra dient derzeit nur zur Produktinformation sowie als Modell- und Farbvorschau. Reservierungsanfragen erfolgen nach Einrichtung der offiziellen Adresse per E-Mail. Diese Website ermöglicht derzeit weder Onlinekauf noch Zahlung oder Bestandsreservierung.",
+                "imageId": "",
+                "imageAlt": ""
+              }
+            ]
+          },
+          "bindings": {}
+        },
+        {
+          "id": "b-explore-about-manufacturing-cta",
+          "componentKey": "cta",
+          "visible": true,
+          "props": {
+            "title": "",
+            "text": "",
+            "buttonLabel": "Service für Besitzer öffnen",
+            "buttonHref": "https://my.alsvidbike.com"
+          },
+          "bindings": {}
+        }
+      ],
+      "meta": {
+        "sourceUrl": "https://www.alsvidbike.com/de/explore/about-manufacturing",
+        "slug": "about-manufacturing",
+        "isModelPage": false,
+        "heroImageSource": "/home/original/scene-touring.webp",
+        "heroImageAlt": "Tourenradkonzept"
+      }
+    },
+    {
+      "locale": "de",
+      "path": "/explore/about-news",
+      "pageType": "custom",
+      "name": "Neuigkeiten",
+      "seo": {
+        "title": "Neuigkeiten",
+        "description": "Entdecke, was bei ALSVID als Nächstes kommt"
+      },
+      "blocks": [
+        {
+          "id": "b-explore-about-news",
+          "componentKey": "article",
+          "visible": true,
+          "props": {
+            "heading": "Neuigkeiten",
+            "intro": "Entdecke, was bei ALSVID als Nächstes kommt",
+            "imageId": "",
+            "imageAlt": "Tourenradkonzept",
+            "sections": [
+              {
+                "heading": "Designkonzept",
+                "body": "Entdecke die ALSVID-Designrichtung anhand der Plattform- und Technikkonzepte. Weitere Markengeschichten, Informationen zur Fertigung und Neuigkeiten folgen nach Bestätigung.",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "Nächste Schritte",
+                "body": "Der A1 Ultra dient derzeit nur zur Produktinformation sowie als Modell- und Farbvorschau. Reservierungsanfragen erfolgen nach Einrichtung der offiziellen Adresse per E-Mail. Diese Website ermöglicht derzeit weder Onlinekauf noch Zahlung oder Bestandsreservierung.",
+                "imageId": "",
+                "imageAlt": ""
+              }
+            ]
+          },
+          "bindings": {}
+        },
+        {
+          "id": "b-explore-about-news-cta",
+          "componentKey": "cta",
+          "visible": true,
+          "props": {
+            "title": "",
+            "text": "",
+            "buttonLabel": "Service für Besitzer öffnen",
+            "buttonHref": "https://my.alsvidbike.com"
+          },
+          "bindings": {}
+        }
+      ],
+      "meta": {
+        "sourceUrl": "https://www.alsvidbike.com/de/explore/about-news",
+        "slug": "about-news",
+        "isModelPage": false,
+        "heroImageSource": "/home/original/scene-touring.webp",
+        "heroImageAlt": "Tourenradkonzept"
+      }
+    },
+    {
+      "locale": "de",
+      "path": "/explore/about-story",
+      "pageType": "custom",
+      "name": "Unsere Geschichte",
+      "seo": {
+        "title": "Unsere Geschichte",
+        "description": "Aus Freude am Radfahren zu neuen Horizonten"
+      },
+      "blocks": [
+        {
+          "id": "b-explore-about-story",
+          "componentKey": "article",
+          "visible": true,
+          "props": {
+            "heading": "Unsere Geschichte",
+            "intro": "Aus Freude am Radfahren zu neuen Horizonten",
+            "imageId": "",
+            "imageAlt": "Tourenradkonzept",
+            "sections": [
+              {
+                "heading": "Designkonzept",
+                "body": "Entdecke die ALSVID-Designrichtung anhand der Plattform- und Technikkonzepte. Weitere Markengeschichten, Informationen zur Fertigung und Neuigkeiten folgen nach Bestätigung.",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "Nächste Schritte",
+                "body": "Der A1 Ultra dient derzeit nur zur Produktinformation sowie als Modell- und Farbvorschau. Reservierungsanfragen erfolgen nach Einrichtung der offiziellen Adresse per E-Mail. Diese Website ermöglicht derzeit weder Onlinekauf noch Zahlung oder Bestandsreservierung.",
+                "imageId": "",
+                "imageAlt": ""
+              }
+            ]
+          },
+          "bindings": {}
+        },
+        {
+          "id": "b-explore-about-story-cta",
+          "componentKey": "cta",
+          "visible": true,
+          "props": {
+            "title": "",
+            "text": "",
+            "buttonLabel": "Service für Besitzer öffnen",
+            "buttonHref": "https://my.alsvidbike.com"
+          },
+          "bindings": {}
+        }
+      ],
+      "meta": {
+        "sourceUrl": "https://www.alsvidbike.com/de/explore/about-story",
+        "slug": "about-story",
+        "isModelPage": false,
+        "heroImageSource": "/home/original/scene-touring.webp",
+        "heroImageAlt": "Tourenradkonzept"
+      }
+    },
+    {
+      "locale": "de",
+      "path": "/explore/accessory-basket",
+      "pageType": "custom",
+      "name": "Frontkorb",
+      "seo": {
+        "title": "Frontkorb",
+        "description": "Platz für Alltagsbegleiter"
+      },
+      "blocks": [
+        {
+          "id": "b-explore-accessory-basket",
+          "componentKey": "article",
+          "visible": true,
+          "props": {
+            "heading": "Frontkorb",
+            "intro": "Platz für Alltagsbegleiter",
+            "imageId": "",
+            "imageAlt": "Vollständiges Faltradkonzept",
+            "sections": [
+              {
+                "heading": "Designkonzept",
+                "body": "Dieses Zubehör ist ein ALSVID-Designkonzept. Modellkompatibilität, Montagehinweise, Preis und Verfügbarkeit sind noch zu bestätigen. Ein Onlinekauf ist derzeit nicht möglich.\nNur eine unverbindliche Merkliste, keine kaufbare SKU. Kompatibilität, Preis und Bestand sind unbestätigt.",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "Nächste Schritte",
+                "body": "Der A1 Ultra dient derzeit nur zur Produktinformation sowie als Modell- und Farbvorschau. Reservierungsanfragen erfolgen nach Einrichtung der offiziellen Adresse per E-Mail. Diese Website ermöglicht derzeit weder Onlinekauf noch Zahlung oder Bestandsreservierung.",
+                "imageId": "",
+                "imageAlt": ""
+              }
+            ]
+          },
+          "bindings": {}
+        },
+        {
+          "id": "b-explore-accessory-basket-cta",
+          "componentKey": "cta",
+          "visible": true,
+          "props": {
+            "title": "",
+            "text": "",
+            "buttonLabel": "Service für Besitzer öffnen",
+            "buttonHref": "https://my.alsvidbike.com"
+          },
+          "bindings": {}
+        }
+      ],
+      "meta": {
+        "sourceUrl": "https://www.alsvidbike.com/de/explore/accessory-basket",
+        "slug": "accessory-basket",
+        "isModelPage": false,
+        "heroImageSource": "/home/original/fc1-product.webp",
+        "heroImageAlt": "Vollständiges Faltradkonzept"
+      }
+    },
+    {
+      "locale": "de",
+      "path": "/explore/accessory-light",
+      "pageType": "custom",
+      "name": "Fahrradbeleuchtung",
+      "seo": {
+        "title": "Fahrradbeleuchtung",
+        "description": "Beleuchtungsoptionen entdecken"
+      },
+      "blocks": [
+        {
+          "id": "b-explore-accessory-light",
+          "componentKey": "article",
+          "visible": true,
+          "props": {
+            "heading": "Fahrradbeleuchtung",
+            "intro": "Beleuchtungsoptionen entdecken",
+            "imageId": "",
+            "imageAlt": "Vollständiges Faltradkonzept",
+            "sections": [
+              {
+                "heading": "Designkonzept",
+                "body": "Dieses Zubehör ist ein ALSVID-Designkonzept. Modellkompatibilität, Montagehinweise, Preis und Verfügbarkeit sind noch zu bestätigen. Ein Onlinekauf ist derzeit nicht möglich.\nNur eine unverbindliche Merkliste, keine kaufbare SKU. Kompatibilität, Preis und Bestand sind unbestätigt.",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "Nächste Schritte",
+                "body": "Der A1 Ultra dient derzeit nur zur Produktinformation sowie als Modell- und Farbvorschau. Reservierungsanfragen erfolgen nach Einrichtung der offiziellen Adresse per E-Mail. Diese Website ermöglicht derzeit weder Onlinekauf noch Zahlung oder Bestandsreservierung.",
+                "imageId": "",
+                "imageAlt": ""
+              }
+            ]
+          },
+          "bindings": {}
+        },
+        {
+          "id": "b-explore-accessory-light-cta",
+          "componentKey": "cta",
+          "visible": true,
+          "props": {
+            "title": "",
+            "text": "",
+            "buttonLabel": "Service für Besitzer öffnen",
+            "buttonHref": "https://my.alsvidbike.com"
+          },
+          "bindings": {}
+        }
+      ],
+      "meta": {
+        "sourceUrl": "https://www.alsvidbike.com/de/explore/accessory-light",
+        "slug": "accessory-light",
+        "isModelPage": false,
+        "heroImageSource": "/home/original/fc1-product.webp",
+        "heroImageAlt": "Vollständiges Faltradkonzept"
+      }
+    },
+    {
+      "locale": "de",
+      "path": "/explore/accessory-mudguard",
+      "pageType": "custom",
+      "name": "Schutzbleche",
+      "seo": {
+        "title": "Schutzbleche",
+        "description": "Für den täglichen Weg"
+      },
+      "blocks": [
+        {
+          "id": "b-explore-accessory-mudguard",
+          "componentKey": "article",
+          "visible": true,
+          "props": {
+            "heading": "Schutzbleche",
+            "intro": "Für den täglichen Weg",
+            "imageId": "",
+            "imageAlt": "Vollständiges Faltradkonzept",
+            "sections": [
+              {
+                "heading": "Designkonzept",
+                "body": "Dieses Zubehör ist ein ALSVID-Designkonzept. Modellkompatibilität, Montagehinweise, Preis und Verfügbarkeit sind noch zu bestätigen. Ein Onlinekauf ist derzeit nicht möglich.\nNur eine unverbindliche Merkliste, keine kaufbare SKU. Kompatibilität, Preis und Bestand sind unbestätigt.",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "Nächste Schritte",
+                "body": "Der A1 Ultra dient derzeit nur zur Produktinformation sowie als Modell- und Farbvorschau. Reservierungsanfragen erfolgen nach Einrichtung der offiziellen Adresse per E-Mail. Diese Website ermöglicht derzeit weder Onlinekauf noch Zahlung oder Bestandsreservierung.",
+                "imageId": "",
+                "imageAlt": ""
+              }
+            ]
+          },
+          "bindings": {}
+        },
+        {
+          "id": "b-explore-accessory-mudguard-cta",
+          "componentKey": "cta",
+          "visible": true,
+          "props": {
+            "title": "",
+            "text": "",
+            "buttonLabel": "Service für Besitzer öffnen",
+            "buttonHref": "https://my.alsvidbike.com"
+          },
+          "bindings": {}
+        }
+      ],
+      "meta": {
+        "sourceUrl": "https://www.alsvidbike.com/de/explore/accessory-mudguard",
+        "slug": "accessory-mudguard",
+        "isModelPage": false,
+        "heroImageSource": "/home/original/fc1-product.webp",
+        "heroImageAlt": "Vollständiges Faltradkonzept"
+      }
+    },
+    {
+      "locale": "de",
+      "path": "/explore/accessory-parts",
+      "pageType": "custom",
+      "name": "Akkus & Zubehör",
+      "seo": {
+        "title": "Akkus & Zubehör",
+        "description": "Modellkompatibilität prüfen"
+      },
+      "blocks": [
+        {
+          "id": "b-explore-accessory-parts",
+          "componentKey": "article",
+          "visible": true,
+          "props": {
+            "heading": "Akkus & Zubehör",
+            "intro": "Modellkompatibilität prüfen",
+            "imageId": "",
+            "imageAlt": "Vollständiges Faltradkonzept",
+            "sections": [
+              {
+                "heading": "Designkonzept",
+                "body": "Dieses Zubehör ist ein ALSVID-Designkonzept. Modellkompatibilität, Montagehinweise, Preis und Verfügbarkeit sind noch zu bestätigen. Ein Onlinekauf ist derzeit nicht möglich.\nNur eine unverbindliche Merkliste, keine kaufbare SKU. Kompatibilität, Preis und Bestand sind unbestätigt.",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "Nächste Schritte",
+                "body": "Der A1 Ultra dient derzeit nur zur Produktinformation sowie als Modell- und Farbvorschau. Reservierungsanfragen erfolgen nach Einrichtung der offiziellen Adresse per E-Mail. Diese Website ermöglicht derzeit weder Onlinekauf noch Zahlung oder Bestandsreservierung.",
+                "imageId": "",
+                "imageAlt": ""
+              }
+            ]
+          },
+          "bindings": {}
+        },
+        {
+          "id": "b-explore-accessory-parts-cta",
+          "componentKey": "cta",
+          "visible": true,
+          "props": {
+            "title": "",
+            "text": "",
+            "buttonLabel": "Service für Besitzer öffnen",
+            "buttonHref": "https://my.alsvidbike.com"
+          },
+          "bindings": {}
+        }
+      ],
+      "meta": {
+        "sourceUrl": "https://www.alsvidbike.com/de/explore/accessory-parts",
+        "slug": "accessory-parts",
+        "isModelPage": false,
+        "heroImageSource": "/home/original/fc1-product.webp",
+        "heroImageAlt": "Vollständiges Faltradkonzept"
+      }
+    },
+    {
+      "locale": "de",
+      "path": "/explore/accessory-rack",
+      "pageType": "custom",
+      "name": "Gepäckträger",
+      "seo": {
+        "title": "Gepäckträger",
+        "description": "Für Alltag und Touren"
+      },
+      "blocks": [
+        {
+          "id": "b-explore-accessory-rack",
+          "componentKey": "article",
+          "visible": true,
+          "props": {
+            "heading": "Gepäckträger",
+            "intro": "Für Alltag und Touren",
+            "imageId": "",
+            "imageAlt": "Vollständiges Faltradkonzept",
+            "sections": [
+              {
+                "heading": "Designkonzept",
+                "body": "Dieses Zubehör ist ein ALSVID-Designkonzept. Modellkompatibilität, Montagehinweise, Preis und Verfügbarkeit sind noch zu bestätigen. Ein Onlinekauf ist derzeit nicht möglich.\nNur eine unverbindliche Merkliste, keine kaufbare SKU. Kompatibilität, Preis und Bestand sind unbestätigt.",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "Nächste Schritte",
+                "body": "Der A1 Ultra dient derzeit nur zur Produktinformation sowie als Modell- und Farbvorschau. Reservierungsanfragen erfolgen nach Einrichtung der offiziellen Adresse per E-Mail. Diese Website ermöglicht derzeit weder Onlinekauf noch Zahlung oder Bestandsreservierung.",
+                "imageId": "",
+                "imageAlt": ""
+              }
+            ]
+          },
+          "bindings": {}
+        },
+        {
+          "id": "b-explore-accessory-rack-cta",
+          "componentKey": "cta",
+          "visible": true,
+          "props": {
+            "title": "",
+            "text": "",
+            "buttonLabel": "Service für Besitzer öffnen",
+            "buttonHref": "https://my.alsvidbike.com"
+          },
+          "bindings": {}
+        }
+      ],
+      "meta": {
+        "sourceUrl": "https://www.alsvidbike.com/de/explore/accessory-rack",
+        "slug": "accessory-rack",
+        "isModelPage": false,
+        "heroImageSource": "/home/original/fc1-product.webp",
+        "heroImageAlt": "Vollständiges Faltradkonzept"
+      }
+    },
+    {
+      "locale": "de",
+      "path": "/explore/ct",
+      "pageType": "custom",
+      "name": "Im Stadtalltag",
+      "seo": {
+        "title": "Im Stadtalltag",
+        "description": "Alltagswege · Stadtleben"
+      },
+      "blocks": [
+        {
+          "id": "b-explore-ct",
+          "componentKey": "article",
+          "visible": true,
+          "props": {
+            "heading": "Im Stadtalltag",
+            "intro": "Alltagswege · Stadtleben",
+            "imageId": "",
+            "imageAlt": "Konzept für Fahrten in der Stadt",
+            "sections": [
+              {
+                "heading": "Designkonzept",
+                "body": "Diese Seite zeigt ein Plattformkonzept. Endgültige Ausstattung, Maße, Gewicht, Reichweite und Verfügbarkeit sind noch nicht veröffentlicht. Die Bilder veranschaulichen die Designrichtung und sind keine bestätigte Produktspezifikation.",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "FÜR DAS FAHREN ENTWICKELT",
+                "body": "Entdecke die Systeme und Designideen hinter den ALSVID Plattformkonzepten. Bestätigte technische Daten folgen mit dem jeweiligen Modell.",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "Nächste Schritte",
+                "body": "Der A1 Ultra dient derzeit nur zur Produktinformation sowie als Modell- und Farbvorschau. Reservierungsanfragen erfolgen nach Einrichtung der offiziellen Adresse per E-Mail. Diese Website ermöglicht derzeit weder Onlinekauf noch Zahlung oder Bestandsreservierung.",
+                "imageId": "",
+                "imageAlt": ""
+              }
+            ]
+          },
+          "bindings": {}
+        },
+        {
+          "id": "b-explore-ct-cta",
+          "componentKey": "cta",
+          "visible": true,
+          "props": {
+            "title": "",
+            "text": "",
+            "buttonLabel": "Service für Besitzer öffnen",
+            "buttonHref": "https://my.alsvidbike.com"
+          },
+          "bindings": {}
+        }
+      ],
+      "meta": {
+        "sourceUrl": "https://www.alsvidbike.com/de/explore/ct",
+        "slug": "ct",
+        "isModelPage": false,
+        "heroImageSource": "/home/original/scene-city.webp",
+        "heroImageAlt": "Konzept für Fahrten in der Stadt"
+      }
+    },
+    {
+      "locale": "de",
+      "path": "/explore/fc",
+      "pageType": "custom",
+      "name": "Faltbare Mobilität",
+      "seo": {
+        "title": "Faltbare Mobilität",
+        "description": "Pendeln · Reisen · Faltdesign"
+      },
+      "blocks": [
+        {
+          "id": "b-explore-fc",
+          "componentKey": "article",
+          "visible": true,
+          "props": {
+            "heading": "Faltbare Mobilität",
+            "intro": "Pendeln · Reisen · Faltdesign",
+            "imageId": "",
+            "imageAlt": "Vollständiges Faltradkonzept",
+            "sections": [
+              {
+                "heading": "Designkonzept",
+                "body": "Diese Seite zeigt ein Plattformkonzept. Endgültige Ausstattung, Maße, Gewicht, Reichweite und Verfügbarkeit sind noch nicht veröffentlicht. Die Bilder veranschaulichen die Designrichtung und sind keine bestätigte Produktspezifikation.",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "FÜR DAS FAHREN ENTWICKELT",
+                "body": "Entdecke die Systeme und Designideen hinter den ALSVID Plattformkonzepten. Bestätigte technische Daten folgen mit dem jeweiligen Modell.",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "Nächste Schritte",
+                "body": "Der A1 Ultra dient derzeit nur zur Produktinformation sowie als Modell- und Farbvorschau. Reservierungsanfragen erfolgen nach Einrichtung der offiziellen Adresse per E-Mail. Diese Website ermöglicht derzeit weder Onlinekauf noch Zahlung oder Bestandsreservierung.",
+                "imageId": "",
+                "imageAlt": ""
+              }
+            ]
+          },
+          "bindings": {}
+        },
+        {
+          "id": "b-explore-fc-cta",
+          "componentKey": "cta",
+          "visible": true,
+          "props": {
+            "title": "",
+            "text": "",
+            "buttonLabel": "Service für Besitzer öffnen",
+            "buttonHref": "https://my.alsvidbike.com"
+          },
+          "bindings": {}
+        }
+      ],
+      "meta": {
+        "sourceUrl": "https://www.alsvidbike.com/de/explore/fc",
+        "slug": "fc",
+        "isModelPage": false,
+        "heroImageSource": "/home/original/fc1-product.webp",
+        "heroImageAlt": "Vollständiges Faltradkonzept"
+      }
+    },
+    {
+      "locale": "de",
+      "path": "/explore/ft",
+      "pageType": "custom",
+      "name": "Draußen unterwegs",
+      "seo": {
+        "title": "Draußen unterwegs",
+        "description": "Neue Wege · neue Landschaften"
+      },
+      "blocks": [
+        {
+          "id": "b-explore-ft",
+          "componentKey": "article",
+          "visible": true,
+          "props": {
+            "heading": "Draußen unterwegs",
+            "intro": "Neue Wege · neue Landschaften",
+            "imageId": "",
+            "imageAlt": "Outdoor-Fahrradkonzept",
+            "sections": [
+              {
+                "heading": "Designkonzept",
+                "body": "Diese Seite zeigt ein Plattformkonzept. Endgültige Ausstattung, Maße, Gewicht, Reichweite und Verfügbarkeit sind noch nicht veröffentlicht. Die Bilder veranschaulichen die Designrichtung und sind keine bestätigte Produktspezifikation.",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "FÜR DAS FAHREN ENTWICKELT",
+                "body": "Entdecke die Systeme und Designideen hinter den ALSVID Plattformkonzepten. Bestätigte technische Daten folgen mit dem jeweiligen Modell.",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "Nächste Schritte",
+                "body": "Der A1 Ultra dient derzeit nur zur Produktinformation sowie als Modell- und Farbvorschau. Reservierungsanfragen erfolgen nach Einrichtung der offiziellen Adresse per E-Mail. Diese Website ermöglicht derzeit weder Onlinekauf noch Zahlung oder Bestandsreservierung.",
+                "imageId": "",
+                "imageAlt": ""
+              }
+            ]
+          },
+          "bindings": {}
+        },
+        {
+          "id": "b-explore-ft-cta",
+          "componentKey": "cta",
+          "visible": true,
+          "props": {
+            "title": "",
+            "text": "",
+            "buttonLabel": "Service für Besitzer öffnen",
+            "buttonHref": "https://my.alsvidbike.com"
+          },
+          "bindings": {}
+        }
+      ],
+      "meta": {
+        "sourceUrl": "https://www.alsvidbike.com/de/explore/ft",
+        "slug": "ft",
+        "isModelPage": false,
+        "heroImageSource": "/home/original/scene-fat-tire.webp",
+        "heroImageAlt": "Outdoor-Fahrradkonzept"
+      }
+    },
+    {
+      "locale": "de",
+      "path": "/explore/gt",
+      "pageType": "custom",
+      "name": "Auf großer Tour",
+      "seo": {
+        "title": "Auf großer Tour",
+        "description": "Weitere Wege · neue Horizonte"
+      },
+      "blocks": [
+        {
+          "id": "b-explore-gt",
+          "componentKey": "article",
+          "visible": true,
+          "props": {
+            "heading": "Auf großer Tour",
+            "intro": "Weitere Wege · neue Horizonte",
+            "imageId": "",
+            "imageAlt": "Tourenradkonzept",
+            "sections": [
+              {
+                "heading": "Designkonzept",
+                "body": "Diese Seite zeigt ein Plattformkonzept. Endgültige Ausstattung, Maße, Gewicht, Reichweite und Verfügbarkeit sind noch nicht veröffentlicht. Die Bilder veranschaulichen die Designrichtung und sind keine bestätigte Produktspezifikation.",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "FÜR DAS FAHREN ENTWICKELT",
+                "body": "Entdecke die Systeme und Designideen hinter den ALSVID Plattformkonzepten. Bestätigte technische Daten folgen mit dem jeweiligen Modell.",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "Nächste Schritte",
+                "body": "Der A1 Ultra dient derzeit nur zur Produktinformation sowie als Modell- und Farbvorschau. Reservierungsanfragen erfolgen nach Einrichtung der offiziellen Adresse per E-Mail. Diese Website ermöglicht derzeit weder Onlinekauf noch Zahlung oder Bestandsreservierung.",
+                "imageId": "",
+                "imageAlt": ""
+              }
+            ]
+          },
+          "bindings": {}
+        },
+        {
+          "id": "b-explore-gt-cta",
+          "componentKey": "cta",
+          "visible": true,
+          "props": {
+            "title": "",
+            "text": "",
+            "buttonLabel": "Service für Besitzer öffnen",
+            "buttonHref": "https://my.alsvidbike.com"
+          },
+          "bindings": {}
+        }
+      ],
+      "meta": {
+        "sourceUrl": "https://www.alsvidbike.com/de/explore/gt",
+        "slug": "gt",
+        "isModelPage": false,
+        "heroImageSource": "/home/original/scene-touring.webp",
+        "heroImageAlt": "Tourenradkonzept"
+      }
+    },
+    {
+      "locale": "de",
+      "path": "/explore/technology-assist",
+      "pageType": "custom",
+      "name": "Elektrische Unterstützung",
+      "seo": {
+        "title": "Elektrische Unterstützung",
+        "description": "Mehr über Unterstützungsmodi und ihre Nutzung beim jeweiligen Modell."
+      },
+      "blocks": [
+        {
+          "id": "b-explore-technology-assist",
+          "componentKey": "article",
+          "visible": true,
+          "props": {
+            "heading": "Elektrische Unterstützung",
+            "intro": "Mehr über Unterstützungsmodi und ihre Nutzung beim jeweiligen Modell.",
+            "imageId": "",
+            "imageAlt": "Vollständiges Faltradkonzept",
+            "sections": [
+              {
+                "heading": "Designkonzept",
+                "body": "Dies ist ein Techniküberblick zum Plattformkonzept. Beachte vor Bedienung oder Wartung die bestätigten Spezifikationen und das veröffentlichte Handbuch des jeweiligen Modells.",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "Nächste Schritte",
+                "body": "Der A1 Ultra dient derzeit nur zur Produktinformation sowie als Modell- und Farbvorschau. Reservierungsanfragen erfolgen nach Einrichtung der offiziellen Adresse per E-Mail. Diese Website ermöglicht derzeit weder Onlinekauf noch Zahlung oder Bestandsreservierung.",
+                "imageId": "",
+                "imageAlt": ""
+              }
+            ]
+          },
+          "bindings": {}
+        },
+        {
+          "id": "b-explore-technology-assist-cta",
+          "componentKey": "cta",
+          "visible": true,
+          "props": {
+            "title": "",
+            "text": "",
+            "buttonLabel": "Service für Besitzer öffnen",
+            "buttonHref": "https://my.alsvidbike.com"
+          },
+          "bindings": {}
+        }
+      ],
+      "meta": {
+        "sourceUrl": "https://www.alsvidbike.com/de/explore/technology-assist",
+        "slug": "technology-assist",
+        "isModelPage": false,
+        "heroImageSource": "/home/original/fc1-product.webp",
+        "heroImageAlt": "Vollständiges Faltradkonzept"
+      }
+    },
+    {
+      "locale": "de",
+      "path": "/explore/technology-battery",
+      "pageType": "custom",
+      "name": "Akkudesign",
+      "seo": {
+        "title": "Akkudesign",
+        "description": "Akkukonfiguration und Reichweite folgen mit den bestätigten Modelldaten."
+      },
+      "blocks": [
+        {
+          "id": "b-explore-technology-battery",
+          "componentKey": "article",
+          "visible": true,
+          "props": {
+            "heading": "Akkudesign",
+            "intro": "Akkukonfiguration und Reichweite folgen mit den bestätigten Modelldaten.",
+            "imageId": "",
+            "imageAlt": "Vollständiges Faltradkonzept",
+            "sections": [
+              {
+                "heading": "Designkonzept",
+                "body": "Dies ist ein Techniküberblick zum Plattformkonzept. Beachte vor Bedienung oder Wartung die bestätigten Spezifikationen und das veröffentlichte Handbuch des jeweiligen Modells.",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "Nächste Schritte",
+                "body": "Der A1 Ultra dient derzeit nur zur Produktinformation sowie als Modell- und Farbvorschau. Reservierungsanfragen erfolgen nach Einrichtung der offiziellen Adresse per E-Mail. Diese Website ermöglicht derzeit weder Onlinekauf noch Zahlung oder Bestandsreservierung.",
+                "imageId": "",
+                "imageAlt": ""
+              }
+            ]
+          },
+          "bindings": {}
+        },
+        {
+          "id": "b-explore-technology-battery-cta",
+          "componentKey": "cta",
+          "visible": true,
+          "props": {
+            "title": "",
+            "text": "",
+            "buttonLabel": "Service für Besitzer öffnen",
+            "buttonHref": "https://my.alsvidbike.com"
+          },
+          "bindings": {}
+        }
+      ],
+      "meta": {
+        "sourceUrl": "https://www.alsvidbike.com/de/explore/technology-battery",
+        "slug": "technology-battery",
+        "isModelPage": false,
+        "heroImageSource": "/home/original/fc1-product.webp",
+        "heroImageAlt": "Vollständiges Faltradkonzept"
+      }
+    },
+    {
+      "locale": "de",
+      "path": "/explore/technology-folding",
+      "pageType": "custom",
+      "name": "Faltstruktur",
+      "seo": {
+        "title": "Faltstruktur",
+        "description": "Entdecke das Faltkonzept und die Möglichkeiten zum Verstauen."
+      },
+      "blocks": [
+        {
+          "id": "b-explore-technology-folding",
+          "componentKey": "article",
+          "visible": true,
+          "props": {
+            "heading": "Faltstruktur",
+            "intro": "Entdecke das Faltkonzept und die Möglichkeiten zum Verstauen.",
+            "imageId": "",
+            "imageAlt": "Vollständiges Faltradkonzept",
+            "sections": [
+              {
+                "heading": "Designkonzept",
+                "body": "Dies ist ein Techniküberblick zum Plattformkonzept. Beachte vor Bedienung oder Wartung die bestätigten Spezifikationen und das veröffentlichte Handbuch des jeweiligen Modells.",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "Nächste Schritte",
+                "body": "Der A1 Ultra dient derzeit nur zur Produktinformation sowie als Modell- und Farbvorschau. Reservierungsanfragen erfolgen nach Einrichtung der offiziellen Adresse per E-Mail. Diese Website ermöglicht derzeit weder Onlinekauf noch Zahlung oder Bestandsreservierung.",
+                "imageId": "",
+                "imageAlt": ""
+              }
+            ]
+          },
+          "bindings": {}
+        },
+        {
+          "id": "b-explore-technology-folding-cta",
+          "componentKey": "cta",
+          "visible": true,
+          "props": {
+            "title": "",
+            "text": "",
+            "buttonLabel": "Service für Besitzer öffnen",
+            "buttonHref": "https://my.alsvidbike.com"
+          },
+          "bindings": {}
+        }
+      ],
+      "meta": {
+        "sourceUrl": "https://www.alsvidbike.com/de/explore/technology-folding",
+        "slug": "technology-folding",
+        "isModelPage": false,
+        "heroImageSource": "/home/original/fc1-product.webp",
+        "heroImageAlt": "Vollständiges Faltradkonzept"
+      }
+    },
+    {
+      "locale": "de",
+      "path": "/explore/technology-material",
+      "pageType": "custom",
+      "name": "Rahmenmaterialien",
+      "seo": {
+        "title": "Rahmenmaterialien",
+        "description": "Materialien und Gewicht richten sich nach der endgültigen Modellspezifikation."
+      },
+      "blocks": [
+        {
+          "id": "b-explore-technology-material",
+          "componentKey": "article",
+          "visible": true,
+          "props": {
+            "heading": "Rahmenmaterialien",
+            "intro": "Materialien und Gewicht richten sich nach der endgültigen Modellspezifikation.",
+            "imageId": "",
+            "imageAlt": "Vollständiges Faltradkonzept",
+            "sections": [
+              {
+                "heading": "Designkonzept",
+                "body": "Dies ist ein Techniküberblick zum Plattformkonzept. Beachte vor Bedienung oder Wartung die bestätigten Spezifikationen und das veröffentlichte Handbuch des jeweiligen Modells.",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "Nächste Schritte",
+                "body": "Der A1 Ultra dient derzeit nur zur Produktinformation sowie als Modell- und Farbvorschau. Reservierungsanfragen erfolgen nach Einrichtung der offiziellen Adresse per E-Mail. Diese Website ermöglicht derzeit weder Onlinekauf noch Zahlung oder Bestandsreservierung.",
+                "imageId": "",
+                "imageAlt": ""
+              }
+            ]
+          },
+          "bindings": {}
+        },
+        {
+          "id": "b-explore-technology-material-cta",
+          "componentKey": "cta",
+          "visible": true,
+          "props": {
+            "title": "",
+            "text": "",
+            "buttonLabel": "Service für Besitzer öffnen",
+            "buttonHref": "https://my.alsvidbike.com"
+          },
+          "bindings": {}
+        }
+      ],
+      "meta": {
+        "sourceUrl": "https://www.alsvidbike.com/de/explore/technology-material",
+        "slug": "technology-material",
+        "isModelPage": false,
+        "heroImageSource": "/home/original/fc1-product.webp",
+        "heroImageAlt": "Vollständiges Faltradkonzept"
+      }
+    },
+    {
+      "locale": "de",
+      "path": "/explore/technology-safety",
+      "pageType": "custom",
+      "name": "Sicherheit & Pflege",
+      "seo": {
+        "title": "Sicherheit & Pflege",
+        "description": "Modellhinweise und Pflegeanleitungen folgen mit der Veröffentlichung."
+      },
+      "blocks": [
+        {
+          "id": "b-explore-technology-safety",
+          "componentKey": "article",
+          "visible": true,
+          "props": {
+            "heading": "Sicherheit & Pflege",
+            "intro": "Modellhinweise und Pflegeanleitungen folgen mit der Veröffentlichung.",
+            "imageId": "",
+            "imageAlt": "Vollständiges Faltradkonzept",
+            "sections": [
+              {
+                "heading": "Designkonzept",
+                "body": "Dies ist ein Techniküberblick zum Plattformkonzept. Beachte vor Bedienung oder Wartung die bestätigten Spezifikationen und das veröffentlichte Handbuch des jeweiligen Modells.",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "Nächste Schritte",
+                "body": "Der A1 Ultra dient derzeit nur zur Produktinformation sowie als Modell- und Farbvorschau. Reservierungsanfragen erfolgen nach Einrichtung der offiziellen Adresse per E-Mail. Diese Website ermöglicht derzeit weder Onlinekauf noch Zahlung oder Bestandsreservierung.",
+                "imageId": "",
+                "imageAlt": ""
+              }
+            ]
+          },
+          "bindings": {}
+        },
+        {
+          "id": "b-explore-technology-safety-cta",
+          "componentKey": "cta",
+          "visible": true,
+          "props": {
+            "title": "",
+            "text": "",
+            "buttonLabel": "Service für Besitzer öffnen",
+            "buttonHref": "https://my.alsvidbike.com"
+          },
+          "bindings": {}
+        }
+      ],
+      "meta": {
+        "sourceUrl": "https://www.alsvidbike.com/de/explore/technology-safety",
+        "slug": "technology-safety",
+        "isModelPage": false,
+        "heroImageSource": "/home/original/fc1-product.webp",
+        "heroImageAlt": "Vollständiges Faltradkonzept"
+      }
+    }
+  ],
+  "failures": [
+    {
+      "url": "https://www.alsvidbike.com/zh/explore/accessory-cup-holder",
+      "reason": "未找到 detailArticle 正文容器"
+    },
+    {
+      "url": "https://www.alsvidbike.com/zh/explore/fc1",
+      "reason": "未找到 detailArticle 正文容器"
+    },
+    {
+      "url": "https://www.alsvidbike.com/zh/explore/fc2",
+      "reason": "未找到 detailArticle 正文容器"
+    },
+    {
+      "url": "https://www.alsvidbike.com/zh/explore/l1",
+      "reason": "未找到 detailArticle 正文容器"
+    },
+    {
+      "url": "https://www.alsvidbike.com/zh/explore/l7",
+      "reason": "未找到 detailArticle 正文容器"
+    },
+    {
+      "url": "https://www.alsvidbike.com/en/explore/accessory-cup-holder",
+      "reason": "未找到 detailArticle 正文容器"
+    },
+    {
+      "url": "https://www.alsvidbike.com/en/explore/fc1",
+      "reason": "未找到 detailArticle 正文容器"
+    },
+    {
+      "url": "https://www.alsvidbike.com/en/explore/fc2",
+      "reason": "未找到 detailArticle 正文容器"
+    },
+    {
+      "url": "https://www.alsvidbike.com/en/explore/l1",
+      "reason": "未找到 detailArticle 正文容器"
+    },
+    {
+      "url": "https://www.alsvidbike.com/en/explore/l7",
+      "reason": "未找到 detailArticle 正文容器"
+    },
+    {
+      "url": "https://www.alsvidbike.com/de/explore/accessory-cup-holder",
+      "reason": "未找到 detailArticle 正文容器"
+    },
+    {
+      "url": "https://www.alsvidbike.com/de/explore/fc1",
+      "reason": "未找到 detailArticle 正文容器"
+    },
+    {
+      "url": "https://www.alsvidbike.com/de/explore/fc2",
+      "reason": "未找到 detailArticle 正文容器"
+    },
+    {
+      "url": "https://www.alsvidbike.com/de/explore/l1",
+      "reason": "未找到 detailArticle 正文容器"
+    },
+    {
+      "url": "https://www.alsvidbike.com/de/explore/l7",
+      "reason": "未找到 detailArticle 正文容器"
+    }
+  ],
+  "unresolvedImages": [
+    {
+      "url": "https://www.alsvidbike.com/zh/explore/about-design",
+      "heroImageSource": "/home/original/scene-touring.webp",
+      "heroImageAlt": "旅行骑行概念图"
+    },
+    {
+      "url": "https://www.alsvidbike.com/zh/explore/about-engineering",
+      "heroImageSource": "/home/original/scene-touring.webp",
+      "heroImageAlt": "旅行骑行概念图"
+    },
+    {
+      "url": "https://www.alsvidbike.com/zh/explore/about-manufacturing",
+      "heroImageSource": "/home/original/scene-touring.webp",
+      "heroImageAlt": "旅行骑行概念图"
+    },
+    {
+      "url": "https://www.alsvidbike.com/zh/explore/about-news",
+      "heroImageSource": "/home/original/scene-touring.webp",
+      "heroImageAlt": "旅行骑行概念图"
+    },
+    {
+      "url": "https://www.alsvidbike.com/zh/explore/about-story",
+      "heroImageSource": "/home/original/scene-touring.webp",
+      "heroImageAlt": "旅行骑行概念图"
+    },
+    {
+      "url": "https://www.alsvidbike.com/zh/explore/accessory-basket",
+      "heroImageSource": "/home/original/fc1-product.webp",
+      "heroImageAlt": "折叠自行车整体概念图"
+    },
+    {
+      "url": "https://www.alsvidbike.com/zh/explore/accessory-light",
+      "heroImageSource": "/home/original/fc1-product.webp",
+      "heroImageAlt": "折叠自行车整体概念图"
+    },
+    {
+      "url": "https://www.alsvidbike.com/zh/explore/accessory-mudguard",
+      "heroImageSource": "/home/original/fc1-product.webp",
+      "heroImageAlt": "折叠自行车整体概念图"
+    },
+    {
+      "url": "https://www.alsvidbike.com/zh/explore/accessory-parts",
+      "heroImageSource": "/home/original/fc1-product.webp",
+      "heroImageAlt": "折叠自行车整体概念图"
+    },
+    {
+      "url": "https://www.alsvidbike.com/zh/explore/accessory-rack",
+      "heroImageSource": "/home/original/fc1-product.webp",
+      "heroImageAlt": "折叠自行车整体概念图"
+    },
+    {
+      "url": "https://www.alsvidbike.com/zh/explore/ct",
+      "heroImageSource": "/home/original/scene-city.webp",
+      "heroImageAlt": "城市骑行概念图"
+    },
+    {
+      "url": "https://www.alsvidbike.com/zh/explore/fc",
+      "heroImageSource": "/home/original/fc1-product.webp",
+      "heroImageAlt": "折叠自行车整体概念图"
+    },
+    {
+      "url": "https://www.alsvidbike.com/zh/explore/ft",
+      "heroImageSource": "/home/original/scene-fat-tire.webp",
+      "heroImageAlt": "户外骑行概念图"
+    },
+    {
+      "url": "https://www.alsvidbike.com/zh/explore/gt",
+      "heroImageSource": "/home/original/scene-touring.webp",
+      "heroImageAlt": "旅行骑行概念图"
+    },
+    {
+      "url": "https://www.alsvidbike.com/zh/explore/technology-assist",
+      "heroImageSource": "/home/original/fc1-product.webp",
+      "heroImageAlt": "折叠自行车整体概念图"
+    },
+    {
+      "url": "https://www.alsvidbike.com/zh/explore/technology-battery",
+      "heroImageSource": "/home/original/fc1-product.webp",
+      "heroImageAlt": "折叠自行车整体概念图"
+    },
+    {
+      "url": "https://www.alsvidbike.com/zh/explore/technology-folding",
+      "heroImageSource": "/home/original/fc1-product.webp",
+      "heroImageAlt": "折叠自行车整体概念图"
+    },
+    {
+      "url": "https://www.alsvidbike.com/zh/explore/technology-material",
+      "heroImageSource": "/home/original/fc1-product.webp",
+      "heroImageAlt": "折叠自行车整体概念图"
+    },
+    {
+      "url": "https://www.alsvidbike.com/zh/explore/technology-safety",
+      "heroImageSource": "/home/original/fc1-product.webp",
+      "heroImageAlt": "折叠自行车整体概念图"
+    },
+    {
+      "url": "https://www.alsvidbike.com/en/explore/about-design",
+      "heroImageSource": "/home/original/scene-touring.webp",
+      "heroImageAlt": "Touring bicycle concept"
+    },
+    {
+      "url": "https://www.alsvidbike.com/en/explore/about-engineering",
+      "heroImageSource": "/home/original/scene-touring.webp",
+      "heroImageAlt": "Touring bicycle concept"
+    },
+    {
+      "url": "https://www.alsvidbike.com/en/explore/about-manufacturing",
+      "heroImageSource": "/home/original/scene-touring.webp",
+      "heroImageAlt": "Touring bicycle concept"
+    },
+    {
+      "url": "https://www.alsvidbike.com/en/explore/about-news",
+      "heroImageSource": "/home/original/scene-touring.webp",
+      "heroImageAlt": "Touring bicycle concept"
+    },
+    {
+      "url": "https://www.alsvidbike.com/en/explore/about-story",
+      "heroImageSource": "/home/original/scene-touring.webp",
+      "heroImageAlt": "Touring bicycle concept"
+    },
+    {
+      "url": "https://www.alsvidbike.com/en/explore/accessory-basket",
+      "heroImageSource": "/home/original/fc1-product.webp",
+      "heroImageAlt": "Complete folding bicycle concept"
+    },
+    {
+      "url": "https://www.alsvidbike.com/en/explore/accessory-light",
+      "heroImageSource": "/home/original/fc1-product.webp",
+      "heroImageAlt": "Complete folding bicycle concept"
+    },
+    {
+      "url": "https://www.alsvidbike.com/en/explore/accessory-mudguard",
+      "heroImageSource": "/home/original/fc1-product.webp",
+      "heroImageAlt": "Complete folding bicycle concept"
+    },
+    {
+      "url": "https://www.alsvidbike.com/en/explore/accessory-parts",
+      "heroImageSource": "/home/original/fc1-product.webp",
+      "heroImageAlt": "Complete folding bicycle concept"
+    },
+    {
+      "url": "https://www.alsvidbike.com/en/explore/accessory-rack",
+      "heroImageSource": "/home/original/fc1-product.webp",
+      "heroImageAlt": "Complete folding bicycle concept"
+    },
+    {
+      "url": "https://www.alsvidbike.com/en/explore/ct",
+      "heroImageSource": "/home/original/scene-city.webp",
+      "heroImageAlt": "City cycling concept"
+    },
+    {
+      "url": "https://www.alsvidbike.com/en/explore/fc",
+      "heroImageSource": "/home/original/fc1-product.webp",
+      "heroImageAlt": "Complete folding bicycle concept"
+    },
+    {
+      "url": "https://www.alsvidbike.com/en/explore/ft",
+      "heroImageSource": "/home/original/scene-fat-tire.webp",
+      "heroImageAlt": "Outdoor bicycle concept"
+    },
+    {
+      "url": "https://www.alsvidbike.com/en/explore/gt",
+      "heroImageSource": "/home/original/scene-touring.webp",
+      "heroImageAlt": "Touring bicycle concept"
+    },
+    {
+      "url": "https://www.alsvidbike.com/en/explore/technology-assist",
+      "heroImageSource": "/home/original/fc1-product.webp",
+      "heroImageAlt": "Complete folding bicycle concept"
+    },
+    {
+      "url": "https://www.alsvidbike.com/en/explore/technology-battery",
+      "heroImageSource": "/home/original/fc1-product.webp",
+      "heroImageAlt": "Complete folding bicycle concept"
+    },
+    {
+      "url": "https://www.alsvidbike.com/en/explore/technology-folding",
+      "heroImageSource": "/home/original/fc1-product.webp",
+      "heroImageAlt": "Complete folding bicycle concept"
+    },
+    {
+      "url": "https://www.alsvidbike.com/en/explore/technology-material",
+      "heroImageSource": "/home/original/fc1-product.webp",
+      "heroImageAlt": "Complete folding bicycle concept"
+    },
+    {
+      "url": "https://www.alsvidbike.com/en/explore/technology-safety",
+      "heroImageSource": "/home/original/fc1-product.webp",
+      "heroImageAlt": "Complete folding bicycle concept"
+    },
+    {
+      "url": "https://www.alsvidbike.com/de/explore/about-design",
+      "heroImageSource": "/home/original/scene-touring.webp",
+      "heroImageAlt": "Tourenradkonzept"
+    },
+    {
+      "url": "https://www.alsvidbike.com/de/explore/about-engineering",
+      "heroImageSource": "/home/original/scene-touring.webp",
+      "heroImageAlt": "Tourenradkonzept"
+    },
+    {
+      "url": "https://www.alsvidbike.com/de/explore/about-manufacturing",
+      "heroImageSource": "/home/original/scene-touring.webp",
+      "heroImageAlt": "Tourenradkonzept"
+    },
+    {
+      "url": "https://www.alsvidbike.com/de/explore/about-news",
+      "heroImageSource": "/home/original/scene-touring.webp",
+      "heroImageAlt": "Tourenradkonzept"
+    },
+    {
+      "url": "https://www.alsvidbike.com/de/explore/about-story",
+      "heroImageSource": "/home/original/scene-touring.webp",
+      "heroImageAlt": "Tourenradkonzept"
+    },
+    {
+      "url": "https://www.alsvidbike.com/de/explore/accessory-basket",
+      "heroImageSource": "/home/original/fc1-product.webp",
+      "heroImageAlt": "Vollständiges Faltradkonzept"
+    },
+    {
+      "url": "https://www.alsvidbike.com/de/explore/accessory-light",
+      "heroImageSource": "/home/original/fc1-product.webp",
+      "heroImageAlt": "Vollständiges Faltradkonzept"
+    },
+    {
+      "url": "https://www.alsvidbike.com/de/explore/accessory-mudguard",
+      "heroImageSource": "/home/original/fc1-product.webp",
+      "heroImageAlt": "Vollständiges Faltradkonzept"
+    },
+    {
+      "url": "https://www.alsvidbike.com/de/explore/accessory-parts",
+      "heroImageSource": "/home/original/fc1-product.webp",
+      "heroImageAlt": "Vollständiges Faltradkonzept"
+    },
+    {
+      "url": "https://www.alsvidbike.com/de/explore/accessory-rack",
+      "heroImageSource": "/home/original/fc1-product.webp",
+      "heroImageAlt": "Vollständiges Faltradkonzept"
+    },
+    {
+      "url": "https://www.alsvidbike.com/de/explore/ct",
+      "heroImageSource": "/home/original/scene-city.webp",
+      "heroImageAlt": "Konzept für Fahrten in der Stadt"
+    },
+    {
+      "url": "https://www.alsvidbike.com/de/explore/fc",
+      "heroImageSource": "/home/original/fc1-product.webp",
+      "heroImageAlt": "Vollständiges Faltradkonzept"
+    },
+    {
+      "url": "https://www.alsvidbike.com/de/explore/ft",
+      "heroImageSource": "/home/original/scene-fat-tire.webp",
+      "heroImageAlt": "Outdoor-Fahrradkonzept"
+    },
+    {
+      "url": "https://www.alsvidbike.com/de/explore/gt",
+      "heroImageSource": "/home/original/scene-touring.webp",
+      "heroImageAlt": "Tourenradkonzept"
+    },
+    {
+      "url": "https://www.alsvidbike.com/de/explore/technology-assist",
+      "heroImageSource": "/home/original/fc1-product.webp",
+      "heroImageAlt": "Vollständiges Faltradkonzept"
+    },
+    {
+      "url": "https://www.alsvidbike.com/de/explore/technology-battery",
+      "heroImageSource": "/home/original/fc1-product.webp",
+      "heroImageAlt": "Vollständiges Faltradkonzept"
+    },
+    {
+      "url": "https://www.alsvidbike.com/de/explore/technology-folding",
+      "heroImageSource": "/home/original/fc1-product.webp",
+      "heroImageAlt": "Vollständiges Faltradkonzept"
+    },
+    {
+      "url": "https://www.alsvidbike.com/de/explore/technology-material",
+      "heroImageSource": "/home/original/fc1-product.webp",
+      "heroImageAlt": "Vollständiges Faltradkonzept"
+    },
+    {
+      "url": "https://www.alsvidbike.com/de/explore/technology-safety",
+      "heroImageSource": "/home/original/fc1-product.webp",
+      "heroImageAlt": "Vollständiges Faltradkonzept"
+    }
+  ]
+}

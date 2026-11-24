@@ -11,8 +11,11 @@ out/
 coverage/
 *.tsbuildinfo
 
-# 本地运行数据与日志
-data/
+# 本地运行数据与日志（精确排除，避免误伤 migrations/data 种子数据）
+/data/
+/apps/admin-api/data/
+/apps/admin-web/data/
+/apps/storefront/data/
 logs/
 *.log
 *.tmp

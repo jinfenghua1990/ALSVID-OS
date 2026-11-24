@@ -3,8 +3,8 @@ import { api } from '../api.js';
 
 // 产品装修面板：
 // - CatalogLayoutPanel：「全部产品」列表页版式（分类导航 + 按销量自动展示），存 product_template 页草稿，走 CMS 发布流。
-// - DetailDesignPanel：「商品详情页」装修。标准详情=按商品（主图选择 + 图文详情，走商品发布流）；
-//   公共模块=全局 ②营销 ③④预留 ⑥评价 ⑦退换货 ⑧其他，存 product_template 页草稿，更新 1 处全部商品生效。
+// - StandardDetailPanel：「商品详情页（图文）」按商品维护 ① 主图 + ⑤ 图文详情，走商品发布流。
+// - GlobalModulesPanel：「商品详情页（公共模块）」②营销 ③④预留 ⑥评价 ⑦退换货 ⑧其他，存 product_template 页草稿，更新 1 处全部商品生效。
 
 const DEFAULT_MODULES = {
   marketing: { enabled: false, imageId: '', href: '', text: '' },
@@ -145,7 +145,7 @@ export function CatalogLayoutPanel({ row, locale, products, publishedMap, onPubl
   </div>;
 }
 
-function StandardDetailPanel({ locale, products, publishedMap, productId }) {
+export function StandardDetailPanel({ locale, products, publishedMap, productId }) {
   const [listing, setListing] = useState(null);
   const [doc, setDoc] = useState(null);
   const [baseline, setBaseline] = useState('');
@@ -244,7 +244,7 @@ function StandardDetailPanel({ locale, products, publishedMap, productId }) {
   </div>;
 }
 
-function GlobalModulesPanel({ row, locale, onPublished, notify }) {
+export function GlobalModulesPanel({ row, locale, onPublished, notify }) {
   const { doc, setDoc, dirty, busy, error, save, publish } = useCmsDocument(row);
   const [assets, setAssets] = useState([]);
   useEffect(() => { api.assetsAll({ category: 'page', kind: 'image' }).then(rows => setAssets(Array.isArray(rows) ? rows : [])).catch(() => setAssets([])); }, []);
@@ -270,18 +270,5 @@ function GlobalModulesPanel({ row, locale, onPublished, notify }) {
     </section>
     <CopyEditor title="⑦ 退换货政策" defaultTitle="退换货政策" value={modules.returns} onChange={returns => patchModules({ returns })}/>
     <CopyEditor title="⑧ 其他说明" defaultTitle="其他说明" value={modules.other} onChange={other => patchModules({ other })}/>
-  </div>;
-}
-
-export function DetailDesignPanel({ row, locale, products, publishedMap, productId, onPublished, notify }) {
-  const [tab, setTab] = useState('standard');
-  return <div className="sdp__wrap">
-    <div className="sdp__tabs" role="tablist" aria-label="详情页装修范围">
-      <button type="button" role="tab" aria-selected={tab === 'standard'} title="按商品维护：① 主图与型号颜色、⑤ 图文详情" className={'sdp__tab' + (tab === 'standard' ? ' is-active' : '')} onClick={() => setTab('standard')}>标准详情</button>
-      <button type="button" role="tab" aria-selected={tab === 'global'} title="装修一次全部商品生效：② 营销 ③④ 预留 ⑥ 评价 ⑦ 退换货 ⑧ 其他" className={'sdp__tab' + (tab === 'global' ? ' is-active' : '')} onClick={() => setTab('global')}>公共模块</button>
-    </div>
-    {tab === 'standard'
-      ? <StandardDetailPanel locale={locale} products={products} publishedMap={publishedMap} productId={productId}/>
-      : <GlobalModulesPanel row={row} locale={locale} onPublished={onPublished} notify={notify}/>}
   </div>;
 }

@@ -1,9 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { api } from '../api.js';
-import { CatalogLayoutPanel, DetailDesignPanel } from './ProductDesignPanels.jsx';
+import { CatalogLayoutPanel, StandardDetailPanel, GlobalModulesPanel } from './ProductDesignPanels.jsx';
 
 // 店铺装修工作区：页面 TAB + 工具条 + 左侧按版本模块操作 + 右侧全铺开真实预览。
-// 产品 TAB 特殊：全部产品=列表页版式配置面板；商品详情页=左商品列表 + 中编辑面板 + 右预览。
+// 产品拆成 3 个同级页面：全部产品（列表页版式）、商品详情页（图文，按商品）、商品详情页（公共模块，全局）。
 const LOCALES = [['zh', '中文'], ['de', 'Deutsch'], ['en', 'English']];
 const PATH_ORDER = ['/', '/products', '/dealers', '/services', '/brand'];
 
@@ -19,7 +19,7 @@ export default function ShopDesignWorkspace({ active = true, user, onSectionChan
   const [pages, setPages] = useState([]);
   const [layout, setLayout] = useState(null);
   const [pageKey, setPageKey] = useState('/');
-  // 产品这条是「一级页面 + 二级页面」结构：list = 全部产品（代码渲染，只读），detail = 商品详情页模板（可装修）
+  // 产品下有三个装修页：list = 全部产品（列表页版式），graphic = 商品详情页（图文，按商品），global = 商品详情页（公共模块，全局）
   const [subPage, setSubPage] = useState('list');
   const [locale, setLocale] = useState('zh');
   const [selected, setSelected] = useState('live');
@@ -157,7 +157,11 @@ export default function ShopDesignWorkspace({ active = true, user, onSectionChan
   const status = useMemo(() => {
     if (!current) return { text: '—', tone: 'none' };
     if (current.path === '/') return layout?.publishedVersion ? { text: '线上版本正常', tone: 'live' } : { text: '尚未发布', tone: 'draft' };
-    if (current.type === 'product_template' && subPage === 'list') return row?.publishedVersion ? (row.hasDraft ? { text: '线上版式正常 · 有新草稿', tone: 'live' } : { text: '线上版式正常', tone: 'live' }) : { text: '版式未发布', tone: 'draft' };
+    if (current.type === 'product_template') {
+      if (subPage === 'list') return row?.publishedVersion ? (row.hasDraft ? { text: '线上版式正常 · 有新草稿', tone: 'live' } : { text: '线上版式正常', tone: 'live' }) : { text: '版式未发布', tone: 'draft' };
+      if (subPage === 'global') return row?.publishedVersion ? (row.hasDraft ? { text: '公共模块已发布 · 有新草稿', tone: 'live' } : { text: '公共模块已发布', tone: 'live' }) : { text: '公共模块未发布', tone: 'draft' };
+      return { text: '按商品独立发布', tone: 'none' };
+    }
     if (row?.publishedVersion) return row.hasDraft ? { text: '线上版本正常 · 有新草稿', tone: 'live' } : { text: '线上版本正常', tone: 'live' };
     if (row?.hasDraft) return { text: '草稿待发布', tone: 'draft' };
     return { text: '未发布', tone: 'none' };
@@ -265,32 +269,34 @@ export default function ShopDesignWorkspace({ active = true, user, onSectionChan
   </div>;
 
   return <div className="sdw">
-    {/* 顶部一行：标题 + 一级页面 TAB + 产品二级 TAB（避免 5 行堆叠占高度） */}
+    {/* 顶部一行：标题 + 页面 TAB（产品的「全部产品 / 商品详情页」与其它页面同级同排） */}
     <div className="sdw__top">
       <h2 className="sdw__title">店铺装修</h2>
       <nav className="sdw__pages" role="tablist" aria-label="官网页面">
-        {pageTabs.map(tab => <button key={tab.path} type="button" role="tab" aria-selected={tab.path === pageKey}
-          className={'sdw__ptab' + (tab.path === pageKey ? ' is-active' : '')}
-          onClick={() => { setPageKey(tab.path); setSelected('live'); setSubPage('list'); }}>
-          {tab.label}
-        </button>)}
+        {pageTabs.flatMap(tab => tab.type === 'product_template'
+          ? [
+            <button key={tab.path + '#list'} type="button" role="tab" aria-selected={pageKey === tab.path && subPage === 'list'} title="分类导航 + 产品自动展示，默认按销量倒序"
+              className={'sdw__ptab' + (pageKey === tab.path && subPage === 'list' ? ' is-active' : '')}
+              onClick={() => { setPageKey(tab.path); setSubPage('list'); setSelected('live'); }}>全部产品</button>,
+            <button key={tab.path + '#graphic'} type="button" role="tab" aria-selected={pageKey === tab.path && subPage === 'graphic'} title="按商品维护 ① 主图与 ⑤ 图文详情"
+              className={'sdw__ptab' + (pageKey === tab.path && subPage === 'graphic' ? ' is-active' : '')}
+              onClick={() => { setPageKey(tab.path); setSubPage('graphic'); setSelected('live'); }}>商品详情页（图文）</button>,
+            <button key={tab.path + '#global'} type="button" role="tab" aria-selected={pageKey === tab.path && subPage === 'global'} title="② 营销 ③④ 预留 ⑥ 评价 ⑦ 退换货 ⑧ 其他，装修一次全部商品生效"
+              className={'sdw__ptab' + (pageKey === tab.path && subPage === 'global' ? ' is-active' : '')}
+              onClick={() => { setPageKey(tab.path); setSubPage('global'); setSelected('live'); }}>商品详情页（公共模块）</button>,
+          ]
+          : [<button key={tab.path} type="button" role="tab" aria-selected={tab.path === pageKey}
+            className={'sdw__ptab' + (tab.path === pageKey ? ' is-active' : '')}
+            onClick={() => { setPageKey(tab.path); setSelected('live'); setSubPage('list'); }}>
+            {tab.label}
+          </button>])}
       </nav>
-      {current?.type === 'product_template' && <nav className="sdw__subpages" role="tablist" aria-label="产品下的页面">
-        <button type="button" role="tab" aria-selected={subPage === 'list'} title="分类导航 + 产品自动展示，默认按销量倒序"
-          className={'sdw__stab' + (subPage === 'list' ? ' is-active' : '')}
-          onClick={() => setSubPage('list')}>全部产品</button>
-        <button type="button" role="tab" aria-selected={subPage === 'detail'} title="① 主图 ② 营销 ③④ 预留 ⑤ 图文详情 ⑥ 评价 ⑦ 退换货 ⑧ 其他"
-          className={'sdw__stab' + (subPage === 'detail' ? ' is-active' : '')}
-          onClick={() => { setSubPage('detail'); setSelected('live'); }}>商品详情页</button>
-      </nav>}
     </div>
 
     {/* 第二层：工具条 —— 语言与设备切换同一行 */}
     <div className="sdw__toolbar">
       <div className="sdw__current">
-        <strong>{current?.label || '—'}</strong>
-        {current?.type === 'product_template' && <span className="sdw__crumb">›</span>}
-        {current?.type === 'product_template' && <strong>{subPage === 'list' ? '全部产品' : '商品详情页'}</strong>}
+        <strong>{current?.type === 'product_template' ? ({ list: '全部产品', graphic: '商品详情页（图文）', global: '商品详情页（公共模块）' }[subPage] || '全部产品') : (current?.label || '—')}</strong>
         <span className="mono">{current?.path}</span>
         <span className={'sdw__state is-' + status.tone}>{status.text}</span>
       </div>
@@ -316,7 +322,7 @@ export default function ShopDesignWorkspace({ active = true, user, onSectionChan
 
     {notice && <p className="sdw__notice" role="status">{notice}<button type="button" aria-label="关闭提示" onClick={() => setNotice('')}>×</button></p>}
 
-    <div className={'sdw__body' + (isProduct ? (subPage === 'detail' ? ' sdw__body--detail' : ' sdw__body--list') : '')}>
+    <div className={'sdw__body' + (isProduct ? (subPage === 'list' ? ' sdw__body--list' : ' sdw__body--detail') : '')}>
       {isProduct ? (subPage === 'list'
         ? <aside className="sdw__panel">
           <div className="sdw__side-head"><h3 className="sdw__side-title">列表页版式</h3></div>
@@ -336,7 +342,11 @@ export default function ShopDesignWorkspace({ active = true, user, onSectionChan
             </div>
           </aside>
           <section className="sdw__panel sdw__panel--editor">
-            {row ? <DetailDesignPanel row={row} locale={locale} products={products} publishedMap={publishedMap} productId={designProductId} onPublished={refreshPages} notify={setNotice}/> : <p className="sdw__tip">该语言（{locale}）还没有产品页模板记录，无法装修公共模块。</p>}
+            {subPage === 'graphic'
+              ? <StandardDetailPanel locale={locale} products={products} publishedMap={publishedMap} productId={designProductId}/>
+              : row
+                ? <GlobalModulesPanel row={row} locale={locale} onPublished={refreshPages} notify={setNotice}/>
+                : <p className="sdw__tip">该语言（{locale}）还没有产品页模板记录，无法装修公共模块。</p>}
           </section>
         </>)
         // 其余页面：左侧版本列表 + 右侧预览

@@ -1,0 +1,1211 @@
+{
+  "generatedAt": "2026-11-24T07:12:13.031Z",
+  "pages": [
+    {
+      "locale": "de",
+      "path": "/legal/impressum",
+      "pageType": "custom",
+      "name": "Impressum",
+      "seo": {
+        "title": "Impressum",
+        "description": ""
+      },
+      "blocks": [
+        {
+          "id": "b-legal-impressum",
+          "componentKey": "article",
+          "visible": true,
+          "props": {
+            "heading": "Impressum",
+            "intro": "{{TODO_STAND}}",
+            "imageId": "",
+            "imageAlt": "",
+            "sections": [
+              {
+                "heading": "Angaben gemäß § 5 DDG",
+                "body": "{{TODO_INHALT}} Die Angaben zu Firma, Anschrift, Registergericht, HRB-Nummer, USt-IdNr. und Vertretungsberechtigten müssen vom tatsächlichen Betreiber geliefert und rechtlich geprüft werden.",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "Vertreten durch",
+                "body": "{{TODO_INHALT}} Die Angaben zu Firma, Anschrift, Registergericht, HRB-Nummer, USt-IdNr. und Vertretungsberechtigten müssen vom tatsächlichen Betreiber geliefert und rechtlich geprüft werden.",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "Kontakt",
+                "body": "{{TODO_INHALT}} Die Angaben zu Firma, Anschrift, Registergericht, HRB-Nummer, USt-IdNr. und Vertretungsberechtigten müssen vom tatsächlichen Betreiber geliefert und rechtlich geprüft werden.",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "Registereintrag",
+                "body": "{{TODO_INHALT}} Die Angaben zu Firma, Anschrift, Registergericht, HRB-Nummer, USt-IdNr. und Vertretungsberechtigten müssen vom tatsächlichen Betreiber geliefert und rechtlich geprüft werden.",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "Umsatzsteuer-ID",
+                "body": "{{TODO_INHALT}} Die Angaben zu Firma, Anschrift, Registergericht, HRB-Nummer, USt-IdNr. und Vertretungsberechtigten müssen vom tatsächlichen Betreiber geliefert und rechtlich geprüft werden.",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "Verbraucherstreitbeilegung",
+                "body": "{{TODO_INHALT}} Die Angaben zu Firma, Anschrift, Registergericht, HRB-Nummer, USt-IdNr. und Vertretungsberechtigten müssen vom tatsächlichen Betreiber geliefert und rechtlich geprüft werden.",
+                "imageId": "",
+                "imageAlt": ""
+              }
+            ]
+          },
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "locale": "de",
+      "path": "/legal/datenschutz",
+      "pageType": "custom",
+      "name": "Datenschutzerklärung",
+      "seo": {
+        "title": "Datenschutzerklärung",
+        "description": ""
+      },
+      "blocks": [
+        {
+          "id": "b-legal-datenschutz",
+          "componentKey": "article",
+          "visible": true,
+          "props": {
+            "heading": "Datenschutzerklärung",
+            "intro": "{{TODO_STAND}}",
+            "imageId": "",
+            "imageAlt": "",
+            "sections": [
+              {
+                "heading": "Verantwortlicher",
+                "body": "{{TODO_INHALT}} Verantwortlicher, Hosting-Anbieter, eingesetzte Dienste und Speicherfristen müssen konkret benannt werden; DSGVO-Text ist rechtlich zu prüfen.",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "Hosting und Server-Logfiles",
+                "body": "{{TODO_INHALT}} Verantwortlicher, Hosting-Anbieter, eingesetzte Dienste und Speicherfristen müssen konkret benannt werden; DSGVO-Text ist rechtlich zu prüfen.",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "Verarbeitete Daten und Zwecke",
+                "body": "{{TODO_INHALT}} Verantwortlicher, Hosting-Anbieter, eingesetzte Dienste und Speicherfristen müssen konkret benannt werden; DSGVO-Text ist rechtlich zu prüfen.",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "Rechtsgrundlagen",
+                "body": "{{TODO_INHALT}} Verantwortlicher, Hosting-Anbieter, eingesetzte Dienste und Speicherfristen müssen konkret benannt werden; DSGVO-Text ist rechtlich zu prüfen.",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "Cookies und Einwilligung",
+                "body": "{{TODO_INHALT}} Verantwortlicher, Hosting-Anbieter, eingesetzte Dienste und Speicherfristen müssen konkret benannt werden; DSGVO-Text ist rechtlich zu prüfen.",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "Empfänger und Auftragsverarbeiter",
+                "body": "{{TODO_INHALT}} Verantwortlicher, Hosting-Anbieter, eingesetzte Dienste und Speicherfristen müssen konkret benannt werden; DSGVO-Text ist rechtlich zu prüfen.",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "Speicherdauer",
+                "body": "{{TODO_INHALT}} Verantwortlicher, Hosting-Anbieter, eingesetzte Dienste und Speicherfristen müssen konkret benannt werden; DSGVO-Text ist rechtlich zu prüfen.",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "Ihre Rechte",
+                "body": "{{TODO_INHALT}} Verantwortlicher, Hosting-Anbieter, eingesetzte Dienste und Speicherfristen müssen konkret benannt werden; DSGVO-Text ist rechtlich zu prüfen.",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "Beschwerderecht bei der Aufsichtsbehörde",
+                "body": "{{TODO_INHALT}} Verantwortlicher, Hosting-Anbieter, eingesetzte Dienste und Speicherfristen müssen konkret benannt werden; DSGVO-Text ist rechtlich zu prüfen.",
+                "imageId": "",
+                "imageAlt": ""
+              }
+            ]
+          },
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "locale": "de",
+      "path": "/legal/agb",
+      "pageType": "custom",
+      "name": "Allgemeine Geschäftsbedingungen",
+      "seo": {
+        "title": "Allgemeine Geschäftsbedingungen",
+        "description": ""
+      },
+      "blocks": [
+        {
+          "id": "b-legal-agb",
+          "componentKey": "article",
+          "visible": true,
+          "props": {
+            "heading": "Allgemeine Geschäftsbedingungen",
+            "intro": "{{TODO_STAND}}",
+            "imageId": "",
+            "imageAlt": "",
+            "sections": [
+              {
+                "heading": "Geltungsbereich",
+                "body": "{{TODO_INHALT}} AGB sind individualrechtlich zu erstellen; insbesondere Zahlungs-, Liefer- und Gewährleistungsregeln hängen vom tatsächlichen Geschäftsmodell ab.",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "Vertragsschluss",
+                "body": "{{TODO_INHALT}} AGB sind individualrechtlich zu erstellen; insbesondere Zahlungs-, Liefer- und Gewährleistungsregeln hängen vom tatsächlichen Geschäftsmodell ab.",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "Preise und Versandkosten",
+                "body": "{{TODO_INHALT}} AGB sind individualrechtlich zu erstellen; insbesondere Zahlungs-, Liefer- und Gewährleistungsregeln hängen vom tatsächlichen Geschäftsmodell ab.",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "Zahlung",
+                "body": "{{TODO_INHALT}} AGB sind individualrechtlich zu erstellen; insbesondere Zahlungs-, Liefer- und Gewährleistungsregeln hängen vom tatsächlichen Geschäftsmodell ab.",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "Lieferung und Lieferzeit",
+                "body": "{{TODO_INHALT}} AGB sind individualrechtlich zu erstellen; insbesondere Zahlungs-, Liefer- und Gewährleistungsregeln hängen vom tatsächlichen Geschäftsmodell ab.",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "Eigentumsvorbehalt",
+                "body": "{{TODO_INHALT}} AGB sind individualrechtlich zu erstellen; insbesondere Zahlungs-, Liefer- und Gewährleistungsregeln hängen vom tatsächlichen Geschäftsmodell ab.",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "Gewährleistung und Garantie",
+                "body": "{{TODO_INHALT}} AGB sind individualrechtlich zu erstellen; insbesondere Zahlungs-, Liefer- und Gewährleistungsregeln hängen vom tatsächlichen Geschäftsmodell ab.",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "Haftung",
+                "body": "{{TODO_INHALT}} AGB sind individualrechtlich zu erstellen; insbesondere Zahlungs-, Liefer- und Gewährleistungsregeln hängen vom tatsächlichen Geschäftsmodell ab.",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "Streitbeilegung",
+                "body": "{{TODO_INHALT}} AGB sind individualrechtlich zu erstellen; insbesondere Zahlungs-, Liefer- und Gewährleistungsregeln hängen vom tatsächlichen Geschäftsmodell ab.",
+                "imageId": "",
+                "imageAlt": ""
+              }
+            ]
+          },
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "locale": "de",
+      "path": "/legal/widerrufsbelehrung",
+      "pageType": "custom",
+      "name": "Widerrufsbelehrung",
+      "seo": {
+        "title": "Widerrufsbelehrung",
+        "description": ""
+      },
+      "blocks": [
+        {
+          "id": "b-legal-widerrufsbelehrung",
+          "componentKey": "article",
+          "visible": true,
+          "props": {
+            "heading": "Widerrufsbelehrung",
+            "intro": "{{TODO_STAND}}",
+            "imageId": "",
+            "imageAlt": "",
+            "sections": [
+              {
+                "heading": "Widerrufsrecht",
+                "body": "{{TODO_INHALT}} Für Fernabsatz an Verbraucher ist die Belehrung zwingend; das Muster-Widerrufsformular muss dem gesetzlichen Muster entsprechen.",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "Widerrufsfrist",
+                "body": "{{TODO_INHALT}} Für Fernabsatz an Verbraucher ist die Belehrung zwingend; das Muster-Widerrufsformular muss dem gesetzlichen Muster entsprechen.",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "Folgen des Widerrufs",
+                "body": "{{TODO_INHALT}} Für Fernabsatz an Verbraucher ist die Belehrung zwingend; das Muster-Widerrufsformular muss dem gesetzlichen Muster entsprechen.",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "Rücksendekosten",
+                "body": "{{TODO_INHALT}} Für Fernabsatz an Verbraucher ist die Belehrung zwingend; das Muster-Widerrufsformular muss dem gesetzlichen Muster entsprechen.",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "Ausnahmen vom Widerrufsrecht",
+                "body": "{{TODO_INHALT}} Für Fernabsatz an Verbraucher ist die Belehrung zwingend; das Muster-Widerrufsformular muss dem gesetzlichen Muster entsprechen.",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "Muster-Widerrufsformular",
+                "body": "{{TODO_INHALT}} Für Fernabsatz an Verbraucher ist die Belehrung zwingend; das Muster-Widerrufsformular muss dem gesetzlichen Muster entsprechen.",
+                "imageId": "",
+                "imageAlt": ""
+              }
+            ]
+          },
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "locale": "de",
+      "path": "/legal/versand",
+      "pageType": "custom",
+      "name": "Versand und Lieferung",
+      "seo": {
+        "title": "Versand und Lieferung",
+        "description": ""
+      },
+      "blocks": [
+        {
+          "id": "b-legal-versand",
+          "componentKey": "article",
+          "visible": true,
+          "props": {
+            "heading": "Versand und Lieferung",
+            "intro": "{{TODO_STAND}}",
+            "imageId": "",
+            "imageAlt": "",
+            "sections": [
+              {
+                "heading": "Liefergebiete",
+                "body": "{{TODO_INHALT}} Lieferländer, Versandkosten und Lieferzeiten müssen den tatsächlichen Logistikvereinbarungen entsprechen.",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "Versandkosten",
+                "body": "{{TODO_INHALT}} Lieferländer, Versandkosten und Lieferzeiten müssen den tatsächlichen Logistikvereinbarungen entsprechen.",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "Lieferzeiten",
+                "body": "{{TODO_INHALT}} Lieferländer, Versandkosten und Lieferzeiten müssen den tatsächlichen Logistikvereinbarungen entsprechen.",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "Speditionslieferung und Montage",
+                "body": "{{TODO_INHALT}} Lieferländer, Versandkosten und Lieferzeiten müssen den tatsächlichen Logistikvereinbarungen entsprechen.",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "Sendungsverfolgung",
+                "body": "{{TODO_INHALT}} Lieferländer, Versandkosten und Lieferzeiten müssen den tatsächlichen Logistikvereinbarungen entsprechen.",
+                "imageId": "",
+                "imageAlt": ""
+              }
+            ]
+          },
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "locale": "de",
+      "path": "/legal/zahlung",
+      "pageType": "custom",
+      "name": "Zahlungsarten",
+      "seo": {
+        "title": "Zahlungsarten",
+        "description": ""
+      },
+      "blocks": [
+        {
+          "id": "b-legal-zahlung",
+          "componentKey": "article",
+          "visible": true,
+          "props": {
+            "heading": "Zahlungsarten",
+            "intro": "{{TODO_STAND}}",
+            "imageId": "",
+            "imageAlt": "",
+            "sections": [
+              {
+                "heading": "Akzeptierte Zahlungsarten",
+                "body": "{{TODO_INHALT}} Nur tatsächlich freigeschaltete Zahlungsarten nennen — voreilige Angaben sind irreführende Werbung.",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "Kreditkarte",
+                "body": "{{TODO_INHALT}} Nur tatsächlich freigeschaltete Zahlungsarten nennen — voreilige Angaben sind irreführende Werbung.",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "PayPal",
+                "body": "{{TODO_INHALT}} Nur tatsächlich freigeschaltete Zahlungsarten nennen — voreilige Angaben sind irreführende Werbung.",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "SEPA-Lastschrift",
+                "body": "{{TODO_INHALT}} Nur tatsächlich freigeschaltete Zahlungsarten nennen — voreilige Angaben sind irreführende Werbung.",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "Klarna",
+                "body": "{{TODO_INHALT}} Nur tatsächlich freigeschaltete Zahlungsarten nennen — voreilige Angaben sind irreführende Werbung.",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "Zahlungsabwicklung und Sicherheit",
+                "body": "{{TODO_INHALT}} Nur tatsächlich freigeschaltete Zahlungsarten nennen — voreilige Angaben sind irreführende Werbung.",
+                "imageId": "",
+                "imageAlt": ""
+              }
+            ]
+          },
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "locale": "en",
+      "path": "/legal/impressum",
+      "pageType": "custom",
+      "name": "Legal notice",
+      "seo": {
+        "title": "Legal notice",
+        "description": ""
+      },
+      "blocks": [
+        {
+          "id": "b-legal-impressum",
+          "componentKey": "article",
+          "visible": true,
+          "props": {
+            "heading": "Legal notice",
+            "intro": "{{TODO_STAND}}",
+            "imageId": "",
+            "imageAlt": "",
+            "sections": [
+              {
+                "heading": "Information pursuant to § 5 DDG",
+                "body": "{{TODO_INHALT}} Company name, address, register court, HRB number, VAT ID and authorised representatives must be supplied by the actual operator and reviewed legally.",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "Represented by",
+                "body": "{{TODO_INHALT}} Company name, address, register court, HRB number, VAT ID and authorised representatives must be supplied by the actual operator and reviewed legally.",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "Contact",
+                "body": "{{TODO_INHALT}} Company name, address, register court, HRB number, VAT ID and authorised representatives must be supplied by the actual operator and reviewed legally.",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "Commercial register",
+                "body": "{{TODO_INHALT}} Company name, address, register court, HRB number, VAT ID and authorised representatives must be supplied by the actual operator and reviewed legally.",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "VAT ID",
+                "body": "{{TODO_INHALT}} Company name, address, register court, HRB number, VAT ID and authorised representatives must be supplied by the actual operator and reviewed legally.",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "Consumer dispute resolution",
+                "body": "{{TODO_INHALT}} Company name, address, register court, HRB number, VAT ID and authorised representatives must be supplied by the actual operator and reviewed legally.",
+                "imageId": "",
+                "imageAlt": ""
+              }
+            ]
+          },
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "locale": "en",
+      "path": "/legal/datenschutz",
+      "pageType": "custom",
+      "name": "Privacy policy",
+      "seo": {
+        "title": "Privacy policy",
+        "description": ""
+      },
+      "blocks": [
+        {
+          "id": "b-legal-datenschutz",
+          "componentKey": "article",
+          "visible": true,
+          "props": {
+            "heading": "Privacy policy",
+            "intro": "{{TODO_STAND}}",
+            "imageId": "",
+            "imageAlt": "",
+            "sections": [
+              {
+                "heading": "Controller",
+                "body": "{{TODO_INHALT}} Controller, hosting provider, services used and retention periods must be named concretely; GDPR wording requires legal review.",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "Hosting and server log files",
+                "body": "{{TODO_INHALT}} Controller, hosting provider, services used and retention periods must be named concretely; GDPR wording requires legal review.",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "Data processed and purposes",
+                "body": "{{TODO_INHALT}} Controller, hosting provider, services used and retention periods must be named concretely; GDPR wording requires legal review.",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "Legal bases",
+                "body": "{{TODO_INHALT}} Controller, hosting provider, services used and retention periods must be named concretely; GDPR wording requires legal review.",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "Cookies and consent",
+                "body": "{{TODO_INHALT}} Controller, hosting provider, services used and retention periods must be named concretely; GDPR wording requires legal review.",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "Recipients and processors",
+                "body": "{{TODO_INHALT}} Controller, hosting provider, services used and retention periods must be named concretely; GDPR wording requires legal review.",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "Retention period",
+                "body": "{{TODO_INHALT}} Controller, hosting provider, services used and retention periods must be named concretely; GDPR wording requires legal review.",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "Your rights",
+                "body": "{{TODO_INHALT}} Controller, hosting provider, services used and retention periods must be named concretely; GDPR wording requires legal review.",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "Right to lodge a complaint",
+                "body": "{{TODO_INHALT}} Controller, hosting provider, services used and retention periods must be named concretely; GDPR wording requires legal review.",
+                "imageId": "",
+                "imageAlt": ""
+              }
+            ]
+          },
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "locale": "en",
+      "path": "/legal/agb",
+      "pageType": "custom",
+      "name": "Terms and conditions",
+      "seo": {
+        "title": "Terms and conditions",
+        "description": ""
+      },
+      "blocks": [
+        {
+          "id": "b-legal-agb",
+          "componentKey": "article",
+          "visible": true,
+          "props": {
+            "heading": "Terms and conditions",
+            "intro": "{{TODO_STAND}}",
+            "imageId": "",
+            "imageAlt": "",
+            "sections": [
+              {
+                "heading": "Scope",
+                "body": "{{TODO_INHALT}} Terms must be drafted individually; payment, delivery and warranty rules depend on the actual business model.",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "Conclusion of contract",
+                "body": "{{TODO_INHALT}} Terms must be drafted individually; payment, delivery and warranty rules depend on the actual business model.",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "Prices and shipping costs",
+                "body": "{{TODO_INHALT}} Terms must be drafted individually; payment, delivery and warranty rules depend on the actual business model.",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "Payment",
+                "body": "{{TODO_INHALT}} Terms must be drafted individually; payment, delivery and warranty rules depend on the actual business model.",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "Delivery and delivery time",
+                "body": "{{TODO_INHALT}} Terms must be drafted individually; payment, delivery and warranty rules depend on the actual business model.",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "Retention of title",
+                "body": "{{TODO_INHALT}} Terms must be drafted individually; payment, delivery and warranty rules depend on the actual business model.",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "Warranty and guarantee",
+                "body": "{{TODO_INHALT}} Terms must be drafted individually; payment, delivery and warranty rules depend on the actual business model.",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "Liability",
+                "body": "{{TODO_INHALT}} Terms must be drafted individually; payment, delivery and warranty rules depend on the actual business model.",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "Dispute resolution",
+                "body": "{{TODO_INHALT}} Terms must be drafted individually; payment, delivery and warranty rules depend on the actual business model.",
+                "imageId": "",
+                "imageAlt": ""
+              }
+            ]
+          },
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "locale": "en",
+      "path": "/legal/widerrufsbelehrung",
+      "pageType": "custom",
+      "name": "Right of withdrawal",
+      "seo": {
+        "title": "Right of withdrawal",
+        "description": ""
+      },
+      "blocks": [
+        {
+          "id": "b-legal-widerrufsbelehrung",
+          "componentKey": "article",
+          "visible": true,
+          "props": {
+            "heading": "Right of withdrawal",
+            "intro": "{{TODO_STAND}}",
+            "imageId": "",
+            "imageAlt": "",
+            "sections": [
+              {
+                "heading": "Right of withdrawal",
+                "body": "{{TODO_INHALT}} Mandatory for distance selling to consumers; the model form must match the statutory template.",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "Withdrawal period",
+                "body": "{{TODO_INHALT}} Mandatory for distance selling to consumers; the model form must match the statutory template.",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "Consequences of withdrawal",
+                "body": "{{TODO_INHALT}} Mandatory for distance selling to consumers; the model form must match the statutory template.",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "Return costs",
+                "body": "{{TODO_INHALT}} Mandatory for distance selling to consumers; the model form must match the statutory template.",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "Exceptions to the right of withdrawal",
+                "body": "{{TODO_INHALT}} Mandatory for distance selling to consumers; the model form must match the statutory template.",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "Model withdrawal form",
+                "body": "{{TODO_INHALT}} Mandatory for distance selling to consumers; the model form must match the statutory template.",
+                "imageId": "",
+                "imageAlt": ""
+              }
+            ]
+          },
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "locale": "en",
+      "path": "/legal/versand",
+      "pageType": "custom",
+      "name": "Shipping and delivery",
+      "seo": {
+        "title": "Shipping and delivery",
+        "description": ""
+      },
+      "blocks": [
+        {
+          "id": "b-legal-versand",
+          "componentKey": "article",
+          "visible": true,
+          "props": {
+            "heading": "Shipping and delivery",
+            "intro": "{{TODO_STAND}}",
+            "imageId": "",
+            "imageAlt": "",
+            "sections": [
+              {
+                "heading": "Delivery areas",
+                "body": "{{TODO_INHALT}} Delivery countries, shipping costs and lead times must match actual logistics agreements.",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "Shipping costs",
+                "body": "{{TODO_INHALT}} Delivery countries, shipping costs and lead times must match actual logistics agreements.",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "Delivery times",
+                "body": "{{TODO_INHALT}} Delivery countries, shipping costs and lead times must match actual logistics agreements.",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "Freight delivery and assembly",
+                "body": "{{TODO_INHALT}} Delivery countries, shipping costs and lead times must match actual logistics agreements.",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "Shipment tracking",
+                "body": "{{TODO_INHALT}} Delivery countries, shipping costs and lead times must match actual logistics agreements.",
+                "imageId": "",
+                "imageAlt": ""
+              }
+            ]
+          },
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "locale": "en",
+      "path": "/legal/zahlung",
+      "pageType": "custom",
+      "name": "Payment methods",
+      "seo": {
+        "title": "Payment methods",
+        "description": ""
+      },
+      "blocks": [
+        {
+          "id": "b-legal-zahlung",
+          "componentKey": "article",
+          "visible": true,
+          "props": {
+            "heading": "Payment methods",
+            "intro": "{{TODO_STAND}}",
+            "imageId": "",
+            "imageAlt": "",
+            "sections": [
+              {
+                "heading": "Accepted payment methods",
+                "body": "{{TODO_INHALT}} List only payment methods that are actually enabled — premature claims are misleading advertising.",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "Credit card",
+                "body": "{{TODO_INHALT}} List only payment methods that are actually enabled — premature claims are misleading advertising.",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "PayPal",
+                "body": "{{TODO_INHALT}} List only payment methods that are actually enabled — premature claims are misleading advertising.",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "SEPA direct debit",
+                "body": "{{TODO_INHALT}} List only payment methods that are actually enabled — premature claims are misleading advertising.",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "Klarna",
+                "body": "{{TODO_INHALT}} List only payment methods that are actually enabled — premature claims are misleading advertising.",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "Payment processing and security",
+                "body": "{{TODO_INHALT}} List only payment methods that are actually enabled — premature claims are misleading advertising.",
+                "imageId": "",
+                "imageAlt": ""
+              }
+            ]
+          },
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "locale": "zh",
+      "path": "/legal/impressum",
+      "pageType": "custom",
+      "name": "法律声明",
+      "seo": {
+        "title": "法律声明",
+        "description": ""
+      },
+      "blocks": [
+        {
+          "id": "b-legal-impressum",
+          "componentKey": "article",
+          "visible": true,
+          "props": {
+            "heading": "法律声明",
+            "intro": "{{TODO_STAND}}",
+            "imageId": "",
+            "imageAlt": "",
+            "sections": [
+              {
+                "heading": "依据德国《数字服务法》第 5 条的经营者信息",
+                "body": "{{TODO_INHALT}} 公司名称、地址、登记法院、HRB 号、增值税号与代表人必须由实际经营主体提供并经法律审核。",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "代表人",
+                "body": "{{TODO_INHALT}} 公司名称、地址、登记法院、HRB 号、增值税号与代表人必须由实际经营主体提供并经法律审核。",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "联系方式",
+                "body": "{{TODO_INHALT}} 公司名称、地址、登记法院、HRB 号、增值税号与代表人必须由实际经营主体提供并经法律审核。",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "商业登记",
+                "body": "{{TODO_INHALT}} 公司名称、地址、登记法院、HRB 号、增值税号与代表人必须由实际经营主体提供并经法律审核。",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "增值税号",
+                "body": "{{TODO_INHALT}} 公司名称、地址、登记法院、HRB 号、增值税号与代表人必须由实际经营主体提供并经法律审核。",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "消费者争议解决",
+                "body": "{{TODO_INHALT}} 公司名称、地址、登记法院、HRB 号、增值税号与代表人必须由实际经营主体提供并经法律审核。",
+                "imageId": "",
+                "imageAlt": ""
+              }
+            ]
+          },
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "locale": "zh",
+      "path": "/legal/datenschutz",
+      "pageType": "custom",
+      "name": "隐私政策",
+      "seo": {
+        "title": "隐私政策",
+        "description": ""
+      },
+      "blocks": [
+        {
+          "id": "b-legal-datenschutz",
+          "componentKey": "article",
+          "visible": true,
+          "props": {
+            "heading": "隐私政策",
+            "intro": "{{TODO_STAND}}",
+            "imageId": "",
+            "imageAlt": "",
+            "sections": [
+              {
+                "heading": "控制者",
+                "body": "{{TODO_INHALT}} 控制者、托管服务商、所用服务与保存期限必须具体列明；GDPR 条文需法律审核。",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "托管与服务器日志",
+                "body": "{{TODO_INHALT}} 控制者、托管服务商、所用服务与保存期限必须具体列明；GDPR 条文需法律审核。",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "处理的数据与目的",
+                "body": "{{TODO_INHALT}} 控制者、托管服务商、所用服务与保存期限必须具体列明；GDPR 条文需法律审核。",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "法律依据",
+                "body": "{{TODO_INHALT}} 控制者、托管服务商、所用服务与保存期限必须具体列明；GDPR 条文需法律审核。",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "Cookie 与同意",
+                "body": "{{TODO_INHALT}} 控制者、托管服务商、所用服务与保存期限必须具体列明；GDPR 条文需法律审核。",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "接收方与受托处理者",
+                "body": "{{TODO_INHALT}} 控制者、托管服务商、所用服务与保存期限必须具体列明；GDPR 条文需法律审核。",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "保存期限",
+                "body": "{{TODO_INHALT}} 控制者、托管服务商、所用服务与保存期限必须具体列明；GDPR 条文需法律审核。",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "您的权利",
+                "body": "{{TODO_INHALT}} 控制者、托管服务商、所用服务与保存期限必须具体列明；GDPR 条文需法律审核。",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "向监管机构投诉的权利",
+                "body": "{{TODO_INHALT}} 控制者、托管服务商、所用服务与保存期限必须具体列明；GDPR 条文需法律审核。",
+                "imageId": "",
+                "imageAlt": ""
+              }
+            ]
+          },
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "locale": "zh",
+      "path": "/legal/agb",
+      "pageType": "custom",
+      "name": "通用交易条款",
+      "seo": {
+        "title": "通用交易条款",
+        "description": ""
+      },
+      "blocks": [
+        {
+          "id": "b-legal-agb",
+          "componentKey": "article",
+          "visible": true,
+          "props": {
+            "heading": "通用交易条款",
+            "intro": "{{TODO_STAND}}",
+            "imageId": "",
+            "imageAlt": "",
+            "sections": [
+              {
+                "heading": "适用范围",
+                "body": "{{TODO_INHALT}} 条款须逐条定制；支付、交付与瑕疵责任规则取决于实际经营模式。",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "合同成立",
+                "body": "{{TODO_INHALT}} 条款须逐条定制；支付、交付与瑕疵责任规则取决于实际经营模式。",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "价格与运费",
+                "body": "{{TODO_INHALT}} 条款须逐条定制；支付、交付与瑕疵责任规则取决于实际经营模式。",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "支付",
+                "body": "{{TODO_INHALT}} 条款须逐条定制；支付、交付与瑕疵责任规则取决于实际经营模式。",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "交付与交付期",
+                "body": "{{TODO_INHALT}} 条款须逐条定制；支付、交付与瑕疵责任规则取决于实际经营模式。",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "所有权保留",
+                "body": "{{TODO_INHALT}} 条款须逐条定制；支付、交付与瑕疵责任规则取决于实际经营模式。",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "瑕疵责任与质保",
+                "body": "{{TODO_INHALT}} 条款须逐条定制；支付、交付与瑕疵责任规则取决于实际经营模式。",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "责任",
+                "body": "{{TODO_INHALT}} 条款须逐条定制；支付、交付与瑕疵责任规则取决于实际经营模式。",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "争议解决",
+                "body": "{{TODO_INHALT}} 条款须逐条定制；支付、交付与瑕疵责任规则取决于实际经营模式。",
+                "imageId": "",
+                "imageAlt": ""
+              }
+            ]
+          },
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "locale": "zh",
+      "path": "/legal/widerrufsbelehrung",
+      "pageType": "custom",
+      "name": "撤销权说明",
+      "seo": {
+        "title": "撤销权说明",
+        "description": ""
+      },
+      "blocks": [
+        {
+          "id": "b-legal-widerrufsbelehrung",
+          "componentKey": "article",
+          "visible": true,
+          "props": {
+            "heading": "撤销权说明",
+            "intro": "{{TODO_STAND}}",
+            "imageId": "",
+            "imageAlt": "",
+            "sections": [
+              {
+                "heading": "撤销权",
+                "body": "{{TODO_INHALT}} 向消费者远程销售时必须提供；范本表格须与法定模板一致。",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "撤销期限",
+                "body": "{{TODO_INHALT}} 向消费者远程销售时必须提供；范本表格须与法定模板一致。",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "撤销的后果",
+                "body": "{{TODO_INHALT}} 向消费者远程销售时必须提供；范本表格须与法定模板一致。",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "退货运费",
+                "body": "{{TODO_INHALT}} 向消费者远程销售时必须提供；范本表格须与法定模板一致。",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "撤销权的例外",
+                "body": "{{TODO_INHALT}} 向消费者远程销售时必须提供；范本表格须与法定模板一致。",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "撤销表格范本",
+                "body": "{{TODO_INHALT}} 向消费者远程销售时必须提供；范本表格须与法定模板一致。",
+                "imageId": "",
+                "imageAlt": ""
+              }
+            ]
+          },
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "locale": "zh",
+      "path": "/legal/versand",
+      "pageType": "custom",
+      "name": "配送与交付",
+      "seo": {
+        "title": "配送与交付",
+        "description": ""
+      },
+      "blocks": [
+        {
+          "id": "b-legal-versand",
+          "componentKey": "article",
+          "visible": true,
+          "props": {
+            "heading": "配送与交付",
+            "intro": "{{TODO_STAND}}",
+            "imageId": "",
+            "imageAlt": "",
+            "sections": [
+              {
+                "heading": "配送范围",
+                "body": "{{TODO_INHALT}} 配送国家、运费与时效须与实际物流安排一致。",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "运费",
+                "body": "{{TODO_INHALT}} 配送国家、运费与时效须与实际物流安排一致。",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "配送时效",
+                "body": "{{TODO_INHALT}} 配送国家、运费与时效须与实际物流安排一致。",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "大件运输与组装",
+                "body": "{{TODO_INHALT}} 配送国家、运费与时效须与实际物流安排一致。",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "物流查询",
+                "body": "{{TODO_INHALT}} 配送国家、运费与时效须与实际物流安排一致。",
+                "imageId": "",
+                "imageAlt": ""
+              }
+            ]
+          },
+          "bindings": {}
+        }
+      ]
+    },
+    {
+      "locale": "zh",
+      "path": "/legal/zahlung",
+      "pageType": "custom",
+      "name": "支付方式",
+      "seo": {
+        "title": "支付方式",
+        "description": ""
+      },
+      "blocks": [
+        {
+          "id": "b-legal-zahlung",
+          "componentKey": "article",
+          "visible": true,
+          "props": {
+            "heading": "支付方式",
+            "intro": "{{TODO_STAND}}",
+            "imageId": "",
+            "imageAlt": "",
+            "sections": [
+              {
+                "heading": "支持的支付方式",
+                "body": "{{TODO_INHALT}} 只能列出真正已开通的支付方式，提前声明属于误导性宣传。",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "信用卡",
+                "body": "{{TODO_INHALT}} 只能列出真正已开通的支付方式，提前声明属于误导性宣传。",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "PayPal",
+                "body": "{{TODO_INHALT}} 只能列出真正已开通的支付方式，提前声明属于误导性宣传。",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "SEPA 直接借记",
+                "body": "{{TODO_INHALT}} 只能列出真正已开通的支付方式，提前声明属于误导性宣传。",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "Klarna",
+                "body": "{{TODO_INHALT}} 只能列出真正已开通的支付方式，提前声明属于误导性宣传。",
+                "imageId": "",
+                "imageAlt": ""
+              },
+              {
+                "heading": "支付处理与安全",
+                "body": "{{TODO_INHALT}} 只能列出真正已开通的支付方式，提前声明属于误导性宣传。",
+                "imageId": "",
+                "imageAlt": ""
+              }
+            ]
+          },
+          "bindings": {}
+        }
+      ]
+    }
+  ]
+}

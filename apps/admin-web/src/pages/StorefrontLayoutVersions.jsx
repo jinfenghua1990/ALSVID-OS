@@ -6,7 +6,7 @@ import { api } from '../api.js';
 // 设计前提：版本快照是回滚的唯一依据，所以这里对「表未建立」必须显式提示，
 // 而不是静默显示空列表 —— 否则运营会以为发布过很多版本。
 
-const ORIGIN_LABEL = { publish: '发布', rollback: '回滚', manual: '手动保存' };
+const ORIGIN_LABEL = { publish: '发布', rollback: '回滚', manual: '手动保存', locale: '语言发布 / 下线' };
 
 function formatTime(value) {
   if (!value) return '—';

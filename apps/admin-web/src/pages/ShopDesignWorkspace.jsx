@@ -139,12 +139,24 @@ export default function ShopDesignWorkspace({ active = true, user, onSectionChan
   }, [current, row, layout]);
 
   const historyItems = useMemo(() => {
-    if (!current || current.path === '/') return [];
+    if (!current) return [];
+    if (current.path === '/') {
+      const published = Number(layout?.publishedVersion);
+      return (layoutVersions.items || [])
+        .filter(v => Number(v.version) !== published)
+        .map(v => ({
+          key: `v:${v.version}`,
+          version: v.version,
+          time: v.publishedAt || v.createdAt,
+          label: v.note || '',
+          desc: `${LAYOUT_VERSION_ORIGIN[v.origin] || v.origin || '历史版本'}${v.publishedBy ? ' · ' + String(v.publishedBy).split('@')[0] : ''}${v.rolledBackFrom ? ' ← v' + v.rolledBackFrom : ''}`,
+        }));
+    }
     return versions.filter(v => Number(v.version) !== Number(row?.publishedVersion)).map(v => ({
       key: `v:${v.version}`, version: v.version, time: v.createdAt, label: v.label || '',
       desc: v.createdBy ? `历史发布记录 · ${v.createdBy}` : '历史发布记录',
     }));
-  }, [current, row, versions]);
+  }, [current, row, versions, layout?.publishedVersion, layoutVersions]);
 
   // 产品 TAB：加载真实商品清单（主图/名称）与当前语言的在售映射（productId → slug）。
   useEffect(() => {
@@ -503,14 +515,21 @@ export default function ShopDesignWorkspace({ active = true, user, onSectionChan
               {item.label && <span className="sdw__vitem-time">{fmt(item.time)}</span>}
               <span className="sdw__vitem-desc">{item.desc}</span>
             </button>
-            {moduleOps([
-              { label: '预览', onClick: () => setSelected(item.key) },
-              { label: '装修', tone: 'strong', onClick: () => editHistoryVersion(item) },
-              { label: '重命名', onClick: () => renameHistoryVersion(item) },
-              { label: '删除', tone: 'danger', onClick: () => deleteHistoryVersion(item) },
-            ])}
+            {current?.path === '/'
+              ? moduleOps([
+                { label: '预览', onClick: () => setSelected(item.key) },
+                { label: '在编辑器中查看', tone: 'strong', onClick: openEditor },
+              ])
+              : moduleOps([
+                { label: '预览', onClick: () => setSelected(item.key) },
+                { label: '装修', tone: 'strong', onClick: () => editHistoryVersion(item) },
+                { label: '重命名', onClick: () => renameHistoryVersion(item) },
+                { label: '删除', tone: 'danger', onClick: () => deleteHistoryVersion(item) },
+              ])}
           </div>)
-          : <p className="sdw__tip">暂无历史版本，每次发布会自动留档。</p>}
+          : current?.path === '/' && !layoutVersions.available
+            ? <p className="error-text" role="alert">版本历史不可用：{layoutVersions.reason || '版本历史表尚未建立'}</p>
+            : <p className="sdw__tip">暂无历史版本，每次发布会自动留档。</p>}
 
         {error && <p className="error-text" role="alert">{error}</p>}
         </>

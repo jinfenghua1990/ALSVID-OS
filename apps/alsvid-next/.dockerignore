@@ -1,0 +1,17 @@
+node_modules
+**/node_modules
+.git
+**/.git
+.next
+**/.next
+dist
+**/dist
+coverage
+**/coverage
+backups
+**/backups
+*.log
+.env
+.env.*
+!.env.example
+gha-creds-*.json

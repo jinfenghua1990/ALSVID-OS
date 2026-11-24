@@ -1,0 +1,1 @@
+{"name":"procurement","schema":"procurement","mode":"encapsulated","dependsOn":["partners","product","engineering"]}

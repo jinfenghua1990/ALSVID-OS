@@ -1,0 +1,18 @@
+const validText=(s,max)=>typeof s==='string'&&s.length>0&&s.length<=max;
+export function parseCart(value){
+ if(!Array.isArray(value))return [];
+ const seen=new Set(),rows=[];
+ for(const x of value){if(!x||!validText(x.productId,160)||!validText(x.sku,80)||!['EUR','CNY'].includes(x.currency)||!Number.isSafeInteger(x.quantity)||x.quantity<1||x.quantity>100)continue;const key=JSON.stringify([x.productId,x.sku,x.currency]);if(seen.has(key))continue;seen.add(key);rows.push({productId:x.productId,sku:x.sku,currency:x.currency,quantity:x.quantity});if(rows.length===50)break;}
+ return rows;
+}
+export function addCartItem(rows,item,quantity=1){if(!Number.isSafeInteger(quantity)||quantity<1||quantity>100)throw Error('maximum quantity');const cart=parseCart(rows),entry=parseCart([{...item,quantity}])[0];if(!entry)throw Error('invalid cart item');const existing=cart.find(x=>x.productId===entry.productId&&x.sku===entry.sku&&x.currency===entry.currency);if(existing){if(existing.quantity+quantity>100)throw Error('maximum quantity');return cart.map(x=>x===existing?{...x,quantity:x.quantity+quantity}:x)}if(cart.length>=50)throw Error('maximum cart items');return [...cart,entry]}
+export const guestCartKey='alsvid-guest-cart-v1';
+export function loadGuestCart(){try{return parseCart(JSON.parse(localStorage.getItem(guestCartKey)||'[]'))}catch{return []}}
+export function notifyCartChanged(quantity){window.dispatchEvent(new CustomEvent('alsvid-cart-changed',{detail:{quantity}}))}
+export function saveGuestCart(rows){const items=parseCart(rows);localStorage.setItem(guestCartKey,JSON.stringify(items));notifyCartChanged(items.reduce((total,item)=>total+item.quantity,0));return items}
+export function clearGuestCart(){localStorage.removeItem(guestCartKey);notifyCartChanged(0)}
+export function priceInCents(value){if(typeof value!=='string'||!/^\d{1,9}(?:\.\d{1,2})?$/.test(value))return null;const [whole,fraction='']=value.split('.');const cents=Number(whole)*100+Number((fraction+'00').slice(0,2));return Number.isSafeInteger(cents)&&cents<=10000000000?cents:null}
+export function formatCents(value){const cents=typeof value==='bigint'?value:typeof value==='number'&&Number.isSafeInteger(value)?BigInt(value):typeof value==='string'&&/^-?\d+$/.test(value)?BigInt(value):null;if(cents===null)throw Error('invalid cents');const amount=cents<0n?-cents:cents;return `${cents<0n?'-':''}${amount/100n}.${String(amount%100n).padStart(2,'0')}`}
+async function responseData(response){const data=await response.json().catch(()=>null);if(!response.ok){const e=Error(data?.error||'cart request failed');e.status=response.status;throw e}return data}
+export async function loadCartContext(){const status=await responseData(await fetch('/api/auth/status',{cache:'no-store'}));if(status.user?.role!=='owner'){const error=Error(status.user?'此功能仅对已开通的车主账号开放':'请先登录已开通的车主账号，购物车将保存在云端');error.status=status.user?403:401;throw error}const cart=await responseData(await fetch('/api/portal/storefront/cart',{cache:'no-store'}));if(!Number.isSafeInteger(cart.revision)||cart.revision<0||!Array.isArray(cart.items))throw Error('invalid cart response');return {mode:'account',accountId:status.user.id,revision:cart.revision,items:parseCart(cart.items)}}
+export async function saveCartContext(context,rows){if(context?.mode!=='account')throw Object.assign(Error('请先登录已开通的车主账号'),{status:401});const items=parseCart(rows);const saved=await responseData(await fetch('/api/portal/storefront/cart',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({revision:context.revision,items})}));return {mode:'account',accountId:context.accountId,revision:saved.revision,items:parseCart(saved.items)}}

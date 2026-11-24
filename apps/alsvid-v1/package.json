@@ -1,0 +1,22 @@
+{
+  "name": "alsvid",
+  "private": true,
+  "version": "0.1.0",
+  "packageManager": "pnpm@10.34.6",
+  "engines": { "node": ">=22.18.0" },
+  "scripts": {
+    "dev": "pnpm --parallel --filter @alsvid/web --filter @alsvid/api --filter @alsvid/worker dev",
+    "build": "pnpm -r build",
+    "typecheck": "pnpm -r typecheck",
+    "lint": "pnpm -r lint",
+    "test": "pnpm -r test",
+    "arch:check": "node scripts/check-architecture.mjs",
+    "verify": "pnpm arch:check && pnpm typecheck && pnpm test && pnpm build",
+    "db:migrate": "pnpm --filter @alsvid/database migrate",
+    "bootstrap:admin": "pnpm --filter @alsvid/api bootstrap:admin",
+    "infra:up": "node scripts/local-production.mjs up",
+    "infra:down": "node scripts/local-production.mjs down",
+    "infra:status": "node scripts/local-production.mjs status"
+  },
+  "devDependencies": { "typescript": "^6.0.0" }
+}

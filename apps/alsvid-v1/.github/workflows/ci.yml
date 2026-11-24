@@ -1,0 +1,398 @@
+name: CI
+
+on:
+  workflow_dispatch:
+    inputs:
+      deploy_production:
+        description: "Deploy to Production after this main-branch CI run succeeds"
+        required: false
+        default: false
+        type: boolean
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: alsvid
+          POSTGRES_PASSWORD: alsvid
+          POSTGRES_DB: alsvid
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U alsvid -d alsvid"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=20
+    env:
+      DATABASE_URL: postgresql://alsvid:alsvid@localhost:5432/alsvid
+      NODE_ENV: test
+      TZ: Asia/Shanghai
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Enforce ALSVID single-system contract
+        run: node scripts/check-single-system-contract.mjs
+
+      - name: Classify changed paths
+        id: scope
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -z "$BASE_SHA" || "$BASE_SHA" =~ ^0+$ ]]; then
+            echo "docs_only=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          docs_only=true
+          while IFS= read -r file; do
+            case "$file" in
+              docs/*|*.md|AGENTS.md|.github/ISSUE_TEMPLATE/*) ;;
+              *) docs_only=false; break ;;
+            esac
+          done < <(git diff --name-only "$BASE_SHA" "$HEAD_SHA")
+          echo "docs_only=$docs_only" >> "$GITHUB_OUTPUT"
+      - name: Skip code checks for documentation-only changes
+        if: steps.scope.outputs.docs_only == 'true'
+        run: echo "Documentation-only change; required CI jobs remain successful without rebuilding the application."
+
+      - name: Validate workflow configuration
+        if: steps.scope.outputs.docs_only != 'true'
+        run: docker run --rm -v "$PWD:/repo:ro" -w /repo rhysd/actionlint:1.7.12 -color -shellcheck= -pyflakes= .github/workflows/*.yml
+      - name: Validate opt-in local Production Compose and script (no cloud secrets)
+        if: steps.scope.outputs.docs_only != 'true'
+        env:
+          ALSVID_RELEASE_SHA: ci-validation-only
+          DATABASE_URL: postgresql://fixture:fixture@nonproduction.invalid/check
+          OBJECT_STORAGE_ENDPOINT: https://fixture.r2.cloudflarestorage.com
+          OBJECT_STORAGE_BUCKET: ci-fixture
+          OBJECT_STORAGE_ACCESS_KEY: ci-fixture
+          OBJECT_STORAGE_SECRET_KEY: ci-fixture
+          MAIL_API_KEY: ci-fixture
+        run: |
+          node --check scripts/local-production.mjs
+          docker compose -f infra/docker-compose.local-production.yml config --quiet
+      - name: Validate Google Cloud bootstrap shell syntax
+        if: steps.scope.outputs.docs_only != 'true'
+        run: |
+          bash -n infra/gcp/bootstrap-production.sh
+          bash -n .devcontainer/setup.sh
+          bash -n scripts/setup-optional-dev-tools.sh
+          node --check scripts/official-browser-smoke.mjs
+          python3 -m json.tool .devcontainer/devcontainer.json >/dev/null
+      - uses: pnpm/action-setup@v6
+        if: steps.scope.outputs.docs_only != 'true'
+        with:
+          version: 10.34.6
+      - uses: actions/setup-node@v7
+        if: steps.scope.outputs.docs_only != 'true'
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+        if: steps.scope.outputs.docs_only != 'true'
+      - run: node --test scripts/www-visual-consistency.test.mjs
+      - run: node --test scripts/release-gate.test.mjs
+      - run: node --test scripts/product-runtime-topology.test.mjs
+      - run: node --test scripts/retired-architecture.test.mjs
+      - run: node --test scripts/release-scope.test.mjs
+      - run: node --test scripts/check-dealer-api-readiness.test.mjs
+        if: steps.scope.outputs.docs_only != 'true'
+      - run: pnpm db:migrate
+        if: steps.scope.outputs.docs_only != 'true'
+      - run: pnpm arch:check
+        if: steps.scope.outputs.docs_only != 'true'
+      - run: pnpm typecheck
+        if: steps.scope.outputs.docs_only != 'true'
+      - run: pnpm test
+        if: steps.scope.outputs.docs_only != 'true'
+        env:
+          ALSVID_LAYOUT_TEST_ISOLATED: '1'
+      - run: pnpm build
+        if: steps.scope.outputs.docs_only != 'true'
+
+
+  containers:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Classify changed paths
+        id: scope
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -z "$BASE_SHA" || "$BASE_SHA" =~ ^0+$ ]]; then
+            echo "docs_only=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          docs_only=true
+          while IFS= read -r file; do
+            case "$file" in
+              docs/*|*.md|AGENTS.md|.github/ISSUE_TEMPLATE/*) ;;
+              *) docs_only=false; break ;;
+            esac
+          done < <(git diff --name-only "$BASE_SHA" "$HEAD_SHA")
+          echo "docs_only=$docs_only" >> "$GITHUB_OUTPUT"
+      - name: Skip code checks for documentation-only changes
+        if: steps.scope.outputs.docs_only == 'true'
+        run: echo "Documentation-only change; required CI jobs remain successful without rebuilding the application."
+
+      - name: Set up Docker Buildx
+        if: steps.scope.outputs.docs_only != 'true'
+        uses: docker/setup-buildx-action@v4
+      - name: Build web image with cache
+        if: steps.scope.outputs.docs_only != 'true'
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: infra/docker/Dockerfile.web
+          platforms: linux/amd64
+          load: true
+          tags: alsvid-ci-web:latest
+          build-args: ALSVID_ENV=production
+          cache-from: type=gha,scope=alsvid-production-web
+          cache-to: type=gha,mode=max,scope=alsvid-production-web,ignore-error=true
+
+      - name: Build api image with cache
+        if: steps.scope.outputs.docs_only != 'true'
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: infra/docker/Dockerfile.api
+          platforms: linux/amd64
+          load: true
+          tags: alsvid-ci-api:latest
+          cache-from: type=gha,scope=alsvid-production-api
+          cache-to: type=gha,mode=max,scope=alsvid-production-api,ignore-error=true
+
+      - name: Build worker image with cache
+        if: steps.scope.outputs.docs_only != 'true'
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: infra/docker/Dockerfile.worker
+          platforms: linux/amd64
+          load: true
+          tags: alsvid-ci-worker:latest
+          cache-from: type=gha,scope=alsvid-production-worker
+          cache-to: type=gha,mode=max,scope=alsvid-production-worker,ignore-error=true
+
+      - name: Start isolated CI database
+        if: steps.scope.outputs.docs_only != 'true'
+        run: docker compose -p alsvid-ci -f infra/docker-compose.test.yml up -d --wait postgres
+      - name: Run migrations from the API image
+        if: steps.scope.outputs.docs_only != 'true'
+        run: docker compose -p alsvid-ci -f infra/docker-compose.test.yml run --rm --no-deps api node node_modules/@alsvid/database/dist/migrate.js
+      - name: Start the tested images
+        if: steps.scope.outputs.docs_only != 'true'
+        run: docker compose -p alsvid-ci -f infra/docker-compose.test.yml up -d --no-build web api worker gateway
+      - name: Smoke check API, Web and authentication redirects
+        if: steps.scope.outputs.docs_only != 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          for attempt in {1..30}; do
+            if curl --fail --silent http://127.0.0.1:8080/api/health >/dev/null; then
+              break
+            fi
+            if [[ "$attempt" == "30" ]]; then
+              echo "API health check did not become ready" >&2
+              exit 1
+            fi
+            sleep 2
+          done
+
+          for attempt in {1..30}; do
+            if curl --fail --silent http://127.0.0.1:8080/ >/dev/null; then
+              break
+            fi
+            if [[ "$attempt" == "30" ]]; then
+              echo "Web smoke check did not become ready" >&2
+              exit 1
+            fi
+            sleep 2
+          done
+
+          if ! curl --fail --silent http://127.0.0.1:8080/login >/dev/null; then
+            echo "Login page failed smoke check" >&2
+            exit 1
+          fi
+
+          portal_response="$(curl --silent --output /dev/null --write-out '%{http_code}' http://127.0.0.1:8080/portal-launcher)"
+          portal_headers="$(curl --silent --show-error --dump-header - --output /dev/null http://127.0.0.1:8080/portal-launcher | tr -d '\r' | sed -E 's#^(location:) https?://[^/]+(/)$#\1 \2#I')"
+          if [[ "$portal_response" != "307" ]] || ! grep -Eiq '^location: /$' <<< "$portal_headers"; then
+            echo "Expected /portal-launcher compatibility redirect to /, got HTTP $portal_response" >&2
+            echo "$portal_headers" >&2
+            exit 1
+          fi
+
+          for route in /admin /dealer /my; do
+            response="$(curl --silent --output /dev/null --write-out '%{http_code}' "http://127.0.0.1:8080$route")"
+            headers="$(curl --silent --show-error --dump-header - --output /dev/null "http://127.0.0.1:8080$route" | tr -d '\r')"
+            if [[ "$response" != "307" ]] || ! grep -Eiq '^location: /login(\?.*)?$' <<< "$headers"; then
+              echo "Expected unauthenticated $route to redirect to /login, got HTTP $response" >&2
+              echo "$headers" >&2
+              exit 1
+            fi
+          done
+
+          # Route smoke tests: these handlers are implemented by Next.js Web,
+          # not NestJS. A 404 here would indicate the gateway misrouted them.
+          for route in /api/public/dealer-application /api/public/fc1-reservation; do
+            code="$(curl --silent --output /dev/null --write-out '%{http_code}' "http://127.0.0.1:8080$route")"
+            [[ "$code" == "405" ]] || { echo "Next.js public route $route misrouted (HTTP $code)" >&2; exit 1; }
+          done
+          code="$(curl --silent --output /dev/null --write-out '%{http_code}' http://127.0.0.1:8080/api/settings/security-policy)"
+          [[ "$code" == "401" ]] || { echo "Security settings BFF misrouted (HTTP $code)" >&2; exit 1; }
+          code="$(curl --silent --output /dev/null --write-out '%{http_code}' http://127.0.0.1:8080/api/admin/workspace-session)"
+          [[ "$code" == "307" ]] || { echo "Admin session BFF misrouted (HTTP $code)" >&2; exit 1; }
+
+      - name: Verify catalog API and guarded visual-editor entry
+        if: steps.scope.outputs.docs_only != 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent http://127.0.0.1:8080/api/v1/commerce-lab/public/products > "$RUNNER_TEMP/comparison-catalog.json"
+          node -e 'const fs=require("node:fs"),a=require("node:assert/strict");const p=JSON.parse(fs.readFileSync(process.argv[1],"utf8"));a.deepEqual(p.data.items,[]);a.equal(p.data.total,0)' "$RUNNER_TEMP/comparison-catalog.json"
+          code="$(curl --silent --output /dev/null --write-out '%{http_code}' http://127.0.0.1:8080/api/v1/commerce-lab/products)"
+          [[ "$code" == "401" ]]
+          # Legacy commerce-lab-native static UI was removed; check the live builder instead.
+          code="$(curl --silent --output /dev/null --write-out '%{http_code}' http://127.0.0.1:8080/admin/ecommerce/page-builder)"
+          [[ "$code" == "307" ]] || { echo "Admin editor must redirect anonymous users (got $code)" >&2; exit 1; }
+
+      - name: Verify active storefront Web/API boundaries
+        if: steps.scope.outputs.docs_only != 'true'
+        run: |
+          docker compose -p alsvid-ci -f infra/docker-compose.test.yml -f infra/docker-compose.commerce-acceptance.yml up -d --no-build api web
+          node scripts/storefront-current-acceptance.mjs
+      - name: Upload real catalog acceptance report
+        if: always() && steps.scope.outputs.docs_only != 'true'
+        uses: actions/upload-artifact@v7
+        with:
+          name: commerce-lab-real-acceptance
+          path: .tmp/commerce-lab-real-acceptance.json
+          if-no-files-found: warn
+
+      - name: Verify API and worker remain running
+        if: steps.scope.outputs.docs_only != 'true'
+        run: |
+          set -euo pipefail
+          for service in api worker; do
+            container_id="$(docker compose -p alsvid-ci -f infra/docker-compose.test.yml ps -q "$service")"
+            [[ -n "$container_id" ]]
+            [[ "$(docker inspect --format '{{.State.Running}}' "$container_id")" == "true" ]]
+          done
+      - name: Show container logs on failure
+        if: failure() && steps.scope.outputs.docs_only != 'true'
+        run: docker compose -p alsvid-ci -f infra/docker-compose.test.yml logs --no-color
+      - name: Tear down isolated CI containers
+        if: always() && steps.scope.outputs.docs_only != 'true'
+        run: docker compose -p alsvid-ci -f infra/docker-compose.test.yml down -v --remove-orphans
+
+  dispatch_www_production:
+    needs: [verify, containers]
+    if: >-
+      ${{
+        needs.verify.result == 'success' &&
+        needs.containers.result == 'success' &&
+        github.repository == 'jinfenghua1990/ALSVID' &&
+        github.ref == 'refs/heads/main' &&
+        (github.event_name == 'push' ||
+         (github.event_name == 'workflow_dispatch' && inputs.deploy_production == true))
+      }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      actions: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+
+      - name: Dispatch verified main commit to WWW-only Production
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_SHA: ${{ github.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if git rev-parse "$RELEASE_SHA^" >/dev/null 2>&1; then
+            docs_only=true
+            while IFS= read -r file; do
+              case "$file" in
+                docs/*|*.md|AGENTS.md|.github/ISSUE_TEMPLATE/*) ;;
+                *) docs_only=false; break ;;
+              esac
+            done < <(git diff --no-renames --name-only "$RELEASE_SHA^" "$RELEASE_SHA")
+            if [[ "$docs_only" == "true" ]]; then
+              echo "Documentation-only change; Production deployment is not needed."
+              exit 0
+            fi
+          fi
+
+          # Backend, schema, infrastructure, and release-pipeline changes require the
+          # full production workflow so API routes and database migrations ship together.
+          full_stack=true
+          if git rev-parse "$RELEASE_SHA^" >/dev/null 2>&1; then
+            full_stack=false
+            while IFS= read -r file; do
+              case "$file" in
+                apps/web/*|docs/*|*.md|.github/ISSUE_TEMPLATE/*) ;;
+                *)
+                  full_stack=true
+                  echo "Full-stack production change detected: $file."
+                  break
+                  ;;
+              esac
+            done < <(git diff --no-renames --name-only "$RELEASE_SHA^" "$RELEASE_SHA")
+          fi
+
+          main_sha="$(gh api "repos/$GH_REPO/commits/main" --jq .sha)"
+          if [[ "$main_sha" != "$RELEASE_SHA" ]]; then
+            echo "A newer main commit exists; skipping the obsolete release dispatch."
+            exit 0
+          fi
+
+          if [[ "$full_stack" == "true" ]]; then
+            gh workflow run production-deploy.yml --ref main \
+              -f confirm=deploy \
+              -f release_sha="$RELEASE_SHA"
+            echo "Full-stack production deployment dispatched for $RELEASE_SHA." >> "$GITHUB_STEP_SUMMARY"
+          else
+            # Web-only changes preserve the existing API, database, mail and worker services.
+            gh workflow run www-deploy.yml --ref main \
+              -f confirm=deploy \
+              -f release_sha="$RELEASE_SHA"
+            echo "WWW-only production deployment dispatched for $RELEASE_SHA." >> "$GITHUB_STEP_SUMMARY"
+          fi

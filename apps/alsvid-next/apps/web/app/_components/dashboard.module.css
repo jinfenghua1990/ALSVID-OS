@@ -1,0 +1,83 @@
+.dashboard { display: grid; gap: 22px; }
+.hero { min-height: 310px; border-radius: 14px; overflow: hidden; position: relative; display: flex; align-items: center; background: #203846 url('/images/alsvid-alpine-hero.png') center 55% / cover; color: white; }
+.hero::before { content: ''; position: absolute; inset: 0; background: linear-gradient(90deg, #061926bd 0%, #0d26384a 45%, transparent 70%); }
+.heroCopy { position: relative; padding: 35px 5.2%; }
+.heroCopy h1 { font-size: 52px !important; font-weight: 800 !important; letter-spacing: -.025em !important; margin: 0 0 3px; line-height: 1.15 !important; color: white; }
+.heroCopy h2 { margin: 0; font-size: 36px; font-weight: 600; color: #d2dce6; letter-spacing: -.03em; }
+.heroCopy p { font-size: 21px; margin: 7px 0 13px; }
+.heroCopy > span { font-size: 14px; }
+.heroActions { display: flex; gap: 13px; margin-top: 22px; }
+.heroActions a { display: flex; align-items: center; justify-content: center; gap: 12px; padding: 11px 22px; background: #087cff; border-radius: 8px; font-size: 14px; font-weight: 600; }
+.heroActions a:last-child { background: #ffffff0c; border: 1px solid #ffffff91; }
+.heroActions a:hover { filter: brightness(1.12); }
+.motto { position: absolute; right: 3.5%; top: 38px; text-align: center; font-size: 12px; line-height: 1.55; letter-spacing: .04em; }
+.motto span { display: block; height: 1px; width: 40px; background: #ffffff60; margin: 12px auto; }
+.sectionHeading, .panelHeading { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 13px; }
+.sectionHeading h2 { font-size: 22px; margin: 0; letter-spacing: -.03em; display: flex; align-items: center; gap: 10px; }
+.sectionHeading a, .panelHeading a { color: #087cff; font-size: 12px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; }
+.seriesGrid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+.seriesCard { min-height: 148px; border-radius: 14px; overflow: hidden; padding: 18px 20px; position: relative; color: white; background: #314953 url('/images/alsvid-alpine-hero.png') 70% center / auto 150%; transition: transform .18s, box-shadow .18s; }
+.seriesCard::before { content: ''; position: absolute; inset: 0; background: linear-gradient(90deg, #071722b3, transparent); }
+.seriesCard:hover { transform: translateY(-3px); box-shadow: 0 8px 20px #1b35551a; }
+.seriesCard h3, .seriesCard p, .seriesArrow, .seriesCard small { position: relative; }
+.seriesCard h3 { font-size: 28px; margin: 0; line-height: 1.2; }
+.seriesCard p { font-size: 15px; margin: 3px 0 22px; font-weight: 600; }
+.seriesArrow { border-radius: 50%; width: 29px; height: 29px; background: #ffffff4a; display: grid; place-items: center; border: 1px solid #ffffff35; }
+.seriesCard small { position: absolute; right: 12px; bottom: 12px; font-size: 9px; color: #ffffffe0; }
+.trail { background-position: 82% center; filter: saturate(.7); }
+.tour { background-position: 65% center; filter: sepia(.3); }
+.sport { background-position: 88% center; filter: brightness(.8); }
+.metricsSection { background: #ffffff80; padding: 12px 0 0; border-radius: 14px; }
+.metricsSection .sectionHeading { padding: 0 10px; margin-bottom: 10px; }
+.metricsSection h2 { font-size: 19px; }
+.demoBadge { font-size: 10px; font-weight: 500; color: #8594aa; background: #edf2f8; padding: 3px 6px; border-radius: 4px; letter-spacing: 0; }
+.periods { display: flex; gap: 6px; }
+.periods button { border: 0; background: #f3f5f9; color: #6b7b93; font-size: 12px; padding: 6px 15px; border-radius: 7px; }
+.periods button[aria-pressed='true'] { background: #e3eeff; color: #087cff; font-weight: 600; }
+.metricsGrid { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 7px; }
+.metric { background: white; border-radius: 13px; padding: 17px 16px 12px; min-width: 0; }
+a.metric:hover { box-shadow: 0 4px 20px #243a5810; }
+.metricMain { display: flex; gap: 12px; align-items: flex-start; }
+.iconBubble { width: 43px; height: 43px; border-radius: 50%; display: grid; place-items: center; flex: none; }
+.blue { color: #087cff; background-color: #e1eeff; }
+.green { color: #00bb94; background-color: #def8ef; }
+.purple { color: #8756ff; background-color: #eee5ff; }
+.orange { color: #ff9900; background-color: #fff0dc; }
+.red { color: #ff4359; background-color: #ffe4e8; }
+.cyan { color: #02afe8; background-color: #def5ff; }
+.metric strong { font-size: 27px; line-height: 1.1; font-weight: 650; letter-spacing: -.04em; }
+.metric p { color: #687a95; font-size: 11px; margin: 7px 0 0; white-space: nowrap; }
+.metricChange { display: flex; align-items: center; gap: 12px; margin-top: 16px; }
+.metricChange > span { width: 42px; height: 2px; }
+.metricChange small { color: #7a8da8; font-size: 11px; }
+.metricChange b { color: #00ba99; font-weight: 500; margin-left: 4px; }
+.analyticsGrid { display: grid; grid-template-columns: 1.8fr 1fr 1fr; gap: 15px; }
+.panel { background: white; border-radius: 14px; padding: 17px 18px 12px; min-width: 0; }
+.panelHeading { margin-bottom: 16px; }
+.panelHeading h2 { font-size: 16px; margin: 0; }
+.panelHeading a { font-size: 11px; white-space: nowrap; }
+.legend { display: flex; gap: 12px; font-size: 10px; color: #7889a1; }
+.legend span { display: flex; gap: 5px; align-items: center; white-space: nowrap; }
+.legend i { width: 13px; height: 4px; border-radius: 4px; background: #087cff; }
+.legend span:last-child i { background: #0ac39e; }
+.chartNote { color: #8594aa; font-size: 10px; margin: -8px 0 0; }
+.trend { width: 100%; display: block; margin-top: 2px; }
+.trend text { font-size: 11px; fill: #8293ad; }
+.distribution { display: flex; align-items: center; justify-content: space-between; gap: 17px; padding: 10px 2px; }
+.donut { width: 138px; height: 138px; flex: none; border-radius: 50%; background: conic-gradient(#087cff 0 42%, #0ac39e 42% 68%, #ffa500 68% 86%, #9362ff 86%); display: grid; place-items: center; transform: rotate(-1deg); }
+.donut > div { width: 94px; height: 94px; border-radius: 50%; background: white; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.donut strong { font-size: 23px; }
+.donut span { font-size: 10px; color: #8293ad; margin-top: 3px; }
+.distribution ul { list-style: none; margin: 0; padding: 0; flex: 1; display: grid; gap: 18px; }
+.distribution li { display: flex; align-items: center; gap: 7px; font-size: 11px; white-space: nowrap; }
+.distribution li i { width: 10px; height: 10px; border-radius: 50%; }
+.distribution li span { margin-left: auto; color: #496181; }
+.activities { display: grid; gap: 14px; }
+.activities > a, .activities > div { display: flex; align-items: center; gap: 10px; }
+.activities .iconBubble { width: 30px; height: 30px; }
+.activities strong { font-size: 10px; font-weight: 600; display: block; }
+.activities p { font-size: 10px; color: #8293ad; margin: 3px 0 0; }
+.activities time { margin-left: auto; font-size: 9px; color: #8293ad; white-space: nowrap; }
+.demoNote { color: #8191a8; font-size: 11px; margin: -7px 0 0; line-height: 1.6; }
+@media (max-width: 1250px) { .metricsGrid { grid-template-columns: repeat(3, 1fr); } .analyticsGrid { grid-template-columns: 1fr 1fr; } .trendPanel { grid-column: 1 / -1; } .distribution { justify-content: flex-start; } }
+@media (max-width: 700px) { .hero { min-height: 290px; background-position: 63% center; } .heroCopy { padding: 25px; } .heroCopy h1 { font-size: 39px !important; } .heroCopy h2 { font-size: 27px; } .heroCopy p { font-size: 18px; } .heroActions a { padding: 10px 12px; font-size: 12px; } .motto { display: none; } .seriesGrid, .metricsGrid { grid-template-columns: repeat(2, 1fr); } .seriesCard { padding: 16px; } .analyticsGrid { grid-template-columns: 1fr; } .trendPanel { grid-column: auto; } .sectionHeading h2 { font-size: 19px; } .periods button { padding: 6px 9px; } .metricsSection .sectionHeading { flex-wrap: wrap; } }

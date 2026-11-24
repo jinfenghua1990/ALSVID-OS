@@ -1,0 +1,80 @@
+/* 管理后台圆角与静态外观层 v3（2026-11-12）
+   作用域全部限定 .app：登录页与官网沿用各自设计，不受本文件影响。
+   本层只声明几何与静态外观，不声明任何过渡、动画类规则，也不涉及业务内容。
+   结构说明：第一节为已上线 A 层（v2 原文，仅注释微调、两处圆角按终审修正），
+   其后各节为体验终审通过的 B 层清单与补充收编规则。 */
+
+/* ===== A 层 · 基准与全局圆角（v2 原文保留） ===== */
+.app { --radius: 10px; }
+.app .card, .app .metric-card { border-radius: 14px; }
+.app .modal { border-radius: 16px; }
+.app .modal-head { border-top-left-radius: 16px; border-top-right-radius: 16px; }
+.app .modal-foot { border-bottom-left-radius: 16px; border-bottom-right-radius: 16px; }
+.app .toast { border-radius: 999px; }
+.app .btn { border-radius: 10px; }
+.app .btn.small { border-radius: 8px; }
+.app .field input:not([type="checkbox"]):not([type="radio"]), .app .field select, .app .field textarea,
+.app .toolbar input[type="text"], .app .toolbar select, .app .seg-input, .app .searchbox input { border-radius: 10px; }
+.app .tab { border-radius: 999px; padding: 7px 16px; }
+.app .tab.active { background: var(--accent-soft); border-bottom-color: transparent; }
+.app .workspace-tab__close { border-radius: 999px; }
+.app .tag { border-radius: 999px; padding: 2px 10px; }
+.app .sku-pill { border-radius: 999px; }
+.app .table { border-collapse: separate; border-spacing: 0; border-radius: 12px; }
+.app .table thead tr:first-child th:first-child { border-top-left-radius: 11px; }
+.app .table thead tr:first-child th:last-child { border-top-right-radius: 11px; }
+.app .master-table thead th:first-child { border-top-left-radius: 11px; }
+.app .master-table thead th:last-child { border-top-right-radius: 11px; }
+
+/* ===== B 层 1 · 布局节奏 ===== */
+.app .work { padding: 14px 16px 20px; }
+.app .page-title { margin: 0 0 14px; }
+.app .metric-grid { gap: 12px; margin-bottom: 14px; }
+.app .card { padding: 14px 16px; }
+
+/* ===== B 层 2 · 弹窗与浮层 ===== */
+.app .modal-head { padding: 12px 16px; }
+.app .modal-head h3 { font-size: 14px; }
+.app .modal-body { padding: 14px 16px; }
+.app .modal-foot { padding: 12px 16px; }
+.app .toast { box-shadow: 0 8px 24px rgb(24 40 56 / 14%); }
+.app .search-results { border-radius: 12px; box-shadow: 0 8px 24px rgb(24 40 56 / 14%); }
+
+/* ===== B 层 3 · 表格与标签 ===== */
+.app .table tbody tr:hover td { background: var(--hover); }
+.app .table th { font-size: 12px; letter-spacing: .02em; border-bottom-color: var(--line); }
+.app .notice { padding: 10px 14px; border-radius: 12px; }
+.app .metric-card:hover { box-shadow: 0 6px 18px rgb(24 40 56 / 10%); }
+
+/* ===== B 层 4 · 导航 ===== */
+.app .alsvid-topbar__item { border-radius: 10px; }
+.app .side__item { border-radius: 10px; }
+
+/* ===== B 层 5 · 卡片阴影 ===== */
+.app .sku-plan-row:hover, .app .sku-pill:hover { box-shadow: 0 1px 3px rgb(15 23 42 / 6%); }
+
+/* ===== B 层 6 · 内联输入聚焦统一品牌绿 ===== */
+.app .cell-input:focus, .app .note-input:focus, .app .stock-input:focus, .app .price-input:focus-within {
+  border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); outline: none; }
+
+/* ===== B 层 7 · 内联输入圆角收编（源码 r4） ===== */
+.app .cell-input, .app .note-input, .app .stock-input, .app .price-input { border-radius: 8px; }
+
+/* ===== B 层 8 · 药丸滚动条（唯一允许的硬编码色） ===== */
+.app ::-webkit-scrollbar { width: 8px; height: 8px; }
+.app ::-webkit-scrollbar-thumb { background: #c9d4dd; border-radius: 999px; }
+
+/* ===== B 层 9 · 近期新增组件收编（媒体库 / CMS） ===== */
+.app .media-card, .app .media-thumb { border-radius: 14px; }
+.app .cms-palette-item, .app .cms-subitem { border-radius: 10px; }
+.app .cms-canvas, .app .cms-preview, .app .cms-editor-head, .app .cms-editor-meta { border-radius: 14px; }
+.app .media-label, .app .media-actions select { border-radius: 10px; }
+
+/* ===== B 层 10 · 补充收编（核实的遗漏类名，仅圆角） ===== */
+.app .form-grid { border-radius: 14px; }
+.app .choice { border-radius: 10px; }
+.app .lock-badge { border-radius: 999px; }
+.app .sku-slot { border-radius: 8px; }
+.app .wizard-actions { border-radius: 14px; }
+.app .confirm-box { border-radius: 14px; }
+.app .editor-head { border-radius: 14px; }

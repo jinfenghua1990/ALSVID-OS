@@ -1,0 +1,88 @@
+name: FC1 browser preview
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'apps/web/**'
+      - 'scripts/fc1-browser-review.mjs'
+      - 'scripts/official-browser-smoke.mjs'
+      - 'scripts/l8-browser-smoke.mjs'
+      - 'scripts/new-products-browser-smoke.mjs'
+      - 'scripts/dealer-browser-smoke.mjs'
+      - 'scripts/storefront-builder-browser-smoke.mjs'
+      - 'scripts/ecommerce-orders-browser-smoke.mjs'
+      - 'scripts/ecommerce-products-browser-smoke.mjs'
+      - 'scripts/shop-preview-browser-smoke.mjs'
+      - 'scripts/commerce-lab-postgres-browser-smoke.mjs'
+      - 'scripts/commerce-lab-pagination-browser-smoke.mjs'
+      - '.github/workflows/fc1-preview.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: fc1-preview-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  browser_preview:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      ALSVID_ENV: production
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 10.34.6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @alsvid/web build
+      - name: Install temporary browser review tools
+        run: |
+          npm install --prefix "$RUNNER_TEMP/fc1-browser" playwright@1.58.2
+          "$RUNNER_TEMP/fc1-browser/node_modules/.bin/playwright" install --with-deps chromium
+      - name: Preview and review the production build
+        env:
+          ALSVID_API_BASE_URL: http://127.0.0.1:4000/api
+          FC1_PLAYWRIGHT_ROOT: ${{ runner.temp }}/fc1-browser
+          FC1_REVIEW_OUTPUT: .tmp/fc1-v4-review
+          FC1_REVIEW_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          pnpm --filter @alsvid/web start > "$RUNNER_TEMP/fc1-next.log" 2>&1 &
+          preview_pid=$!
+          trap 'kill "$preview_pid" 2>/dev/null || true' EXIT
+          for attempt in {1..60}; do
+            if curl --fail --silent http://127.0.0.1:3000/en/explore/fc1 > /dev/null; then break; fi
+            if [[ "$attempt" == "60" ]]; then cat "$RUNNER_TEMP/fc1-next.log"; exit 1; fi
+            sleep 2
+          done
+          node scripts/ecommerce-products-browser-smoke.mjs
+          node scripts/fc1-browser-review.mjs
+          node scripts/official-browser-smoke.mjs
+          node scripts/dealer-browser-smoke.mjs
+          node scripts/l8-browser-smoke.mjs
+          node scripts/new-products-browser-smoke.mjs
+          node scripts/storefront-builder-browser-smoke.mjs
+          node scripts/ecommerce-orders-browser-smoke.mjs
+          node scripts/shop-preview-browser-smoke.mjs
+          # The retired /admin/commerce-lab/catalog UI is no longer reachable.
+          # The current editor is checked by storefront-builder-browser-smoke.
+          node scripts/commerce-lab-pagination-browser-smoke.mjs
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: comparison-pagination-visual-review
+          path: |
+            .tmp/fc1-v4-review/comparison-pagination-*.png
+            .tmp/fc1-v4-review/comparison-pagination-browser-report.json
+          retention-days: 14
+          if-no-files-found: warn
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: fc1-and-official-browser-review
+          path: .tmp/fc1-v4-review
+          retention-days: 30
+          if-no-files-found: warn

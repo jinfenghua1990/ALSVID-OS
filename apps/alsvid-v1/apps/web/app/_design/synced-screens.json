@@ -1,0 +1,118 @@
+[
+  {
+    "id": "workbench",
+    "area": "工作台",
+    "route": "/admin",
+    "title": "工作台",
+    "subtitle": "跨模块真实业务总览和入口",
+    "blocks": []
+  },
+  {
+    "id": "product",
+    "area": "产品",
+    "route": "/admin/product",
+    "title": "产品中心",
+    "subtitle": "平台、车型、规格、SKU 与工程资料",
+    "sourceNode": "module:product",
+    "blocks": []
+  },
+  {
+    "id": "orders",
+    "area": "订单",
+    "route": "/admin/orders",
+    "title": "订单管理",
+    "subtitle": "全部渠道订单与履约状态",
+    "sourceNode": "module:orders",
+    "blocks": []
+  },
+  {
+    "id": "production",
+    "area": "生产",
+    "route": "/admin/production",
+    "title": "生产管理",
+    "subtitle": "真实生产订单、装配、质检与车辆出生",
+    "sourceNode": "module:production",
+    "blocks": []
+  },
+  {
+    "id": "inventory",
+    "area": "库存",
+    "route": "/admin/inventory",
+    "title": "库存管理",
+    "subtitle": "成品 · 零件 · 仓库与预警",
+    "sourceNode": "module:inventory",
+    "blocks": []
+  },
+  {
+    "id": "dealers",
+    "area": "经销商",
+    "route": "/admin/dealers",
+    "title": "经销商中心",
+    "subtitle": "经销商档案、授权与业务协作",
+    "sourceNode": "module:dealers",
+    "blocks": []
+  },
+  {
+    "id": "customers",
+    "area": "客户",
+    "route": "/admin/customers",
+    "title": "客户/车主中心",
+    "subtitle": "客户、车主及车辆归属关系",
+    "sourceNode": "module:customers",
+    "blocks": []
+  },
+  {
+    "id": "after-sales",
+    "area": "售后",
+    "route": "/admin/after-sales",
+    "title": "售后中心",
+    "subtitle": "工单、保修、维修与配件协作",
+    "sourceNode": "module:after-sales",
+    "blocks": []
+  },
+  {
+    "id": "supply",
+    "area": "供应链",
+    "route": "/admin/supply",
+    "title": "供应链中心",
+    "subtitle": "供应商档案、采购订单与入库协作",
+    "sourceNode": "module:supply",
+    "blocks": []
+  },
+  {
+    "id": "analytics",
+    "area": "数据",
+    "route": "/admin/analytics",
+    "title": "数据总览",
+    "subtitle": "经营指标与可信数据源；未接入指标显示空状态",
+    "sourceNode": "module:analytics",
+    "blocks": []
+  },
+  {
+    "id": "settings",
+    "area": "设置",
+    "route": "/admin/settings",
+    "title": "角色与权限",
+    "subtitle": "用户、角色、权限与审计记录",
+    "sourceNode": "module:settings",
+    "blocks": []
+  },
+  {
+    "id": "vin",
+    "area": "生产",
+    "route": "/admin/production/vin",
+    "title": "VIN 管理",
+    "subtitle": "VIN 查询与车辆生产、交付、服务追溯",
+    "sourceNode": "module:vehicle",
+    "blocks": []
+  },
+  {
+    "id": "vin-detail",
+    "area": "生产",
+    "route": "/admin/production/vin-detail",
+    "title": "VIN / 车辆档案",
+    "subtitle": "按真实 VIN 查询车辆及其生命周期记录",
+    "sourceNode": "module:vehicle",
+    "blocks": []
+  }
+]

@@ -1,0 +1,23 @@
+const {test}=require('node:test');const assert=require('node:assert/strict');const {Pool}=require('pg');const {createAuth}=require('../auth');const {createStorefrontOrders}=require('../storefront-orders');const {uuidv7}=require('../uuidv7');
+test('held returns cannot be both restocked and disposed beyond received quantity',async()=>{
+ const url=process.env.TEST_DATABASE_URL;assert(url,'isolated database required');const pool=new Pool({connectionString:url,options:'-c search_path=alsvid_v2'}),auth=createAuth(url),orders=createStorefrontOrders(url);
+ try{
+  const user=await auth.createPortalUser({username:'return-owner',password:'password123',role:'owner',reviewNote:'checked'},'test');
+  await pool.query("INSERT INTO colors(code,zh,hex) VALUES('DSP','Test','#000000')");await pool.query("INSERT INTO products(id,kind,name,product_type,ownership) VALUES('disp-part','part','Part','BAT','UN')");await pool.query("INSERT INTO skus(code,product_id,spec,color_code) VALUES('UN-BAT-ONE-DSP','disp-part','ONE','DSP'),('UN-BAT-TWO-DSP','disp-part','TWO','DSP')");await pool.query("INSERT INTO warehouses(id,name,kind,warehouse_code) VALUES('disp-warehouse','Disposal warehouse','海外仓','DISP')");
+  const order=uuidv7(),ret=uuidv7(),receipt=uuidv7();await pool.query("INSERT INTO storefront_orders(id,owner_user_uuid,request_hash,status,currency,subtotal_minor,delivery,items) SELECT $1,entity_uuid,repeat('a',64),'delivered','EUR',100,'{}','[]' FROM app_users WHERE id=$2",[order,user.id]);
+  const line1=(await pool.query("INSERT INTO storefront_order_items(order_id,sku_uuid,line_no,quantity) SELECT $1,entity_uuid,1,2 FROM skus WHERE code='UN-BAT-ONE-DSP' RETURNING id",[order])).rows[0].id;
+  const line2=(await pool.query("INSERT INTO storefront_order_items(order_id,sku_uuid,line_no,quantity) SELECT $1,entity_uuid,2,1 FROM skus WHERE code='UN-BAT-TWO-DSP' RETURNING id",[order])).rows[0].id;
+  await pool.query("INSERT INTO storefront_return_requests(id,order_id,owner_user_uuid,request_hash,reason,status,review_note,reviewed_by,reviewed_at) SELECT $1,$2,entity_uuid,repeat('b',64),'reason','approved','checked','test',now() FROM app_users WHERE id=$3",[ret,order,user.id]);
+  const r1=(await pool.query('INSERT INTO storefront_return_items(request_id,order_id,order_item_id,quantity) VALUES($1,$2,$3,2) RETURNING id',[ret,order,line1])).rows[0].id;const r2=(await pool.query('INSERT INTO storefront_return_items(request_id,order_id,order_item_id,quantity) VALUES($1,$2,$3,1) RETURNING id',[ret,order,line2])).rows[0].id;
+  await pool.query("INSERT INTO storefront_return_receipts(id,request_id,request_hash,recorded_by) VALUES($1,$2,repeat('c',64),'test')",[receipt,ret]);
+  const held1=(await pool.query("INSERT INTO storefront_return_receipt_items(receipt_id,request_id,return_item_id,quantity,disposition) VALUES($1,$2,$3,2,'not_restocked') RETURNING id",[receipt,ret,r1])).rows[0].id;const held2=(await pool.query("INSERT INTO storefront_return_receipt_items(receipt_id,request_id,return_item_id,quantity,disposition) VALUES($1,$2,$3,1,'not_restocked') RETURNING id",[receipt,ret,r2])).rows[0].id;
+  const restock={id:uuidv7(),quantity:1,warehouseId:'disp-warehouse',confirmedSaleable:true};await orders.restockReturn(held1,restock);
+  const disposal={id:uuidv7(),quantity:1,disposition:'returned_to_supplier',reason:'damaged',reference:'SUP-1',disposedOn:'2026-11-08',confirmed:true};
+  await assert.rejects(orders.disposeReturn(held1,{...disposal,reference:''}),/资料无效/);assert.equal((await orders.disposeReturn(held1,disposal)).replayed,false);assert.equal((await orders.disposeReturn(held1,disposal)).replayed,true);
+  await assert.rejects(orders.restockReturn(held1,{...restock,id:uuidv7()}),/超过待处理/);await assert.rejects(orders.disposeReturn(held1,{...disposal,id:uuidv7()}),/超过待处理/);
+  await assert.rejects(pool.query('DELETE FROM storefront_return_disposal_events WHERE id=$1',[disposal.id]),{code:'23514'});
+  const race=await Promise.allSettled([orders.restockReturn(held2,{id:uuidv7(),quantity:1,warehouseId:'disp-warehouse',confirmedSaleable:true}),orders.disposeReturn(held2,{id:uuidv7(),quantity:1,disposition:'scrapped',reason:'damaged',disposedOn:'2026-11-08',confirmed:true})]);
+  assert.equal(race.filter(x=>x.status==='fulfilled').length,1);assert.equal(race.filter(x=>x.status==='rejected'&&x.reason.statusCode===409).length,1);
+  const history=(await orders.adminList()).find(o=>o.id===order);assert(history.disposals.some(x=>x.id===disposal.id));assert.equal(history.returns[0].heldItems.find(x=>x.id===held1).disposedQuantity,1);
+ }finally{await orders.close();await auth.close();await pool.end()}
+});

@@ -1,0 +1,39 @@
+# 依赖
+node_modules/
+.pnpm-store/
+
+# 构建产物
+dist/
+dist.*/
+build/
+.next/
+out/
+coverage/
+*.tsbuildinfo
+
+# 本地运行数据与日志
+data/
+logs/
+*.log
+*.tmp
+*.bak
+*.bak-*
+_backup*/
+backups/
+backup-*.json
+
+# 环境与密钥（真实配置走 Secret Manager，仅保留 .env.example）
+.env
+.env.local
+.env.*.local
+!.env.example
+*.pem
+*.key
+gha-creds-*.json
+
+# 编辑器与系统
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+desktop.ini

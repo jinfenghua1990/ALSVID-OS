@@ -1,0 +1,70 @@
+const { test } = require('node:test');
+const assert = require('node:assert/strict');
+const { Pool } = require('pg');
+const { createServiceStore } = require('../postgres-service');
+const { uuidv7 } = require('../uuidv7');
+
+test('production completion requires qualified QC and all VINs', async () => {
+  const url = process.env.TEST_DATABASE_URL;
+  assert.ok(url, 'TEST_DATABASE_URL must target an isolated database');
+  const pool = new Pool({connectionString:url,options:'-c search_path=alsvid_v2'});
+  const service = createServiceStore(url);
+  try {
+    await pool.query("INSERT INTO colors(code,zh,hex) VALUES('QCT','QC','#000000')");
+    await pool.query("INSERT INTO products(id,kind,name,product_type,ownership) VALUES('qc-vehicle','vehicle','QC vehicle','EBI','QC')");
+    await pool.query("INSERT INTO skus(code,product_id,spec,color_code) VALUES('QC-EBI-450-QCT','qc-vehicle','450','QCT')");
+    await pool.query("INSERT INTO bom_versions(vehicle_id,version,status) VALUES('qc-vehicle','QC1','published')");
+    const order = await service.createProductionOrder({orderNo:'QC-ORDER',sku:'QC-EBI-450-QCT',bomVersion:'QC1',factory:'QC factory',batch:'QC batch',plannedQuantity:2});
+    await service.transitionProductionOrder(order.id,'生产中');
+    await assert.rejects(service.transitionProductionOrder(order.id,'已完成'), /质检合格/);
+    await service.updateProductionQuality(order.id,{qcStatus:'合格',note:'通过'});
+    await assert.rejects(service.transitionProductionOrder(order.id,'已完成'), /关联 VIN 数量/);
+    await service.createVin({vin:'ABCDEFGH12345679',sku:'QC-EBI-450-QCT',bomVersion:'QC1',orderNo:'QC-ORDER',factory:'QC factory',batch:'QC batch'});
+    await service.createVin({vin:'ABCDEFGH12345670',sku:'QC-EBI-450-QCT',bomVersion:'QC1',orderNo:'QC-ORDER',factory:'QC factory',batch:'QC batch'});
+    const completed = await service.transitionProductionOrder(order.id,'已完成');
+    assert.equal(completed.status,'已完成');
+    assert.equal(completed.vinCount,2);
+    await pool.query("INSERT INTO warehouses(id,name,kind,warehouse_code) VALUES('delivery-cancel-warehouse','Cancel test warehouse','国内仓','CANCEL-WH')");
+    const input={shipmentNo:'CANCEL-ONE',warehouseId:'delivery-cancel-warehouse',plannedQuantity:1,freightCost:25,importCost:10};
+    const delivery=await service.createDelivery(order.id,input);
+    await assert.rejects(service.createDelivery(order.id,{...input,shipmentNo:'TOO-MANY',plannedQuantity:2}),/超过生产订单计划数量/);
+    const vinId=(await pool.query("SELECT id FROM vins WHERE vin='ABCDEFGH12345679'")).rows[0].id;
+    const secondVinId=(await pool.query("SELECT id FROM vins WHERE vin='ABCDEFGH12345670'")).rows[0].id;
+    const second=await service.createDelivery(order.id,{...input,shipmentNo:'SECOND'});
+    await service.assignDeliveryVins(delivery.id,{vinIds:[vinId]});
+    await service.assignDeliveryVins(second.id,{vinIds:[secondVinId]});
+    await assert.rejects(service.assignDeliveryVins(second.id,{vinIds:[vinId]}),/VIN 已分配给其他发运批次/);
+    await assert.rejects(service.assignDeliveryVins(second.id,{vinIds:[secondVinId,secondVinId]}),/VIN 列表无效/);
+    assert.equal((await service.listVins('ABCDEFGH12345679'))[0].deliveryId,delivery.id);
+    await service.cancelDelivery(delivery.id,{reason:'Wrong destination'});
+    await service.cancelDelivery(delivery.id,{reason:'Wrong destination'});
+    await assert.rejects(service.cancelDelivery(delivery.id,{reason:'Different'}),/已取消/);
+    await assert.rejects(service.dispatchDelivery(delivery.id),/只有待发运记录/);
+    assert.equal((await service.listDeliveryVins(delivery.id))[0].id,vinId);
+    const listed=await service.listDeliveries(order.id);assert.equal(listed.find(d=>d.id===delivery.id).status,'已取消');assert.deepEqual(listed.find(d=>d.id===delivery.id).vins,['ABCDEFGH12345679']);
+    const cancelledOrder=(await service.listProductionOrders()).find(o=>o.id===order.id);assert.equal(Number(cancelledOrder.deliveryFreightCost),25);assert.equal(cancelledOrder.deliveryCount,1);
+    assert.equal((await service.listProductionCosts()).find(r=>r.shipmentNo==='CANCEL-ONE').status,'已取消');
+    const replacement=await service.createDelivery(order.id,{...input,shipmentNo:'REPLACEMENT',freightCost:5,importCost:2});
+    await assert.rejects(service.dispatchDelivery(replacement.id),/发运前须为批次分配完整 VIN/);
+    await service.assignDeliveryVins(replacement.id,{vinIds:[vinId]});
+    assert.equal((await service.listDeliveryVins(replacement.id))[0].id,vinId);
+    assert.equal((await service.listVins('ABCDEFGH12345679'))[0].deliveryId,replacement.id);
+    const updatedOrder=(await service.listProductionOrders()).find(o=>o.id===order.id);assert.equal(Number(updatedOrder.deliveryFreightCost),30);assert.equal(updatedOrder.deliveryCount,2);
+    await service.dispatchDelivery(replacement.id);
+    assert.equal((await service.listDeliveries('',true)).some(d=>d.id===replacement.id),true);
+    assert.equal((await service.listDeliveries('',true)).some(d=>d.id===delivery.id),false);
+    await assert.rejects(service.cancelDelivery(replacement.id,{reason:'Too late'}),/只有待发运记录/);
+    const receipt={receiptId:uuidv7(),receivedQuantity:1,receiptNote:'Box checked',vinIds:[vinId]};
+    await Promise.all([service.receiveDelivery(replacement.id,receipt),service.receiveDelivery(replacement.id,receipt)]);
+    await assert.rejects(service.receiveDelivery(replacement.id,{...receipt,receiptNote:'Different'}),/签收编号已用于其他记录/);
+    await assert.rejects(service.receiveDelivery(replacement.id,{...receipt,vinIds:[secondVinId]}),/签收编号已用于其他记录/);
+    assert.equal((await service.listDeliveryReceipts(replacement.id)).length,1);
+    assert.equal((await pool.query('SELECT count(*)::int AS n FROM production_delivery_receipt_vins')).rows[0].n,1);
+    assert.equal((await service.listDeliveries('',true)).some(d=>d.id===replacement.id),false);
+    assert.equal((await pool.query("SELECT quantity FROM warehouse_stock WHERE warehouse_id='delivery-cancel-warehouse' AND sku_code='QC-EBI-450-QCT'")).rows[0].quantity,1);
+    assert.equal((await pool.query("SELECT sum(quantity_delta)::int AS n FROM inventory_ledger WHERE warehouse_id='delivery-cancel-warehouse'")).rows[0].n,1);
+
+    await assert.rejects(pool.query('DELETE FROM production_delivery_cancellations'),{code:'23514'});
+
+  } finally { await service.close(); await pool.end(); }
+});

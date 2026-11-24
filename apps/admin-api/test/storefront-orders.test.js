@@ -1,0 +1,199 @@
+const {test}=require('node:test');const assert=require('node:assert/strict');const {Pool}=require('pg');const {createAuth}=require('../auth');const {createCatalogStore}=require('../catalog');const {createStorefrontCart}=require('../storefront-cart');const {createStorefrontOrders,registerStorefrontOrderRoutes}=require('../storefront-orders');const Fastify=require('fastify');const {apiAccessHook}=require('../access-policy');const {uuidv7}=require('../uuidv7');
+test('storefront requests verify current price, isolate owners and retry without duplicates',async()=>{
+ const url=process.env.TEST_DATABASE_URL;assert(url,'isolated database required');const pool=new Pool({connectionString:url,options:'-c search_path=alsvid_v2'}),auth=createAuth(url),catalog=createCatalogStore(url),cart=createStorefrontCart(url),orders=createStorefrontOrders(url);
+ try{
+  const owner=await auth.createPortalUser({username:'order-owner',password:'password123',role:'owner',reviewNote:'verified'},'test'),other=await auth.createPortalUser({username:'order-other',password:'password123',role:'owner',reviewNote:'verified'},'test');
+  await pool.query("INSERT INTO colors(code,zh,hex) VALUES('ORD','Test','#000000')");await pool.query("INSERT INTO products(id,kind,name,model,product_type,ownership) VALUES('order-product','vehicle','Bike','A1','EBI','A1')");await pool.query("INSERT INTO skus(code,product_id,spec,color_code) VALUES('A1-EBI-STD-ORD','order-product','STD','ORD')");await pool.query("INSERT INTO catalog_publications(product_id,draft,published) VALUES('order-product','{}','{\"languages\":{\"en\":{\"title\":\"Bike\"}}}')");
+  const offer=await catalog.saveOffer({sku:'A1-EBI-STD-ORD',currency:'EUR',unitPrice:'99.50',published:true});const item={productId:'order-product',sku:'A1-EBI-STD-ORD',currency:'EUR',quantity:2};const saved=await cart.save(owner,{revision:0,items:[item]});
+  const input={id:uuidv7(),cartRevision:saved.revision,delivery:{name:'A',phone:'123',country:'DE',city:'Berlin',postalCode:'12345',address:'Street 1'},items:[{...item,unitPrice:'99.50'}]};
+  await assert.rejects(orders.submit(owner,{...input,items:[{...item,unitPrice:'1.00'}]}),/价格已变化/);assert.equal((await cart.get(owner)).items.length,1);
+  const updated=await catalog.saveOffer({...offer,sku:item.sku,currency:'EUR',unitPrice:'105.00',published:true},offer.id);
+  await assert.rejects(orders.submit(owner,input),/价格已变化/);assert.equal((await cart.get(owner)).items.length,1);
+  await catalog.saveOffer({...updated,sku:item.sku,currency:'EUR',unitPrice:'99.50',published:true},offer.id);
+
+  const [a,b]=await Promise.all([orders.submit(owner,input),orders.submit(owner,input)]);assert.equal(a.id,b.id);assert.equal(a.subtotalMinor,'19900');assert.equal((await cart.get(owner)).items.length,0);
+  await assert.rejects(orders.submit(owner,{...input,delivery:{...input.delivery,address:'Different'}}),/编号已用于/);assert.equal((await orders.list(other)).length,0);assert.equal((await orders.list(owner)).length,1);
+  await pool.query("UPDATE products SET name='Renamed' WHERE id='order-product'");assert.equal((await orders.list(owner))[0].items[0].productName,'Bike');
+  await assert.rejects(pool.query("UPDATE storefront_orders SET delivery='{}'::jsonb WHERE id=$1",[input.id]),{code:'23514'});
+  assert.equal((await pool.query('SELECT count(*)::int n FROM storefront_orders')).rows[0].n,1);
+  const firstQuote={id:uuidv7(),expectedRevision:0,shipping:'10.00',tax:'5.50',note:'confirmed manually'};
+  await assert.rejects(orders.quote(input.id,{...firstQuote,shipping:''}),/报价资料无效/);
+  const q1=await orders.quote(input.id,firstQuote);assert.equal(q1.totalMinor,'21450');
+  assert.equal((await orders.quote(input.id,firstQuote)).id,q1.id);
+  await assert.rejects(orders.quote(input.id,{...firstQuote,id:uuidv7()}),/报价已更新/);
+  await assert.rejects(orders.respond(other,input.id,{quoteId:q1.id,decision:'accept'}),/不存在/);
+  const q2=await orders.quote(input.id,{id:uuidv7(),expectedRevision:1,shipping:'8.00',tax:'5.50'});
+  await assert.rejects(orders.respond(owner,input.id,{quoteId:q1.id,decision:'accept'}),/报价已更新/);
+  assert.equal((await orders.respond(owner,input.id,{quoteId:q2.id,decision:'accept'})).status,'accepted');
+  assert.equal((await orders.respond(owner,input.id,{quoteId:q2.id,decision:'accept'})).status,'accepted');
+  await assert.rejects(orders.respond(owner,input.id,{quoteId:q2.id,decision:'decline'}),/报价已回复/);
+  await assert.rejects(orders.quote(input.id,{id:uuidv7(),expectedRevision:2,shipping:'0',tax:'0'}),/当前状态不能报价/);
+  assert.equal((await orders.list(owner))[0].quote.totalMinor,'21250');
+  await assert.rejects(pool.query('UPDATE storefront_order_quotes SET note=$1 WHERE id=$2',['changed',q2.id]),{code:'23514'});
+  await pool.query("INSERT INTO warehouses(id,name,kind,warehouse_code) VALUES('store-warehouse','Store warehouse','海外仓','STORE')");
+  await pool.query("INSERT INTO warehouse_stock(warehouse_id,sku_code,quantity) VALUES('store-warehouse','A1-EBI-STD-ORD',4)");
+  await pool.query("INSERT INTO inventory_ledger(source_type,source_id,sku_uuid,warehouse_id,quantity_delta) SELECT 'opening_balance','store-test',entity_uuid,'store-warehouse',4 FROM skus WHERE code='A1-EBI-STD-ORD'");
+  const line=(await orders.adminList())[0].allocationItems[0];
+  await pool.query("UPDATE warehouse_stock SET quantity=3 WHERE warehouse_id='store-warehouse'");
+  await assert.rejects(orders.allocate(input.id,{items:[{itemId:line.id,warehouseId:'store-warehouse'}]}),/账本与仓库余额不一致/);
+  assert.equal((await pool.query("SELECT count(*)::int n FROM inventory_reservations WHERE source_type='storefront_order'")).rows[0].n,0);
+  await pool.query("UPDATE warehouse_stock SET quantity=4 WHERE warehouse_id='store-warehouse'");
+  assert.equal((await orders.allocate(input.id,{items:[{itemId:line.id,warehouseId:'store-warehouse'}]})).status,'allocated');
+  assert.equal((await pool.query("SELECT quantity FROM warehouse_stock WHERE warehouse_id='store-warehouse'")).rows[0].quantity,4);
+  assert.equal((await pool.query("SELECT quantity FROM inventory_reservations WHERE source_type='storefront_order' AND status='reserved'")).rows[0].quantity,2);
+
+  const payment1={id:uuidv7(),amount:'100.00',method:'bank_transfer',reference:'REF-1',receivedOn:'2026-11-07',note:'verified',verified:true};
+  await assert.rejects(orders.recordPayment(input.id,{...payment1,verified:false}),/收款资料无效/);
+  assert.equal((await orders.recordPayment(input.id,payment1)).status,'partially_paid');
+  assert.equal((await orders.recordPayment(input.id,payment1)).status,'partially_paid');
+  await assert.rejects(orders.recordPayment(input.id,{...payment1,id:uuidv7()}),/凭据已登记/);
+  const otherOrder=uuidv7();
+  await pool.query("INSERT INTO storefront_orders(id,owner_user_uuid,request_hash,status,currency,subtotal_minor,delivery,items) SELECT $1,owner_user_uuid,request_hash,'allocated',currency,subtotal_minor,delivery,items FROM storefront_orders WHERE id=$2",[otherOrder,input.id]);
+  const otherQuote=(await pool.query("INSERT INTO storefront_order_quotes(order_id,revision,shipping_minor,tax_minor,total_minor,quoted_by) VALUES($1,1,0,0,19900,'test') RETURNING id",[otherOrder])).rows[0].id;
+  await pool.query("INSERT INTO storefront_order_responses(order_id,quote_id,decision,responded_by) SELECT $1,$2,'accept',owner_user_uuid FROM storefront_orders WHERE id=$1",[otherOrder,otherQuote]);
+  await assert.rejects(orders.recordPayment(otherOrder,{...payment1,id:uuidv7()}),/凭据已登记/);
+
+  await assert.rejects(orders.recordPayment(input.id,{...payment1,id:uuidv7(),reference:'REF-2',amount:'112.51'}),/超过未收余额/);
+  const payment2={...payment1,id:uuidv7(),reference:'REF-2',amount:'112.50'};
+  assert.equal((await orders.recordPayment(input.id,payment2)).status,'paid');
+  assert.equal((await orders.list(owner)).find(o=>o.id===input.id).paidMinor,'21250');
+  await assert.rejects(orders.cancel(input.id,{reason:'not refunded'}),/不能取消/);
+  await assert.rejects(pool.query('UPDATE storefront_order_payments SET amount_minor=1 WHERE id=$1',[payment1.id]),{code:'23514'});
+  const correction2={id:uuidv7(),reason:'entry error'};assert.equal((await orders.reversePayment(input.id,payment2.id,correction2)).status,'partially_paid');
+  assert.equal((await orders.reversePayment(input.id,payment2.id,correction2)).status,'partially_paid');
+  await assert.rejects(orders.reversePayment(input.id,payment2.id,{id:uuidv7(),reason:'another'}),/已更正/);
+  assert.equal((await orders.reversePayment(input.id,payment1.id,{id:uuidv7(),reason:'entry error'})).status,'allocated');
+  await assert.rejects(orders.recordPayment(input.id,payment1),/已更正/);
+  assert.equal((await orders.list(owner)).find(o=>o.id===input.id).paidMinor,'0');
+  await assert.rejects(orders.cancel(input.id,{reason:''}),/取消原因无效/);
+  assert.equal((await orders.cancel(input.id,{reason:'Customer cancelled'})).status,'cancelled');
+  assert.equal((await pool.query("SELECT status FROM inventory_reservations WHERE source_type='storefront_order'")).rows[0].status,'released');
+  assert.equal((await orders.list(owner)).find(o=>o.id===input.id).cancelReason,'Customer cancelled');
+  await assert.rejects(orders.cancel(input.id,{reason:'again'}),/不能取消/);
+  const newCart=await cart.save(owner,{revision:(await cart.get(owner)).revision,items:[item]});
+  const nextInput={...input,id:uuidv7(),cartRevision:newCart.revision};await orders.submit(owner,nextInput);
+  const nextQuote=await orders.quote(nextInput.id,{id:uuidv7(),expectedRevision:0,shipping:'0',tax:'0'});
+  await orders.respond(owner,nextInput.id,{quoteId:nextQuote.id,decision:'accept'});
+  // 幂等重放必须返回订单当前状态，而不是从历史 decision 推导的旧状态（否则已发运订单会被前端回退显示）。
+  assert.equal((await orders.respond(owner,nextInput.id,{quoteId:nextQuote.id,decision:'accept'})).status,'accepted');
+  const nextLine=(await orders.adminList()).find(o=>o.id===nextInput.id).allocationItems[0];
+  await orders.allocate(nextInput.id,{items:[{itemId:nextLine.id,warehouseId:'store-warehouse'}]});
+  await assert.rejects(orders.ship(nextInput.id,{carrier:'Carrier',trackingNo:'TRACK-1'}),/付清/);
+  await orders.recordPayment(nextInput.id,{id:uuidv7(),amount:'199.00',method:'bank_transfer',reference:'REF-NEW',receivedOn:'2026-11-07',verified:true});
+  await pool.query("UPDATE warehouse_stock SET quantity=3 WHERE warehouse_id='store-warehouse'");
+  await assert.rejects(orders.ship(nextInput.id,{carrier:'Carrier',trackingNo:'TRACK-1'}),/账本与余额不一致/);
+  assert.equal((await pool.query("SELECT count(*)::int n FROM inventory_ledger WHERE source_type='storefront_order_item'")).rows[0].n,0);
+  await pool.query("UPDATE warehouse_stock SET quantity=4 WHERE warehouse_id='store-warehouse'");
+  assert.equal((await orders.ship(nextInput.id,{carrier:'Carrier',trackingNo:'TRACK-1'})).status,'shipped');
+  assert.equal((await orders.ship(nextInput.id,{carrier:'Carrier',trackingNo:'TRACK-1'})).status,'shipped');
+  // 订单已发运后重放报价回复，必须返回当前状态 shipped，不能回退成 accepted。
+  assert.equal((await orders.respond(owner,nextInput.id,{quoteId:nextQuote.id,decision:'accept'})).status,'shipped');
+  await assert.rejects(orders.ship(nextInput.id,{carrier:'Carrier',trackingNo:'DIFFERENT'}),/已发运/);
+  assert.equal((await pool.query("SELECT quantity FROM warehouse_stock WHERE warehouse_id='store-warehouse'")).rows[0].quantity,2);
+  assert.equal((await pool.query("SELECT sum(quantity_delta)::int AS n FROM inventory_ledger WHERE source_type='storefront_order_item'")).rows[0].n,-2);
+  assert.equal((await orders.list(owner)).find(o=>o.id===nextInput.id).shipment.trackingNo,'TRACK-1');
+  await assert.rejects(pool.query("UPDATE storefront_order_shipments SET tracking_no='changed' WHERE order_id=$1",[nextInput.id]),{code:'23514'});
+  await assert.rejects(orders.receive(other,nextInput.id,{note:'received'}),/不存在/);
+  assert.equal((await orders.receive(owner,nextInput.id,{note:'received'})).status,'delivered');
+  assert.equal((await orders.receive(owner,nextInput.id,{note:'received'})).status,'delivered');
+  await assert.rejects(orders.receive(owner,nextInput.id,{note:'different'}),/已确认收货/);
+  assert.equal((await orders.list(owner)).find(o=>o.id===nextInput.id).receipt.note,'received');
+  await assert.rejects(pool.query("UPDATE storefront_order_receipts SET note='changed' WHERE order_id=$1",[nextInput.id]),{code:'23514'});
+  assert.equal((await pool.query("SELECT quantity FROM warehouse_stock WHERE warehouse_id='store-warehouse'")).rows[0].quantity,2);
+  const lineId=(await orders.list(owner)).find(o=>o.id===nextInput.id).orderLines[0].id;
+  const claim={id:uuidv7(),reason:'Damaged',items:[{itemId:lineId,quantity:1}]};
+  await assert.rejects(orders.requestReturn(other,nextInput.id,claim),/不存在/);
+  assert.equal((await orders.requestReturn(owner,nextInput.id,claim)).status,'pending');
+  assert.equal((await orders.requestReturn(owner,nextInput.id,claim)).status,'pending');
+  await assert.rejects(orders.requestReturn(owner,nextInput.id,{...claim,id:uuidv7()}),/已有待审核/);
+  await assert.rejects(orders.reviewReturn(claim.id,{decision:'approved',note:''}),/审核资料无效/);
+  assert.equal((await orders.reviewReturn(claim.id,{decision:'approved',note:'checked'})).status,'approved');
+  assert.equal((await orders.reviewReturn(claim.id,{decision:'approved',note:'checked'})).status,'approved');
+  await assert.rejects(orders.reviewReturn(claim.id,{decision:'rejected',note:'changed'}),/已审核/);
+  await assert.rejects(orders.requestReturn(owner,nextInput.id,{...claim,id:uuidv7(),items:[{itemId:lineId,quantity:2}]}),/超过可申请/);
+  const rejected={id:uuidv7(),reason:'Other',items:[{itemId:lineId,quantity:1}]};await orders.requestReturn(owner,nextInput.id,rejected);await orders.reviewReturn(rejected.id,{decision:'rejected',note:'not accepted'});
+  const again={...rejected,id:uuidv7()};await orders.requestReturn(owner,nextInput.id,again);
+  const history=(await orders.list(owner)).find(o=>o.id===nextInput.id).returns;assert.equal(history.length,3);assert.equal(history.filter(x=>x.status==='approved').length,1);
+  const firstReturnItem=history.find(r=>r.id===claim.id).items[0].returnItemId;
+  const receipt1={id:uuidv7(),items:[{returnItemId:firstReturnItem,quantity:1,disposition:'not_restocked'}],note:'awaiting inspection'};
+  assert.equal((await orders.receiveReturn(claim.id,receipt1)).replayed,false);assert.equal((await orders.receiveReturn(claim.id,receipt1)).replayed,true);
+  const refund1={id:uuidv7(),amount:'30.00',method:'bank_transfer',reference:'REFUND-1',refundedOn:'2026-11-08',note:'verified',verified:true};
+  await assert.rejects(orders.recordRefund(again.id,refund1),/已批准/);
+  await assert.rejects(orders.recordRefund(claim.id,{...refund1,verified:false}),/退款资料无效/);
+  assert.equal((await orders.recordRefund(claim.id,refund1)).replayed,false);
+  assert.equal((await orders.recordRefund(claim.id,refund1)).replayed,true);
+  await assert.rejects(orders.recordRefund(claim.id,{...refund1,id:uuidv7()}),/凭据已登记/);
+  await assert.rejects(orders.recordRefund(claim.id,{...refund1,id:uuidv7(),reference:'REFUND-2',amount:'170.00'}),/超过已登记收款/);
+  assert.equal((await orders.list(owner)).find(o=>o.id===nextInput.id).refundedMinor,'3000');
+  await assert.rejects(pool.query('UPDATE storefront_return_refunds SET amount_minor=1 WHERE id=$1',[refund1.id]),{code:'23514'});
+  const refundCorrection={id:uuidv7(),reason:'entry error'};
+  assert.equal((await orders.reverseRefund(claim.id,refund1.id,refundCorrection)).replayed,false);
+  assert.equal((await orders.reverseRefund(claim.id,refund1.id,refundCorrection)).replayed,true);
+  await assert.rejects(orders.recordRefund(claim.id,refund1),/已更正/);
+  assert.equal((await orders.list(owner)).find(o=>o.id===nextInput.id).refundedMinor,'0');
+
+  await assert.rejects(orders.receiveReturn(claim.id,{...receipt1,id:uuidv7()}),/超过未收数量/);
+  assert.equal((await pool.query("SELECT quantity FROM warehouse_stock WHERE warehouse_id='store-warehouse'")).rows[0].quantity,2);
+  await orders.reviewReturn(again.id,{decision:'approved',note:'checked'});
+  const secondReturnItem=(await orders.list(owner)).find(o=>o.id===nextInput.id).returns.find(r=>r.id===again.id).items[0].returnItemId;
+  const receipt2={id:uuidv7(),items:[{returnItemId:secondReturnItem,quantity:1,disposition:'restocked',warehouseId:'store-warehouse'}],note:'checked saleable',confirmedSaleable:true};
+  await assert.rejects(orders.receiveReturn(again.id,{...receipt2,confirmedSaleable:false}),/已检验/);
+  await pool.query("UPDATE warehouse_stock SET quantity=3 WHERE warehouse_id='store-warehouse'");
+  await assert.rejects(orders.receiveReturn(again.id,receipt2),/账本与仓库余额不一致/);
+  assert.equal((await pool.query('SELECT count(*)::int n FROM storefront_return_receipts WHERE id=$1',[receipt2.id])).rows[0].n,0);
+  await pool.query("UPDATE warehouse_stock SET quantity=2 WHERE warehouse_id='store-warehouse'");
+  await orders.receiveReturn(again.id,receipt2);assert.equal((await orders.receiveReturn(again.id,receipt2)).replayed,true);
+  await orders.recordRefund(again.id,{id:uuidv7(),amount:'50.00',method:'bank_transfer',reference:'REFUND-2',refundedOn:'2026-11-08',verified:true});
+  assert.equal((await orders.list(owner)).find(o=>o.id===nextInput.id).refundedMinor,'5000');
+
+  assert.equal((await pool.query("SELECT quantity FROM warehouse_stock WHERE warehouse_id='store-warehouse'")).rows[0].quantity,3);
+  assert.equal((await pool.query("SELECT sum(quantity_delta)::int n FROM inventory_ledger WHERE source_type='storefront_return_receipt_item'")).rows[0].n,1);
+  await assert.rejects(pool.query('DELETE FROM storefront_return_receipts WHERE id=$1',[receipt1.id]),{code:'23514'});
+  const held=(await orders.list(owner)).find(o=>o.id===nextInput.id).returns.find(r=>r.id===claim.id).heldItems[0];
+  assert.equal(held.restockedQuantity,0);
+  const restock={id:uuidv7(),warehouseId:'store-warehouse',quantity:1,note:'inspected',confirmedSaleable:true};
+  await assert.rejects(orders.restockReturn(held.id,{...restock,confirmedSaleable:false}),/资料无效/);
+  await pool.query("UPDATE warehouse_stock SET quantity=4 WHERE warehouse_id='store-warehouse'");
+  await assert.rejects(orders.restockReturn(held.id,restock),/账本与仓库余额不一致/);
+  await pool.query("UPDATE warehouse_stock SET quantity=3 WHERE warehouse_id='store-warehouse'");
+  assert.equal((await orders.restockReturn(held.id,restock)).replayed,false);
+  assert.equal((await orders.restockReturn(held.id,restock)).replayed,true);
+  await assert.rejects(orders.restockReturn(held.id,{...restock,id:uuidv7()}),/超过待处理数量/);
+  assert.equal((await pool.query("SELECT quantity FROM warehouse_stock WHERE warehouse_id='store-warehouse'")).rows[0].quantity,4);
+  assert.equal((await pool.query("SELECT sum(quantity_delta)::int n FROM inventory_ledger WHERE source_type='storefront_return_restock'")).rows[0].n,1);
+  await assert.rejects(pool.query('DELETE FROM storefront_return_restock_events WHERE id=$1',[restock.id]),{code:'23514'});
+
+
+  await assert.rejects(pool.query('DELETE FROM storefront_return_items WHERE request_id=$1',[claim.id]),{code:'23514'});
+  assert.equal((await pool.query("SELECT quantity FROM warehouse_stock WHERE warehouse_id='store-warehouse'")).rows[0].quantity,4);
+
+  const app=Fastify();const users={owner,other,admin:{id:'admin',role:'admin'},viewer:{id:'viewer',role:'viewer'}};
+  app.addHook('onRequest',apiAccessHook({user:async token=>users[token]||null},req=>req.headers['test-session']));registerStorefrontOrderRoutes(app,orders);
+  assert.equal((await app.inject({method:'GET',url:'/api/storefront/orders',headers:{'test-session':'viewer'}})).statusCode,403);
+  assert.equal((await app.inject({method:'GET',url:'/api/storefront/orders',headers:{'test-session':'owner'}})).statusCode,403);
+  assert.equal((await app.inject({method:'GET',url:'/api/storefront/orders',headers:{'test-session':'admin'}})).statusCode,200);
+  assert.equal((await app.inject({method:'POST',url:'/api/storefront/orders/'+input.id+'/payments',headers:{'test-session':'viewer'},payload:{}})).statusCode,403);
+  assert.equal((await app.inject({method:'POST',url:'/api/storefront/orders/'+input.id+'/payments',headers:{'test-session':'owner'},payload:{}})).statusCode,403);
+
+  assert.equal((await app.inject({method:'POST',url:'/api/storefront/orders/'+input.id+'/quote',headers:{'test-session':'viewer'},payload:{}})).statusCode,403);
+  assert.equal((await app.inject({method:'POST',url:'/api/portal/storefront/orders/'+input.id+'/respond',headers:{'test-session':'admin'},payload:{}})).statusCode,403);
+  assert.equal((await app.inject({method:'POST',url:'/api/portal/storefront/orders/'+input.id+'/respond',payload:{}})).statusCode,401);
+
+  assert.equal((await app.inject({method:'POST',url:'/api/storefront/returns/'+claim.id+'/review',headers:{'test-session':'owner'},payload:{}})).statusCode,403);
+  assert.equal((await app.inject({method:'POST',url:'/api/storefront/returns/'+claim.id+'/receive',headers:{'test-session':'owner'},payload:{}})).statusCode,403);
+  assert.equal((await app.inject({method:'POST',url:'/api/storefront/returns/'+claim.id+'/refunds',headers:{'test-session':'owner'},payload:{}})).statusCode,403);
+  assert.equal((await app.inject({method:'POST',url:'/api/storefront/return-receipt-items/'+held.id+'/restock',headers:{'test-session':'owner'},payload:{}})).statusCode,403);
+  assert.equal((await app.inject({method:'POST',url:'/api/storefront/return-receipt-items/'+held.id+'/dispose',headers:{'test-session':'owner'},payload:{}})).statusCode,403);
+
+
+
+
+  assert.equal((await app.inject({method:'POST',url:'/api/portal/storefront/orders/'+nextInput.id+'/returns',payload:{}})).statusCode,401);
+  assert.equal((await app.inject({method:'POST',url:'/api/portal/storefront/orders/'+nextInput.id+'/returns',headers:{'test-session':'admin'},payload:{}})).statusCode,403);
+  assert.equal((await app.inject({method:'POST',url:'/api/portal/storefront/orders/'+nextInput.id+'/receive',headers:{'test-session':'admin'},payload:{note:'received'}})).statusCode,403);
+  assert.equal((await app.inject({method:'POST',url:'/api/portal/storefront/orders/'+nextInput.id+'/receive',headers:{'test-session':'other'},payload:{note:'received'}})).statusCode,404);
+  assert.equal((await app.inject({method:'GET',url:'/api/portal/storefront/orders',headers:{'test-session':'other'}})).json().length,0);
+  await app.close();
+
+ }finally{await orders.close();await cart.close();await catalog.close();await auth.close();await pool.end()}
+});

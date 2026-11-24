@@ -1,0 +1,341 @@
+.page{background:#f6f7f5;overflow:visible}.kicker{font-size:11px;letter-spacing:.2em;font-weight:700;color:#547f68;text-transform:uppercase}
+.hero{position:relative;min-height:650px;display:grid;grid-template-columns:44% 56%;align-items:center;background:#e4e8e4;isolation:isolate;overflow:hidden}
+.heroCopy{padding:80px 0 105px clamp(22px,7vw,125px);position:relative;z-index:2}
+.hero h1{font-size:clamp(48px,5.7vw,100px);line-height:1.04;letter-spacing:-.06em;font-weight:630;margin:23px 0;max-width:620px}
+.heroCopy>p{font-size:17px;line-height:1.9;color:#4c5955;max-width:480px}
+.heroButton{margin-top:28px;display:inline-flex;align-items:center;justify-content:center;border:1px solid #17221d;border-radius:3px;padding:13px 28px;text-decoration:none;color:#192b22;font-weight:600;transition:background .22s,color .22s}
+.heroButton:hover{background:#b8e986;color:#102014}
+.heroImage{display:block;width:100%;max-height:650px;object-fit:contain;mix-blend-mode:multiply;position:relative;z-index:1}
+.heroWatermark{position:absolute;bottom:-90px;left:38%;font-size:clamp(110px,18vw,320px);font-weight:850;letter-spacing:-.07em;color:#d4dbd5;white-space:nowrap;z-index:0}
+.section{padding:105px clamp(22px,6vw,110px)}
+.sectionHeading{display:flex;justify-content:space-between;align-items:end;gap:40px;margin:0 0 37px}
+.sectionHeading h2{font-size:clamp(36px,4.2vw,68px);line-height:1.07;letter-spacing:-.045em;font-weight:610;margin:12px 0 0}
+.sectionHeading>p{color:#68716e;max-width:390px;font-size:15px;margin:0 0 4px;line-height:1.85}
+.platformGrid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:15px}
+.platformCard{position:relative;overflow:hidden;aspect-ratio:3/4;display:block;background:#39443f;color:white;text-decoration:none}
+.platformCard>img{width:100%;height:100%;object-fit:cover;transition:transform .6s}
+.platformCard:hover>img{transform:scale(1.045)}
+.platformShade{position:absolute;inset:0;background:linear-gradient(180deg,transparent 28%,rgba(6,16,13,.74))}
+.platformText{position:absolute;bottom:28px;left:25px;right:16px}
+.platformText>span{font-size:11px;letter-spacing:.18em;color:#c2edb6}
+.platformText h3{font-size:clamp(19px,2vw,29px);line-height:1.12;letter-spacing:-.035em;margin:10px 0 19px}
+.platformText small{font-size:12px;color:#f2f7f1}
+.modelSection{background:#fff}
+.filters{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:28px}
+.filters a{padding:10px 22px;text-decoration:none;color:#4b5952;border:1px solid #dce3dc;border-radius:2px;font-weight:650}
+.filters a:hover,.filters a[aria-current=page]{background:#17231d;color:#fff;border-color:#17231d}
+.modelGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px}
+.modelCard{background:#f3f5f1;overflow:hidden}
+.modelImageLink{display:block;background:#edf0eb;overflow:hidden}
+.modelImageLink img{width:100%;height:380px;display:block;object-fit:contain;mix-blend-mode:multiply;transition:transform .5s}
+.modelImageLink:hover img{transform:scale(1.025)}
+.modelInfo{display:flex;align-items:end;justify-content:space-between;gap:12px;padding:25px 30px 30px}
+.modelInfo h3{font-size:clamp(28px,3vw,42px);margin:12px 0 0;letter-spacing:-.05em}
+.modelInfo p{font-size:11px;color:#79847b;letter-spacing:.14em;margin:0}
+.status{display:inline-flex;background:#e0ebe0;padding:6px 10px;font-size:11px;color:#35634f}
+.modelInfo a{font-size:13px;color:#263c31;font-weight:700;text-decoration:none;white-space:nowrap;border-bottom:1px solid #668a73;padding-bottom:6px}
+.empty{padding:75px 8%;background:#eef1ec;text-align:center;min-height:360px}
+.empty span{font-size:12px;letter-spacing:.17em;color:#427154}
+.empty h3{font-size:45px;margin:15px 0}
+.empty p{color:#67716b}
+.empty a{display:inline-block;color:#244a32;margin-top:16px;text-decoration:none;border-bottom:1px solid}
+.guide{display:grid;grid-template-columns:1fr 1fr;gap:10%;padding:100px clamp(22px,6vw,110px);background:#16221e;color:#fff}
+.guide h2{font-size:clamp(36px,4vw,62px);letter-spacing:-.04em;line-height:1.08;margin:12px 0 20px}
+.guide p{max-width:520px;color:#b3c2b9;line-height:1.8}
+.guide a{color:#d0f0bb}
+.guideTable{align-self:center}
+.guideTable>div,.guideTable>a{display:grid;grid-template-columns:1fr .5fr 1.2fr;align-items:center;gap:12px;padding:22px 10px;border-bottom:1px solid #465449;color:#eaf2ea;text-decoration:none}
+.guideTable .guideHead{color:#a3b5aa;font-size:12px}
+.guideTable>a:hover{background:#293b31}
+.preview{padding:21px 24px;text-align:center;font-size:12px;color:#5c665c;background:#edf0eb}
+@media(max-width:1000px){.platformGrid{grid-template-columns:repeat(2,minmax(0,1fr))}.platformCard{aspect-ratio:4/3}.hero{min-height:510px}.heroCopy{padding:60px 0 70px 5vw}.heroImage{max-height:500px}}
+@media(max-width:700px){.hero{display:flex;flex-direction:column;min-height:0}.heroCopy{align-self:stretch;padding:56px 24px 18px}.hero h1{font-size:48px}.heroCopy>p{font-size:15px}.heroImage{width:100%;height:auto;max-height:360px}.heroWatermark{bottom:0;left:12%;font-size:105px}.section{padding:69px 20px}.sectionHeading{display:block}.sectionHeading>p{margin-top:16px}.platformGrid{gap:10px}.platformCard{aspect-ratio:3/4}.platformText{bottom:18px;left:14px}.platformText h3{font-size:19px}.platformText small{font-size:10px}.modelGrid{grid-template-columns:1fr}.modelImageLink img{height:270px}.modelInfo{padding:20px;align-items:center}.modelInfo h3{font-size:30px}.modelInfo a{font-size:12px}.guide{display:block;padding:65px 22px}.guideTable{margin-top:34px}.guideTable>div,.guideTable>a{padding:17px 2px;font-size:12px}.guideTable{overflow-wrap:anywhere}}
+@media(prefers-reduced-motion:reduce){.heroButton,.platformCard>img,.modelImageLink img{transition:none}}
+
+/* Shared WWW CTA language, as in the homepage and Dealer partnership page. */
+.heroButton{border-radius:4px;position:relative;isolation:isolate;overflow:hidden;transition:color .35s,border-color .35s}
+.heroButton::before{content:"";position:absolute;inset:0;background:#acd132;transform:scaleX(0);transform-origin:left;transition:transform .35s cubic-bezier(.22,.61,.36,1);z-index:-1}
+.heroButton:hover{background:transparent;border-color:#acd132;color:#15201a}
+.heroButton:hover::before,.heroButton:focus-visible::before{transform:scaleX(1)}
+.platformCard,.modelCard{border-radius:12px}
+@media(prefers-reduced-motion:reduce){.heroButton,.heroButton::before{transition:none}}
+
+/* One large editorial chapter per real model; scrolling now maps to FC1 / FC2. */
+.modelGrid{grid-template-columns:minmax(0,1fr);gap:24px}
+.modelCard{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,.85fr);align-items:stretch;min-height:410px;scroll-margin-top:86px}
+.modelImageLink{display:grid;place-items:center;min-width:0}
+.modelImageLink img{height:100%;min-height:390px;max-height:520px;object-fit:contain}
+.modelInfo{align-items:stretch;justify-content:center;flex-direction:column;gap:34px;padding:clamp(30px,5vw,85px)}
+.modelInfo h3{font-size:clamp(44px,5vw,74px);line-height:1.05;letter-spacing:-.055em;margin:18px 0 12px}
+.modelInfo a{align-self:flex-start;font-size:14px;transition:color .2s,border-color .2s}
+.modelInfo a:hover{color:#18221d;border-color:#acd132}
+@media(max-width:850px){.modelCard{grid-template-columns:1fr;min-height:0}.modelImageLink img{height:310px;min-height:0}.modelInfo{gap:22px;padding:26px}.modelInfo h3{font-size:42px}}
+@media(max-width:700px){.modelGrid{gap:18px}.modelCard{scroll-margin-top:76px}.modelInfo h3{font-size:38px}.modelImageLink img{height:290px}}
+
+/* Sticky global header + sticky product index need enough scroll offset for every anchor. */
+#platforms,#models,#accessories,#model-fc1,#model-fc2,#model-l7,#model-l8{scroll-margin-top:142px}
+@media(max-width:760px){#platforms,#models,#accessories,#model-fc1,#model-fc2,#model-l7,#model-l8{scroll-margin-top:122px}}
+
+/* Model index sits in the left content column; only the category strip above is sticky. */
+.modelLayout{display:grid;grid-template-columns:minmax(160px,205px) minmax(0,1fr);gap:clamp(22px,3.4vw,48px);align-items:start}
+.modelContent{min-width:0}
+.emptyNotice{margin:0 0 20px;padding:14px 16px;border:1px solid #e0e7de;border-radius:8px;background:#f7f9f5;color:#67716b;font-size:12px;line-height:1.75}
+.modelSideLink{scroll-margin-top:142px}
+@media(max-width:850px){.modelLayout{grid-template-columns:minmax(0,1fr);gap:18px}}
+@media(max-width:760px){.modelSideLink{scroll-margin-top:122px}}
+
+
+/* Collection layout inspired by modern German e-bike storefronts; ALSVID content and assets remain original. */
+.hero{min-height:240px;grid-template-columns:1fr minmax(240px,.7fr)}
+.heroCopy{padding:28px 0 32px clamp(22px,6vw,100px)}
+.hero h1{font-size:clamp(32px,3.4vw,52px);max-width:700px;margin:12px 0}
+.heroCopy>p{max-width:560px;font-size:15px;line-height:1.75}
+.heroImage{max-height:240px;object-fit:contain}
+.heroWatermark{font-size:clamp(90px,12vw,200px);bottom:-58px;left:40%}
+.modelSection{padding-top:58px}
+.modelLayout{display:block}
+.modelContent{min-width:0}
+.catalogToolbar{display:flex;align-items:center;justify-content:space-between;gap:18px;margin-bottom:22px;border-bottom:1px solid #e3e8e1;padding-bottom:15px}
+.filters{margin:0;gap:7px}
+.filters a{padding:9px 15px;border-radius:999px;font-size:12px}
+.sortControl{display:flex;align-items:center;justify-content:flex-end;gap:14px;flex-wrap:wrap;color:#657168;font-size:12px}
+.sortControl>span{margin-right:5px;white-space:nowrap}
+.sortControl strong{color:#1b2a20}
+.sortControl a{color:#59665c;text-decoration:none;padding:7px 0;border-bottom:1px solid transparent;white-space:nowrap}
+.sortControl a:hover,.sortControl a[aria-current=page]{color:#1b2a20;border-color:#acd132}
+.modelGrid{grid-template-columns:repeat(3,minmax(0,1fr));gap:18px}
+.modelCard{display:flex;flex-direction:column;min-height:0;scroll-margin-top:142px;border:1px solid #e5e9e2;border-radius:12px;background:#fff;overflow:hidden;transition:box-shadow .2s,border-color .2s}
+.modelCard:hover{border-color:#cbd8c8;box-shadow:0 10px 28px rgba(26,43,31,.08)}
+.modelImageLink{aspect-ratio:1.25;min-height:0;display:grid;place-items:center;background:#f3f5f1;padding:12px}
+.modelImageLink img{width:100%;height:100%;min-height:0;max-height:none;object-fit:contain;mix-blend-mode:multiply;transition:transform .35s}
+.modelInfo{display:flex;flex:1;align-items:stretch;justify-content:flex-start;flex-direction:column;gap:12px;padding:20px 21px 22px}
+.modelMeta{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.modelCode{font-size:11px;letter-spacing:.12em;font-weight:700;color:#718073}
+.modelInfo h3{font-size:clamp(24px,2vw,32px);line-height:1.1;letter-spacing:-.04em;margin:2px 0 0}
+.modelInfo p{font-size:12px;color:#7a857c;letter-spacing:.02em;margin:0;min-height:18px}
+.detailLink{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:auto;padding-top:15px;border-bottom:0!important;border-top:1px solid #e5e9e2;color:#20372a!important;font-size:13px!important}
+.detailLink span{font-size:19px;transition:transform .2s}
+.detailLink:hover span{transform:translateX(4px)}
+.empty{border-radius:12px}
+@media(max-width:1100px){.modelGrid{grid-template-columns:repeat(2,minmax(0,1fr))}.hero{grid-template-columns:1fr .8fr}.hero h1{font-size:clamp(36px,4.5vw,58px)}}
+@media(max-width:850px){.catalogToolbar{align-items:flex-start;flex-direction:column}.sortControl{justify-content:flex-start}.hero{min-height:0}.heroCopy{padding:42px 0 45px 5vw}.heroImage{max-height:290px}}
+@media(max-width:700px){.hero{display:flex;flex-direction:column;align-items:stretch}.heroCopy{padding:42px 22px 8px}.hero h1{font-size:42px}.heroImage{width:100%;height:230px;max-height:230px}.heroWatermark{font-size:90px;bottom:-20px;left:10%}.modelSection{padding-top:48px}.catalogToolbar{gap:14px}.filters{flex-wrap:nowrap;max-width:100%;overflow-x:auto;padding:0 0 5px}.filters a{flex:none;padding:9px 13px}.modelGrid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.modelCard{border-radius:9px}.modelImageLink{aspect-ratio:1/1;padding:7px}.modelInfo{gap:9px;padding:13px}.modelInfo h3{font-size:clamp(20px,5.2vw,27px)}.modelInfo p{font-size:11px}.modelInfo a{white-space:normal}.status{font-size:10px;padding:5px 6px}.modelCode{font-size:9px}.detailLink{font-size:12px!important;padding-top:11px}.sortControl{gap:11px}.sortControl>span{width:100%}}
+@media(max-width:390px){.modelGrid{grid-template-columns:1fr}.modelImageLink{aspect-ratio:1.35}.modelInfo{padding:17px}.modelInfo h3{font-size:28px}}
+
+
+/* Keep the model-series index in document flow beside the collection on wide screens. */
+.modelLayout{display:grid;grid-template-columns:190px minmax(0,1fr);column-gap:28px;align-items:start}
+.modelContent{min-width:0}
+@media(max-width:850px){.modelLayout{display:block}.modelLayout>nav[data-bikes-model-side-nav]{margin-bottom:20px}}
+
+/* P0 customer-facing discovery: keep a calm premium catalogue and show only verified facts. */
+.discovery{min-width:0}
+.discoveryTools{display:flex;align-items:end;justify-content:space-between;flex-wrap:wrap;gap:18px;margin-bottom:16px;padding:22px;background:#f4f6f3;border:1px solid #e1e7df;border-radius:12px}
+.discoveryLabel{display:block;margin-bottom:10px;font-size:11px;letter-spacing:.06em;font-weight:650;color:#52635a}
+.discoverySearchWrap{flex:1 1 220px;max-width:420px;min-width:0}
+.discoverySearch{width:100%;min-height:45px;border:1px solid #cbd8cc;border-radius:6px;background:white;padding:11px 14px;font:inherit;color:#192821;outline-offset:3px}
+.discoverySearch:focus-visible{outline:2px solid #648f68}
+.discoveryFilterWrap{flex:1 1 290px;min-width:0}
+.discoveryPills{display:flex;gap:7px;flex-wrap:wrap}
+.discoveryPills button{border:1px solid #cbd8cc;border-radius:5px;background:#fff;padding:11px 15px;min-height:44px;font:inherit;font-size:12px;color:#384b40;cursor:pointer}
+.discoveryPills button[aria-pressed=true]{background:#1b2b22;border-color:#1b2b22;color:#fff}
+.discoveryResults{margin:0 0 16px;font-size:12px;color:#6b7770}
+.discovery .modelGrid{gap:20px}
+.discovery .modelCard{min-height:430px;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);background:#f1f4f0}
+.modelImagePanel{position:relative;min-width:0;display:flex;flex-direction:column}
+.discovery .modelImageLink{flex:1;min-height:100%;display:grid;place-items:center}
+.modelImageCode{position:absolute;bottom:22px;left:23px;background:#ffffffdc;border:1px solid #e0e8df;border-radius:4px;padding:8px 11px;font-size:11px;font-weight:700;letter-spacing:.08em;color:#334438;pointer-events:none}
+.discovery .modelInfo{padding:clamp(24px,3.5vw,54px);gap:17px;min-width:0}
+.discovery .modelInfo h3{font-size:clamp(34px,4vw,56px);margin:12px 0 8px}
+.discoveryModelNote{font-size:13px;line-height:1.7;letter-spacing:normal!important;color:#526358!important;max-width:390px}
+.discoveryColours{padding:12px 0;border-top:1px solid #d8e2d7;border-bottom:1px solid #d8e2d7}
+.discoverySwatches{display:flex;align-items:center;gap:10px;padding:4px 0}
+.discoverySwatches button{width:28px;height:28px;border:2px solid #fff;border-radius:50%;box-shadow:0 0 0 1px #b4c3b7;cursor:pointer;transition:box-shadow .18s;flex:none}
+.discoverySwatches button[aria-pressed=true]{box-shadow:0 0 0 2px #1d402c}
+.discovery .discoveryColourNote{margin:8px 0 0;font-size:12px;letter-spacing:normal;color:#293f32}
+.discovery .discoveryPhotoDisclaimer{margin:7px 0;font-size:11px;line-height:1.5;color:#64756a;letter-spacing:normal}
+.discovery .discoveryConfigurator{font-size:12px;border:0;text-decoration:underline;text-underline-offset:4px;color:#2b6342;white-space:normal}
+.discoveryOtherFinish{padding:12px 0;border-top:1px solid #d8e2d7;font-size:12px!important;letter-spacing:normal!important;color:#627367!important}
+.discoveryActions{display:flex;align-items:center;flex-wrap:wrap;gap:12px}
+.discovery .discoveryActions>a{display:inline-flex;min-height:44px;align-items:center;padding:10px 0}
+.discoveryActions button{min-height:44px;padding:10px 16px;border-radius:4px;border:1px solid #395643;color:#243e2b;background:transparent;cursor:pointer;font-size:12px;font-weight:650}
+.discoveryActions button[aria-pressed=true]{border-color:#b6d994;background:#e3eedb}
+.discoveryActions button:hover{background:#dcebd9}
+.discoveryEmpty{padding:38px;text-align:center;background:#f1f4f0;border-radius:10px;color:#526358}
+.discoveryEmpty button{margin-top:13px;padding:11px 18px;min-height:44px;cursor:pointer;border:1px solid #78987d;background:white;border-radius:4px;color:#183524}
+.discoveryCompare{margin-top:34px;padding:clamp(20px,3vw,40px);border-radius:12px;background:#16261d;color:#f5f8f3;overflow:hidden}
+.discoveryCompareTop{display:flex;align-items:end;justify-content:space-between;gap:16px}
+.discoveryCompareTop h3{font-size:clamp(26px,3vw,40px);letter-spacing:-.035em;line-height:1.14;margin:12px 0 0}
+.discoveryCompareTop>span{font-size:12px;color:#cbdec9;white-space:nowrap}
+.discovery .discoveryCompareNote{margin:12px 0 18px;color:#c0d2c3;font-size:12px;line-height:1.7;letter-spacing:normal}
+.discoveryLimit{color:#ffdfad;font-size:12px}
+.discoveryCompareScroll{max-width:100%;overflow-x:auto}
+.discoveryCompareScroll table{width:100%;min-width:480px;border-collapse:collapse;font-size:12px;line-height:1.6;color:#edf6ed}
+.discoveryCompareScroll th,.discoveryCompareScroll td{padding:15px 12px;border-bottom:1px solid #456047;text-align:left;vertical-align:top;min-width:110px}
+.discoveryCompareScroll thead th{font-weight:700;font-size:14px}
+.discoveryCompareScroll tbody th{font-weight:500;color:#bfd1c0}
+.discoveryCompareScroll a{color:#c7edb3;text-underline-offset:4px}
+@media(max-width:1100px){.discovery .modelCard{grid-template-columns:1fr}.discovery .modelImageLink{min-height:300px}.discovery .modelImageLink img{height:310px;min-height:0}.discovery .modelInfo{gap:13px}}
+@media(max-width:760px){.discoveryTools{padding:15px}.discoverySearchWrap,.discoveryFilterWrap{flex-basis:100%;max-width:none}.discoveryPills button{flex:1;white-space:nowrap;padding:10px 8px}.discovery .modelImageLink{min-height:260px}.discovery .modelImageLink img{height:270px}.discovery .modelInfo{padding:21px}.discovery .modelInfo h3{font-size:34px}.discoveryCompare{padding:20px 16px}.discoveryCompareTop{display:block}.discoveryCompareTop>span{display:inline-block;margin-top:13px}}
+@media(prefers-reduced-motion:reduce){.discoverySwatches button{transition:none}}
+
+/* Fit the existing discovery controls and comparison table into the collection cards. */
+.discovery .modelGrid{grid-template-columns:repeat(3,minmax(0,1fr));gap:18px}
+.discovery .modelCard{display:flex;min-height:0;flex-direction:column;background:#fff}
+.discovery .modelImagePanel{min-width:0}
+.discovery .modelImageLink{aspect-ratio:1.25;min-height:0;padding:12px;background:#f3f5f1}
+.discovery .modelImageLink img{width:100%;height:100%;min-height:0;max-height:none}
+.discovery .modelInfo{flex:1;gap:12px;padding:20px 21px 22px}
+.discovery .modelInfo h3{font-size:clamp(24px,2vw,32px);margin:2px 0 0}
+.discovery .modelInfo p{letter-spacing:normal}
+.discovery .discoveryActions{margin-top:auto}
+.discovery .discoveryActions .detailLink{flex:1;align-self:auto;justify-content:space-between}
+@media(max-width:1100px){.discovery .modelGrid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:700px){.discovery .modelGrid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.discovery .modelImageLink{aspect-ratio:1/1;min-height:0;padding:7px}.discovery .modelImageLink img{height:100%;min-height:0}.discovery .modelInfo{padding:13px}.discovery .modelInfo h3{font-size:clamp(20px,5.2vw,27px)}}
+@media(max-width:390px){.discovery .modelGrid{grid-template-columns:1fr}.discovery .modelImageLink{aspect-ratio:1.35}}
+
+
+/* Polished model cards: responsive to the actual content width after the model sidebar. */
+.discovery{container-name:alsvid-bike-cards;container-type:inline-size}
+.discovery .modelGrid{gap:clamp(16px,1.6vw,24px);grid-template-columns:repeat(3,minmax(0,1fr))}
+.discovery .modelCard{min-width:0;min-height:0;border-radius:14px;border-color:#e2e9e3;overflow:hidden}
+.discovery .modelImagePanel{min-width:0}
+.discovery .modelImageLink{flex:none;width:100%;aspect-ratio:4/3;min-height:0;padding:clamp(14px,1.7vw,24px);background:#f5f7f4;overflow:hidden}
+.discovery .modelImageLink img{display:block;width:100%;height:100%;min-width:0;min-height:0;max-height:100%;object-fit:contain}
+.discovery .modelInfo{gap:14px;padding:clamp(18px,2vw,28px);min-width:0}
+.discovery .modelMeta{align-items:start;gap:8px;min-width:0}
+.discovery .status{max-width:100%;white-space:normal;line-height:1.45}
+.discovery .modelCode{flex:none;font-size:11px;line-height:1.5}
+.discovery .modelInfo h3{margin:4px 0 2px;font-size:clamp(25px,2.15vw,34px);line-height:1.15;letter-spacing:-.035em;overflow-wrap:anywhere}
+.discovery .modelInfo p{line-height:1.55;overflow-wrap:anywhere}
+.discovery .discoveryModelNote{font-size:13px;line-height:1.68}
+.discovery .bikeFacts{gap:13px 10px}
+.discovery .bikeFacts dd{overflow-wrap:anywhere}
+.discovery .discoveryColours{padding:15px 0}
+.discovery .discoveryActions{display:flex;flex-wrap:wrap;gap:10px}
+.discovery .discoveryActions>a.detailLink{flex:1 1 100%;min-width:0;margin-top:0;font-size:13px!important;line-height:1.45}
+.discovery .discoveryActions button{flex:1 1 116px;min-width:0;line-height:1.45}
+.discovery a:focus-visible,.discovery button:focus-visible{outline:2px solid #52764f;outline-offset:3px}
+@container alsvid-bike-cards (max-width:960px){
+  .discovery .modelGrid{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@container alsvid-bike-cards (max-width:600px){
+  .discovery .modelGrid{grid-template-columns:minmax(0,1fr);gap:16px}
+  .discovery .modelImageLink{aspect-ratio:3/2;min-height:0;padding:16px}
+  .discovery .modelInfo{padding:21px;gap:13px}
+  .discovery .modelInfo h3{font-size:clamp(26px,5.8vw,34px)}
+  .discovery .discoveryActions button{flex:1 1 130px}
+}
+@media(max-width:700px){
+  .discovery .modelImageLink{min-height:0}
+  .discovery .modelImageLink img{width:100%;height:100%;min-height:0}
+  .discovery .modelInfo{padding:18px}
+}
+@media(max-width:600px){
+  .discovery .modelInfo{padding:21px}
+}
+
+/* Keep the quick-view integration from its separate PR scoped to its own dialog. */
+
+/* Product-collection image index: editorial styling inspired by German e-bike catalogues. */
+.quickModels{background:#fff;border-bottom:1px solid #e1e8e2;padding:22px clamp(22px,6vw,110px) 25px}
+.quickModelsHeading{display:flex;align-items:baseline;justify-content:space-between;gap:20px;margin-bottom:15px}
+.quickModelsHeading>span{font-size:14px;font-weight:750;color:#1e3025;letter-spacing:.01em}
+.quickModelsHeading small{font-size:12px;color:#738176}
+.quickModelsList{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.quickModel{display:flex;align-items:center;min-width:0;gap:10px;padding:10px 12px;text-decoration:none;border:1px solid #e5ebe4;border-radius:9px;background:#f8faf7;transition:background .2s,border-color .2s,transform .2s}
+.quickModel:hover,.quickModel:focus-visible{background:#eef4e9;border-color:#a9c69b;transform:translateY(-2px)}
+.quickModel:focus-visible{outline:2px solid #acd132;outline-offset:3px}
+.quickModel img{display:block;width:89px;height:59px;flex:none;object-fit:contain;mix-blend-mode:multiply}
+.quickModel>span{display:flex;flex-direction:column;min-width:0;gap:3px}
+.quickModel strong{font-size:14px;color:#223528;letter-spacing:.02em}
+.quickModel small{font-size:10px;line-height:1.3;color:#708072;white-space:normal}
+.bikeFactsBlock{border-top:1px solid #e3eae1;padding-top:12px}
+.bikeFactsCaption{font-size:10px;line-height:1.45;color:#708073}
+.bikeFacts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:11px 14px;margin:12px 0 0}
+.bikeFacts>div{min-width:0}
+.bikeFacts dt{font-size:10px;color:#7b887d;line-height:1.4}
+.bikeFacts dd{margin:4px 0 0;font-size:13px;line-height:1.4;font-weight:720;color:#263d2e}
+.discovery .bikePricePending{margin:0;padding:13px 0;border-top:1px solid #e4ebe3;display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:12px;color:#607064;letter-spacing:normal}
+.discovery .bikePricePending strong{font-size:13px;font-weight:700;color:#334d3b;text-align:right}
+@media(max-width:1050px){.quickModelsList{display:flex;overflow-x:auto;scroll-snap-type:x proximity;scrollbar-width:thin;padding:0 0 5px}.quickModel{flex:0 0 210px;scroll-snap-align:start}.quickModels{padding-right:22px}}
+@media(max-width:700px){.quickModels{padding:17px 20px 20px}.quickModelsHeading{display:block}.quickModelsHeading small{display:block;margin-top:4px}.quickModel{flex-basis:170px;padding:8px}.quickModel img{width:65px;height:51px}.quickModel strong{font-size:13px}.quickModel small{font-size:9px}.bikeFacts{gap:10px}.bikeFacts dd{font-size:12px}}
+@media(prefers-reduced-motion:reduce){.quickModel{transition:none}.quickModel:hover{transform:none}}
+
+.shopPreviewEntry{display:flex;align-items:center;justify-content:space-between;gap:22px;flex-wrap:wrap;padding:22px clamp(22px,6vw,110px);background:#eef3e6;border-bottom:1px solid #dce6d1;color:#293f2e}.shopPreviewEntry strong{font-size:14px;font-weight:600}.shopPreviewEntry p{font-size:12px;line-height:1.7;color:#66765e;margin:6px 0 0}.shopPreviewEntry a{display:inline-block;font-size:12px;color:#213d28;border:1px solid #a5b99a;padding:11px 16px;border-radius:4px;text-decoration:none}.shopPreviewEntry a:hover{background:#dfeacb}
+
+
+/* Self-contained product quick view: familiar e-bike commerce UX, no invented checkout. */
+.discoveryActions .quickViewTrigger{border-color:#c7d4c7;background:#f4f7f1;color:#243c2c}
+.bikeQuickDialog{width:min(920px,calc(100vw - 32px));max-width:920px;max-height:min(90vh,850px);padding:0;overflow-y:auto;border:1px solid #dce6d9;border-radius:14px;box-shadow:0 24px 75px rgba(10,28,16,.22);background:#fff;color:#1e3026}
+.bikeQuickDialog::backdrop{background:rgba(13,27,19,.61);backdrop-filter:blur(3px)}
+.bikeQuickContent{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,.95fr);align-items:stretch;min-width:0}
+.bikeQuickPhoto{background:#f3f6f2;display:grid;place-items:center;padding:24px;min-width:0}
+.bikeQuickPhoto img{width:100%;height:auto;max-height:570px;object-fit:contain;mix-blend-mode:multiply}
+.bikeQuickDetails{padding:clamp(22px,3vw,36px);min-width:0}
+.bikeQuickHeading{display:flex;justify-content:space-between;align-items:center;gap:16px}
+.bikeQuickClose{border:1px solid #cfd9d0;background:#fff;color:#27392c;border-radius:50%;width:38px;height:38px;cursor:pointer;font-size:25px;line-height:1}
+.bikeQuickClose:hover{background:#eef4e9}
+.bikeQuickEyebrow{margin:20px 0 5px;font-size:10px;letter-spacing:.16em;color:#657567}
+.bikeQuickDetails h3{font-size:clamp(26px,3vw,39px);line-height:1.08;letter-spacing:-.045em;margin:8px 0 16px}
+.bikeQuickPrice{display:flex;gap:10px;align-items:baseline;border-top:1px solid #e4e9e2;border-bottom:1px solid #e4e9e2;padding:13px 0;font-size:12px;color:#607162}
+.bikeQuickPrice strong{font-size:16px;color:#283d2d}
+.bikeQuickNote,.bikeQuickWarning,.bikeQuickColourNote,.bikeQuickFeedback{font-size:12px;line-height:1.65;color:#637569}
+.bikeQuickWarning{margin:13px 0;padding:11px 12px;background:#f0f5eb;border-left:3px solid #b9d892}
+.bikeQuickLabel{display:flex;justify-content:space-between;align-items:center;gap:14px;font-size:12px;font-weight:650;color:#334c3b;margin:13px 0}
+.bikeQuickLabel select{min-width:120px;max-width:65%;min-height:40px;padding:8px 10px;border:1px solid #bacbbb;border-radius:6px;background:#fff;color:#243a2b;font:inherit}
+.bikeQuickAdd{width:100%;min-height:48px;border:1px solid #1d3325;border-radius:6px;background:#1d3325;color:#fff;font:inherit;font-size:13px;font-weight:750;cursor:pointer;margin-top:13px}
+.bikeQuickAdd:hover{background:#33523b}
+.bikeQuickDialog :is(button,select,a):focus-visible{outline:2px solid #84ab5d;outline-offset:3px}
+.bikeQuickFeedback a{color:#28583b;text-decoration:underline;font-weight:750}
+.bikeQuickDetail{display:flex;justify-content:space-between;align-items:center;text-decoration:none;border-top:1px solid #e0e8df;padding:16px 0 0;margin-top:18px;color:#213d2a;font-size:13px;font-weight:750}
+.bikeQuickDetail:hover{text-decoration:underline}
+@media(max-width:700px){.bikeQuickContent{grid-template-columns:1fr}.bikeQuickPhoto{padding:14px}.bikeQuickPhoto img{max-height:210px}.bikeQuickDetails{padding:20px}.bikeQuickEyebrow{margin-top:12px}.bikeQuickDialog{max-height:calc(100vh - 24px);width:calc(100vw - 20px)}.discovery .discoveryActions .quickViewTrigger{font-size:11px;padding:8px 9px;min-height:40px}}
+
+/* Keep collection browsing and the selected comparison within reach. */
+.discoveryResultsRow{display:flex;justify-content:space-between;align-items:center;gap:16px;margin-bottom:16px}
+.discoveryResultsRow .discoveryResults{margin:0}
+.discoveryResultsRow>button{border:0;background:transparent;color:#28553a;text-decoration:underline;font:inherit;font-size:13px;min-height:44px;cursor:pointer}
+.discoveryCompare{scroll-margin-top:150px}
+.comparePhoto{display:block;width:150px;max-width:100%;height:100px;object-fit:contain;margin:0 auto 10px}
+.discovery[data-comparing]{padding-bottom:100px}
+.compareTray{position:fixed;z-index:25;bottom:16px;left:50%;transform:translateX(-50%);width:min(1000px,calc(100% - 32px));box-sizing:border-box;display:flex;align-items:center;justify-content:space-between;gap:18px;padding:12px 16px;border:1px solid #cad8c8;border-radius:12px;background:#fff;box-shadow:0 6px 32px #142b2026;color:#263d2e}
+.compareTrayModels{display:flex;gap:10px;min-width:0}
+.compareTrayModel{display:flex;align-items:center;gap:6px;min-width:0;padding:3px 6px;background:#f2f6ef;border-radius:6px}
+.compareTrayModel img{width:54px;height:38px;object-fit:contain}
+.compareTrayModel strong{font-size:13px}
+.compareTrayModel button{border:0;background:transparent;color:#334d3b;font-size:24px;cursor:pointer;min-width:36px;min-height:44px}
+.compareTrayActions{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.compareTrayActions span{font-size:12px}
+.compareTrayActions button{border:0;background:transparent;color:#45634b;text-decoration:underline;font:inherit;font-size:12px;cursor:pointer;min-height:44px}
+.compareTrayActions a{padding:12px 18px;background:#213c2a;color:#fff;border-radius:6px;font-size:13px;font-weight:700;text-decoration:none}
+@media(max-width:760px){
+ .heroCopy{padding:26px 22px 12px}
+ .hero h1{font-size:34px}
+ .heroCopy>p{margin-bottom:0}
+ .heroButton{margin-top:14px}
+ .heroImage{max-height:180px}
+ .compareTray{flex-direction:column;align-items:stretch;gap:6px;padding:8px 12px;bottom:max(8px,env(safe-area-inset-bottom));width:calc(100% - 16px)}
+ .compareTrayModels{justify-content:center;gap:6px}
+ .compareTrayModel{padding:0 4px;gap:3px}
+ .compareTrayModel img{width:36px;height:30px}
+ .compareTrayModel button{min-width:30px}
+ .compareTrayActions{justify-content:space-between;gap:6px}
+ .compareTrayActions a{padding:11px 12px}
+ .discovery[data-comparing]{padding-bottom:160px}
+ .comparePhoto{width:110px;height:80px}
+}
+
+.compareTray :is(button,a):focus-visible{outline:2px solid #52764f;outline-offset:3px}
+.compareTray>.discoveryLimit{font-size:12px;max-width:180px;margin:0;color:#80531b}
+@media(max-width:380px){.compareTrayModel{padding:0 2px;gap:2px}.compareTrayModel img{width:24px}.compareTrayModel strong{font-size:12px}.compareTrayModel button{min-width:26px}}
+
+.collectionHelp{display:grid;grid-template-columns:minmax(0,.8fr) minmax(0,1.2fr);gap:clamp(24px,5vw,70px);padding:60px clamp(22px,6vw,110px);background:#fff;color:#20382a}
+.collectionHelp h2{font-size:clamp(28px,3vw,44px);line-height:1.15;letter-spacing:-.035em;margin:12px 0 24px}
+.collectionHelp nav{display:flex;flex-wrap:wrap;gap:16px}
+.collectionHelp a{color:#315f40;font-size:14px;text-underline-offset:4px}
+.collectionQuestions details{border-bottom:1px solid #dce6dc;padding:17px 0}
+.collectionQuestions summary{cursor:pointer;font-size:15px;font-weight:650;line-height:1.6}
+.collectionQuestions p{font-size:14px;color:#607064;line-height:1.8;margin:14px 0 4px}
+.collectionHelp :is(summary,a):focus-visible{outline:2px solid #52764f;outline-offset:4px}
+@media(max-width:760px){.collectionHelp{grid-template-columns:1fr;padding:40px 22px;gap:10px}}

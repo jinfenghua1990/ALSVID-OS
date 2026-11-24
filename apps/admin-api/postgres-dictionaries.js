@@ -1,0 +1,124 @@
+const { currentActor } = require('./audit-context');
+// Resource-level PostgreSQL operations; the API is not switched over yet.
+const { createPool } = require('./db-pool');
+const { SEED_FIELDS, SEED_COLORS, TEMPLATES } = require('./db');
+const { validSkuField } = require('./sku-code');
+const { uuidv7 } = require('./uuidv7');
+
+function createDictionaryStore(connectionString) {
+  if (!connectionString) throw new Error('DATABASE_URL is required');
+  const pool = createPool(connectionString, { max: 3, connectionTimeoutMillis: 10000 });
+  const fieldColumns = `id, code, name_zh AS "nameZh", name_en AS "nameEn", name_de AS "nameDe", data_type AS type, unit, options, level, templates, required, searchable, sku_gen AS "skuGen", shop_visible AS "shopVisible", enabled`;
+  const colorColumns = 'entity_uuid AS id, code, zh, en, de, hex, ral, sort, enabled';
+  async function transaction(action, target, work) {
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      const { before, after } = await work(client);
+      await client.query('INSERT INTO audit_log(actor,action,target,before_json,after_json) VALUES ($1,$2,$3,$4,$5)', [currentActor(), action, target, before ? JSON.stringify(before) : null, JSON.stringify(after)]);
+      await client.query('COMMIT');
+      return after;
+    } catch (error) {
+      await client.query('ROLLBACK').catch(() => {});
+      throw error;
+    } finally { client.release(); }
+  }
+  return {
+    async listFactories() {
+      return (await pool.query("SELECT f.id,f.entity_uuid AS \"entityUuid\",f.name,f.country,f.contact,f.email,f.phone,f.address,f.status,p.tax_id AS \"taxId\",f.created_at AS \"createdAt\",f.updated_at AS \"updatedAt\" FROM factories f LEFT JOIN partner_source_links l ON l.source_type='factory' AND l.source_id=f.id LEFT JOIN partners p ON p.id=l.partner_id ORDER BY f.name")).rows;
+    },
+    async createFactory(input) {
+      const name=String(input.name||'').trim();
+      if(!name||name.length>120) throw new Error('工厂名称必填且不能超过 120 个字符');
+      const id=uuidv7();
+      return transaction('factory.create',`factories/${id}`,async client=>{
+        const taxId=String(input.taxId||'').trim(); if(taxId.length>120) throw new Error('税号不能超过 120 个字符');
+        const row=(await client.query('INSERT INTO factories(id,name,country,contact,email,phone,address) VALUES($1,$2,$3,$4,$5,$6,$7) RETURNING id,entity_uuid AS "entityUuid",name,country,contact,email,phone,address,status',[id,name,String(input.country||'中国').trim(),String(input.contact||'').trim(),String(input.email||'').trim(),String(input.phone||'').trim(),String(input.address||'').trim()])).rows[0];
+        await client.query("UPDATE partners p SET tax_id=$1,revision=revision+1,updated_at=now() FROM partner_source_links l WHERE l.partner_id=p.id AND l.source_type='factory' AND l.source_id=$2",[taxId,id]);
+        row.taxId=taxId;
+        return {before:null,after:row};
+      });
+    },
+    async updateFactory(id,input) {
+      return transaction('factory.update',`factories/${id}`,async client=>{
+        const prior=(await client.query("SELECT f.id,f.entity_uuid AS \"entityUuid\",f.name,f.country,f.contact,f.email,f.phone,f.address,f.status,p.tax_id AS \"taxId\" FROM factories f LEFT JOIN partner_source_links l ON l.source_type='factory' AND l.source_id=f.id LEFT JOIN partners p ON p.id=l.partner_id WHERE f.id=$1 FOR UPDATE OF f",[id])).rows[0];
+        if(!prior) throw new Error('工厂不存在');
+        const next={...prior,...Object.fromEntries(Object.entries(input).filter(([key])=>['name','country','contact','email','phone','address','status','taxId'].includes(key)))};
+        next.name=String(next.name||'').trim();
+        if(!next.name||next.name.length>120||String(next.taxId||'').trim().length>120||!['启用','停用'].includes(next.status)) throw new Error('工厂资料无效');
+        const after=(await client.query('UPDATE factories SET name=$1,country=$2,contact=$3,email=$4,phone=$5,address=$6,status=$7,updated_at=now() WHERE id=$8 RETURNING id,entity_uuid AS "entityUuid",name,country,contact,email,phone,address,status',[next.name,next.country,next.contact,next.email,next.phone,next.address,next.status,id])).rows[0];
+        await client.query("UPDATE partners p SET tax_id=$1,revision=revision+1,updated_at=now() FROM partner_source_links l WHERE l.partner_id=p.id AND l.source_type='factory' AND l.source_id=$2",[String(next.taxId||'').trim(),id]);
+        after.taxId=String(next.taxId||'').trim();
+        return {before:prior,after};
+      });
+    },
+    async seedBaseline() {
+      const c=await pool.connect();
+      try { await c.query('BEGIN');
+        for(const f of SEED_FIELDS) await c.query(`INSERT INTO fields(code,name_zh,name_en,name_de,data_type,unit,options,level,templates,required,searchable,sku_gen,shop_visible,enabled) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14) ON CONFLICT(code) DO NOTHING`,[f.code,f.nameZh,f.nameEn||'',f.nameDe||'',f.type||'text',f.unit||'',JSON.stringify(f.options||[]),f.level||'product',JSON.stringify(f.templates||[]),!!f.required,f.searchable!==false,!!f.skuGen,!!f.shopVisible,f.enabled!==false]);
+        for(const color of SEED_COLORS) await c.query('INSERT INTO colors(code,zh,en,de,hex,ral,sort,enabled) VALUES($1,$2,$3,$4,$5,$6,$7,$8) ON CONFLICT(code) DO NOTHING',[color.code,color.zh,color.en,color.de,color.hex,color.ral||'',color.sort,color.enabled!==false]);
+        await c.query('COMMIT');
+      } catch(e){await c.query('ROLLBACK').catch(()=>{});throw e;} finally{c.release();}
+    },
+    // 轻量列表：变更全文（~200KB）跨境拉取要 10–25 秒，是审计页长期「正在刷新」的根因。
+    // 列表只回元数据 + 是否有变更标记；点「查看」时走 getAudit(id) 按需拉单条（秒级）。
+    async listAudit() { return (await pool.query('SELECT id,actor,action,target,created_at AS "at",(before_json IS NOT NULL) AS "hasBefore",(after_json IS NOT NULL) AS "hasAfter" FROM audit_log ORDER BY id DESC LIMIT 2000')).rows; },
+    async getAudit(id) {
+      const row=(await pool.query('SELECT id,actor,action,target,before_json AS "before",after_json AS "after",created_at AS "at" FROM audit_log WHERE id=$1',[id])).rows[0];
+      return row||null;
+    },
+    async listFields() { return (await pool.query(`SELECT ${fieldColumns} FROM fields ORDER BY code`)).rows; },
+    // #/api/meta 专用：三张字典表合成一条语句。
+    // 分开查要走 3 次「连接 + SET + 查询」，跨境链路下每次约 0.35s 起，
+    // 合并后只有 1 次往返，是首屏「加载中…」缩短的关键。
+    async metaSnapshot() {
+      const row = (await pool.query(`
+        SELECT
+          (SELECT COALESCE(json_agg(t), '[]'::json) FROM (SELECT ${fieldColumns} FROM fields ORDER BY code) t) AS fields,
+          (SELECT COALESCE(json_agg(t), '[]'::json) FROM (SELECT code,name,material,note,enabled FROM platforms ORDER BY code) t) AS platforms,
+          (SELECT COALESCE(json_agg(t), '[]'::json) FROM (SELECT code,name,battery_spec AS "batterySpec",drivetrain,brakes,sort,enabled FROM config_kits ORDER BY sort,code) t) AS config
+      `)).rows[0];
+      return { fields: row?.fields || [], platforms: row?.platforms || [], configKits: row?.config || [] };
+    },
+    async listColors() { return (await pool.query(`SELECT ${colorColumns} FROM colors ORDER BY sort,code`)).rows; },
+    async listPlatforms() { return (await pool.query('SELECT code,name,material,note,enabled FROM platforms ORDER BY code')).rows; },
+    async listConfigKits() { return (await pool.query('SELECT code,name,battery_spec AS "batterySpec",drivetrain,brakes,sort,enabled FROM config_kits ORDER BY sort,code')).rows; },
+    async createField(f) {
+      if (!validSkuField(f,TEMPLATES)) throw Error('参与 SKU 生成的字段配置无效');
+      return transaction('field.create', `fields/${f.code}`, async client => {
+        const values = [f.code,f.nameZh,f.nameEn || '',f.nameDe || '',f.type || 'text',f.unit || '',JSON.stringify(f.options || []),f.level || 'product',JSON.stringify(f.templates || []),!!f.required,f.searchable !== false,!!f.skuGen,!!f.shopVisible,f.enabled !== false];
+        const result = await client.query(`INSERT INTO fields(code,name_zh,name_en,name_de,data_type,unit,options,level,templates,required,searchable,sku_gen,shop_visible,enabled) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14) RETURNING ${fieldColumns}`, values);
+        return { before: null, after: result.rows[0] };
+      });
+    },
+    async updateField(code, patch) {
+      return transaction('field.update', `fields/${code}`, async client => {
+        const prior = (await client.query(`SELECT ${fieldColumns} FROM fields WHERE code=$1 FOR UPDATE`, [code])).rows[0];
+        if (!prior) throw new Error('字段不存在');
+        const next = { ...prior, ...Object.fromEntries(Object.entries(patch).filter(([k]) => ['nameZh','nameEn','nameDe','unit','options','level','templates','required','searchable','skuGen','shopVisible','enabled'].includes(k))) };
+        if (!validSkuField(next,TEMPLATES)) throw Error('参与 SKU 生成的字段配置无效');
+        const vals = [next.nameZh,next.nameEn,next.nameDe,next.unit,JSON.stringify(next.options),next.level,JSON.stringify(next.templates),next.required,next.searchable,next.skuGen,next.shopVisible,next.enabled,code];
+        const result = await client.query(`UPDATE fields SET name_zh=$1,name_en=$2,name_de=$3,unit=$4,options=$5,level=$6,templates=$7,required=$8,searchable=$9,sku_gen=$10,shop_visible=$11,enabled=$12 WHERE code=$13 RETURNING ${fieldColumns}`, vals);
+        return { before: prior, after: result.rows[0] };
+      });
+    },
+    async createColor(c) {
+      return transaction('color.create', `colors/${c.code}`, async client => {
+        const result = await client.query(`INSERT INTO colors(code,zh,en,de,hex,ral,sort,enabled) VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING ${colorColumns}`, [c.code,c.zh || '',c.en || '',c.de || '',c.hex || '#cccccc',c.ral || '',c.sort ?? 50,c.enabled !== false]);
+        return { before: null, after: result.rows[0] };
+      });
+    },
+    async updateColor(code, patch) {
+      return transaction('color.update', `colors/${code}`, async client => {
+        const prior = (await client.query(`SELECT ${colorColumns} FROM colors WHERE code=$1 FOR UPDATE`, [code])).rows[0];
+        if (!prior) throw new Error('颜色不存在');
+        const next = { ...prior, ...Object.fromEntries(Object.entries(patch).filter(([k]) => ['zh','en','de','hex','ral','sort','enabled'].includes(k))) };
+        const result = await client.query(`UPDATE colors SET zh=$1,en=$2,de=$3,hex=$4,ral=$5,sort=$6,enabled=$7 WHERE code=$8 RETURNING ${colorColumns}`, [next.zh,next.en,next.de,next.hex,next.ral,next.sort,next.enabled,code]);
+        return { before: prior, after: result.rows[0] };
+      });
+    },
+    close: () => pool.end(),
+  };
+}
+
+module.exports = { createDictionaryStore };

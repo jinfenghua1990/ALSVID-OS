@@ -1,0 +1,5 @@
+import {test} from 'node:test';
+import assert from 'node:assert/strict';
+import {readPending,prepareReceipt,clearPending,isDefiniteRejection} from '../src/receiptRetry.js';
+test('uncertain receipt retries keep the same payload in page memory',()=>{const pending={},first={receiptId:'id-1',receivedQuantity:2,receiptNote:'short'};pending.delivery=prepareReceipt(pending,'delivery',first);assert.deepEqual(readPending(pending,'delivery'),first);assert.deepEqual(prepareReceipt(pending,'delivery',{receiptId:'id-2',receivedQuantity:3,receiptNote:''}),first);assert.equal(readPending({},'delivery'),null);assert.deepEqual(clearPending(pending,'delivery','id-2'),pending);assert.equal(readPending(clearPending(pending,'delivery','id-1'),'delivery'),null)});
+test('only explicit receipt validation errors allow clearing a pending request',()=>{assert.equal(isDefiniteRejection({status:400,message:'签收数量超过本批剩余发运数量'}),true);assert.equal(isDefiniteRejection({status:400,message:'签收入库失败'}),false);assert.equal(isDefiniteRejection({status:500,message:'签收数量超过本批剩余发运数量'}),false)});

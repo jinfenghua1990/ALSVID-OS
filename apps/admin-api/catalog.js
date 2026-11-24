@@ -444,7 +444,7 @@ function createCatalogStore(connectionString) {
       const after=(await c.query('UPDATE storefront_layout_drafts SET html=$1,css=$2,published=$3::jsonb,published_version=version,published_by=$4,published_at=now() WHERE id=$5 RETURNING published_version AS "publishedVersion",published_at AS "publishedAt"',[packText(html),packText(css||''),snapshot,currentActor(),old.id])).rows[0];
       await c.query('INSERT INTO audit_log(actor,action,target,before_json,after_json) VALUES($1,$2,$3,$4,$5)',[currentActor(),'storefront.layout.publish','storefront-layout-drafts/home',JSON.stringify({publishedVersion:old.publishedVersion||null}),JSON.stringify({publishedVersion:after.publishedVersion,bytes:Buffer.byteLength(html,'utf8'),locales:Object.keys(locales)})]);
       // 版本快照：回滚的唯一依据。audit_log 只记元数据，不含内容，故单独落表。
-      // 表由迁移 178 建立；未迁移时静默跳过，发布主流程不受影响。
+      // 快照失败则整个发布事务回滚。
       await recordLayoutVersion(c,{version:after.publishedVersion,snapshot,origin:'publish',publishedBy:currentActor()});
       await c.query('COMMIT');
       clearPublishedLayoutCache();
@@ -617,13 +617,9 @@ function createCatalogStore(connectionString) {
     return syncHomeLayout({html,css,version:snapshot.version||null});
   }
   // ── 发布版本历史与回滚（迁移 178） ──
-  // 版本快照是回滚的唯一依据，因此默认「非表不存在的错误一律让发布失败」，
-  // 绝不能出现「发布成功但无法回滚」的版本。
-  // 过渡期例外：迁移 178 尚未执行时（42P01）放行，便于先上线功能；
-  // 设置 ALSVID_LAYOUT_VERSION_STRICT=1 后连这种情况也视为失败，正式上线必须开启。
-  const LAYOUT_VERSION_STRICT = String(process.env.ALSVID_LAYOUT_VERSION_STRICT || '') === '1';
+  // 快照是发布事务的强制条件，不允许关闭。
   async function recordLayoutVersion(client,{version,snapshot,origin='publish',rolledBackFrom=null,publishedBy,note=null}){
-    if(!Number.isSafeInteger(version)||version<=0)return;
+    if(!Number.isSafeInteger(version)||version<=0)fail('版本快照编号无效，已取消操作',500);
     // 必须用 SAVEPOINT 隔离：PostgreSQL 里一条语句失败会让整个事务进入 aborted 状态，
     // 后续 COMMIT 会静默变成 ROLLBACK。先回滚到保存点，再决定是放行还是让发布失败。
     try{
@@ -641,10 +637,6 @@ function createCatalogStore(connectionString) {
     }catch(error){
       await client.query('ROLLBACK TO SAVEPOINT layout_version').catch(()=>{});
       const missingTable = error?.code === '42P01';
-      if(missingTable && !LAYOUT_VERSION_STRICT){
-        console.error(JSON.stringify({level:'warn',code:'LAYOUT_VERSION_TABLE_MISSING',message:'迁移 178 未执行，本次发布不留版本快照（过渡期放行）'}));
-        return;
-      }
       console.error(JSON.stringify({level:'error',code:'LAYOUT_VERSION_RECORD_FAILED',sqlState:error?.code||null,message:String(error?.message||'').slice(0,200)}));
       // 抛出后由 publishStorefrontLayoutDraft 的 catch 回滚整个事务 —— 发布不会生效
       fail('版本快照保存失败，已取消本次发布（' + (missingTable ? '版本历史表不存在，请先执行迁移 178' : String(error?.message||'未知错误').slice(0,120)) + '）', 500);

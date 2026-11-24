@@ -19,13 +19,14 @@
 // 并在该库上执行过一次 `node server/migrate.js`（首次建库需要）。
 import { createRequire } from 'node:module';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 const require = createRequire(import.meta.url);
-const serverDir = path.join(process.cwd(), 'server');
+const serverDir = fileURLToPath(new URL('../apps/admin-api/', import.meta.url));
 const { assertApplicationDatabase, createPool } = require(path.join(serverDir, 'db-pool.js'));
 
 const TEST_URL = process.env.TEST_DATABASE_URL || '';
-const BASE = (process.env.ALSVID_ADMIN_BASE || 'http://127.0.0.1:8089').replace(/\/+$/, '');
+const BASE = (process.env.ALSVID_ADMIN_BASE || 'http://127.0.0.1:18089').replace(/\/+$/, '');
 const USER = process.env.ALSVID_ADMIN_USER || '';
 const PASS = process.env.ALSVID_ADMIN_PASS || '';
 
@@ -44,10 +45,13 @@ function printSummary() {
   process.stdout.write(`\n合计 ${results.length} 项：通过 ${pass}，失败 ${results.length - pass}\n`);
 }
 
+if (process.env.ALSVID_TEST_MODE !== '1') die('必须显式设置 ALSVID_TEST_MODE=1');
 if (!TEST_URL) die('缺少 TEST_DATABASE_URL（必须指向 Neon 隔离测试分支，不能是正式库）');
-if (!process.env.DATABASE_URL_UNPOOLED && !process.env.DIRECT_DATABASE_URL) {
-  process.env.DATABASE_URL_UNPOOLED = TEST_URL;
-}
+if (BASE !== 'http://127.0.0.1:18089') die('仅允许独立测试 API 18089');
+const direct = process.env.DATABASE_URL_UNPOOLED || process.env.DIRECT_DATABASE_URL || TEST_URL;
+if (direct !== TEST_URL) die('迁移连接串与 TEST_DATABASE_URL 不一致');
+process.env.DATABASE_URL_UNPOOLED = TEST_URL;
+delete process.env.DIRECT_DATABASE_URL;
 if (!USER || !PASS) die('缺少 ALSVID_ADMIN_USER / ALSVID_ADMIN_PASS（测试分支的临时管理员）');
 
 // 复用既有护栏做校验：这一步本身就是验收项 —— 确认「测试库不是正式库」
@@ -115,6 +119,10 @@ async function call(method, url, body) {
 const login = await call('POST', '/api/auth/login', { username: USER, password: PASS });
 if (login.status !== 200) die(`登录失败（${login.status}）：${login.payload?.error || ''}`);
 record('管理员登录', true, '会话已建立');
+const connection = await call('GET', '/api/system/connections');
+const expectedDb = new URL(TEST_URL);
+const expectedTarget = `${expectedDb.host} · ${decodeURIComponent(expectedDb.pathname.replace(/^\/+/, ''))}`;
+if (connection.status !== 200 || !connection.payload?.connections?.some(item => item.id === 'database' && item.target === expectedTarget && item.status === 'connected')) die('API 实际数据库与隔离测试库不一致，禁止发布验收');
 
 const draft = await call('GET', '/api/site/layout-draft');
 const version = draft.payload?.data?.version;

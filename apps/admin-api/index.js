@@ -331,7 +331,7 @@ app.get('/api/products/:id/media/:mediaId', async (req,reply)=>{
 });
 
 // ---------- 静态前端 ----------
-const DIST = path.join(__dirname, '..', 'client', 'dist');
+const DIST = path.join(__dirname, '..', 'admin-web', 'dist');
 app.register(fastifyStatic, { root: DIST });
 
 const publicSiteOrigin='https://www.alsvidbike.com';
@@ -1067,7 +1067,7 @@ app.get('/api/search', async (req) => {
 // 崩溃留痕：后台进程被终止或异常退出时，至少能查到原因
 // 注意：data/ 目录可能不存在（干净部署、首次启动、被清理过）。
 // 这里必须自己建目录，并在文件写入失败时退回 stderr；否则致命错误会静默丢失。
-const ERR_DIR = path.join(__dirname, '..', 'data');
+const ERR_DIR = path.join(__dirname, 'data');
 const ERR_LOG = path.join(ERR_DIR, 'server-error.log');
 function logFatal(tag, e) {
   const line = `[${new Date().toISOString()}] ${tag}: ${e && e.stack ? e.stack : e}\n`;

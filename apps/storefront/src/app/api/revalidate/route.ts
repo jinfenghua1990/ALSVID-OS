@@ -32,8 +32,7 @@ export async function POST(request: NextRequest) {
   const tags = requested.filter((tag: string) => ALLOWED_TAGS.has(tag));
   if (!tags.length) return NextResponse.json({ error: '没有可刷新的缓存标签' }, { status: 400 });
 
-  // Next 16 的 revalidateTag 需要第二个参数（缓存生命周期档位）。
-  // 'max' 表示重新校验后按最长生命周期缓存，具体新鲜度由 fetch 的 revalidate 兜底控制。
-  for (const tag of tags) revalidateTag(tag, 'max');
+  // 发布/撤回必须使下一次访问重新读取，不采用 stale-while-revalidate。
+  for (const tag of tags) revalidateTag(tag, { expire: 0 });
   return NextResponse.json({ revalidated: true, tags, now: Date.now() }, { headers: { 'Cache-Control': 'no-store' } });
 }

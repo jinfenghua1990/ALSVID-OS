@@ -24,7 +24,7 @@ const flag = (name) => args.includes(`--${name}`);
 const apply = flag('apply');
 const publish = flag('publish');
 const allowPlaceholder = flag('allow-placeholder');
-const OUT = 'server/migrations/data/legal-pages.json';
+const OUT = 'apps/admin-api/migrations/data/legal-pages.json';
 
 // 六页的标准骨架。titles/sections 的德语措辞用法定名称，正文一律留占位。
 const PAGES = [

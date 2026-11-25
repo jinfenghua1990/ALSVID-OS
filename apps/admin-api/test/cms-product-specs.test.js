@@ -36,3 +36,15 @@ test('missing product data produces an empty parameter list', () => {
   assert.deepEqual(publicProductSpecifications(null, fields, 'en'), []);
   assert.deepEqual(publicProductSpecifications({ productType: 'EBI', specs: null }, fields, 'en'), []);
 });
+
+
+test('internal keys and structured values never leak into public specifications', () => {
+  const extra = [
+    { ...fields[0], code: '_internal', shopVisible: true },
+    { ...fields[0], code: 'nested' },
+    { ...fields[0], code: 'flag' },
+  ];
+  assert.deepEqual(publicProductSpecifications({ productType: 'EBI', specs: { _internal: 'private', nested: { note: 'private' }, flag: false } }, extra, 'en'), [
+    { code: 'flag', label: 'Rated Power', value: 'false', unit: 'W' },
+  ]);
+});

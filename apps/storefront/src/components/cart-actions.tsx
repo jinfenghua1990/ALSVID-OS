@@ -125,6 +125,12 @@ const cartCopy = {
   zh: { title: '购物车', note: '此为不具约束力的订购申请，库存、税费与运费将由 ALSVID 确认，不会产生付款。', loading: '正在加载购物车…', empty: '购物车是空的。', browse: '浏览整车', login: '请使用已开通的车主账号登录，以安全提交订购申请。', loginButton: '登录并提交申请', error: '购物车或商品数据加载失败。', mergeLimit: '购物车条目或数量过多，无法合并。访客购物车仍已保留。', retry: '重试', remove: '移除', quantity: '数量', save: '保存数量', subtotal: '商品小计', request: '提交订购申请', name: '姓名', phone: '电话', country: '国家', city: '城市', postalCode: '邮编', address: '地址', success: '申请已提交，ALSVID 将确认价格、库存与配送。', submitError: '申请发送失败，请检查网络后重试。', unavailable: '某商品或价格已不可用，请移除后重新添加。' },
 } satisfies Record<Locale, Record<string, string>>;
 
+const transactionCopy = {
+  zh: { cart:'购物车', checkout:'结算', complete:'申请结果', next:'前往结算', back:'返回购物车', order:'申请编号', pending:'订购申请已受理 · 尚未付款', orders:'查看我的订单', shipping:'运费与税费待确认，暂不支持在线付款。', review:'确认商品及收货信息' },
+  en: { cart:'Cart', checkout:'Checkout', complete:'Request result', next:'Continue to checkout', back:'Back to cart', order:'Request number', pending:'Order request received · not paid', orders:'View my orders', shipping:'Shipping and taxes await confirmation. Online payment is not available.', review:'Review items and delivery details' },
+  de: { cart:'Warenkorb', checkout:'Kasse', complete:'Anfragestatus', next:'Zur Kasse', back:'Zurück zum Warenkorb', order:'Anfragenummer', pending:'Bestellanfrage erhalten · nicht bezahlt', orders:'Meine Bestellungen', shipping:'Versand und Steuern werden noch bestätigt. Online-Zahlung ist nicht verfügbar.', review:'Artikel und Lieferdaten prüfen' },
+} as const;
+
 type CartItem = { productId: string; sku: string; currency: string; quantity: number };
 type CartProduct = { title: string; images: { url: string }[] };
 type CartOffer = Offer;
@@ -145,11 +151,19 @@ export function CartPage({ locale }: { locale: Locale }) {
   const [error, setError] = useState('');
   const [status, setStatus] = useState<'guest' | 'ownerOnly' | 'owner'>('guest');
   const [success, setSuccess] = useState(false);
+  const [step, setStep] = useState<1 | 2 | 3>(1);
+  const [orderId, setOrderId] = useState('');
+  const [submittedStatus, setSubmittedStatus] = useState('');
+  const flow = transactionCopy[locale];
+  const navigateStep = (next: 1 | 2 | 3) => {
+    setStep(next);
+    window.scrollTo({top:0,behavior:'auto'});
+  };
   const [delivery, setDelivery] = useState({ name: '', phone: '', country: '', city: '', postalCode: '', address: '' });
   const [quantities, setQuantities] = useState<Record<string, string>>({});
 
   const load = async () => {
-    setLoading(true); setError(''); setSuccess(false);
+    setLoading(true); setError('');
     try {
       const auth = await fetch('/api/auth/status', { cache: 'no-store' }).then(response => response.ok ? response.json() : null).catch(() => null);
       let current: CartItem[] = readGuestCart();
@@ -173,6 +187,7 @@ export function CartPage({ locale }: { locale: Locale }) {
         } else current = cart.items;
       } else setStatus(auth?.user ? 'ownerOnly' : 'guest');
       setItems(current);
+      if (!current.length) setStep(previous => previous === 3 ? 3 : 1);
       notifyCartChanged();
       const ids = [...new Set(current.map((item: CartItem) => item.productId))];
       const rows = await Promise.all(ids.map(async productId => {
@@ -190,6 +205,10 @@ export function CartPage({ locale }: { locale: Locale }) {
   };
 
   useEffect(() => { void load(); }, [locale]);
+  useEffect(() => {
+    const requested = new URLSearchParams(window.location.search).get('step');
+    if (requested === 'checkout') setStep(2);
+  }, []);
 
   const save = async (next: CartItem[]) => {
     setBusy(true); setError('');
@@ -227,8 +246,9 @@ export function CartPage({ locale }: { locale: Locale }) {
         if (!offer) throw new Error('unavailable');
         return { ...item, unitPrice: offer.unitPrice };
       });
-      await data(await fetch('/api/portal/storefront/orders', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: requestId, cartRevision: revision, delivery, items: requestItems }) }));
-      localStorage.removeItem(key); setItems([]); setSuccess(true); notifyCartChanged();
+      const result = await data(await fetch('/api/portal/storefront/orders', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: requestId, cartRevision: revision, delivery, items: requestItems }) }));
+      if (!result || result.id !== requestId || typeof result.status !== 'string') throw new Error('invalid response');
+      localStorage.removeItem(key); setOrderId(result.id); setSubmittedStatus(result.status); setItems([]); setSuccess(true); navigateStep(3); notifyCartChanged();
     } catch (cause: any) { setError(cause.message === 'unavailable' ? t.unavailable : t.submitError); }
     finally { setBusy(false); }
   };
@@ -236,14 +256,17 @@ export function CartPage({ locale }: { locale: Locale }) {
   const loginHref = `/${locale}/account?returnTo=${encodeURIComponent(`/${locale}/cart`)}`;
   return <main className="container cart-page">
     <p className="eyebrow">ALSVID / {UI.cart[locale]}</p>
-    <h1>{t.title}</h1><p className="lede">{t.note}</p>
+    <nav className="transaction-steps" aria-label={flow.review} style={{display:'flex',alignItems:'center',gap:'clamp(12px,4vw,48px)',margin:'0 0 28px',flexWrap:'wrap'}}>
+      {([flow.cart,flow.checkout,flow.complete] as const).map((label,i)=><span key={label} aria-current={step===i+1?'step':undefined} style={{fontWeight:step===i+1?700:400,opacity:step===i+1?1:0.65}}>{i+1}. {label}{i<2?'  →':''}</span>)}
+    </nav>
+    <h1>{step===1?flow.cart:step===2?flow.checkout:flow.complete}</h1><p className="lede">{t.note}</p>
     {loading && <p role="status">{t.loading}</p>}
     {!loading && status !== 'owner' && items.length > 0 && <section className="cart-notice"><p>{t.login}</p><a className="button" href={loginHref}>{t.loginButton}</a></section>}
     {!loading && error && <p className="cart-error" role="alert">{error} <button type="button" onClick={() => void load()}>{t.retry}</button></p>}
-    {!loading && !error && status === 'owner' && success && <p className="cart-success" role="status">{t.success}</p>}
+    {!loading && !error && status === 'owner' && success && step === 3 && <section className="cart-success" role="status"><h2>{flow.pending}</h2><p>{t.success}</p><p>{flow.order}: <strong>{orderId}</strong></p><p>{locale==='zh'?'服务器状态':locale==='de'?'Serverstatus':'Server status'}: {submittedStatus}</p><Link className="button" href={`/${locale}/account`}>{flow.orders}</Link></section>}
     {!loading && !error && !success && !items.length && <section className="cart-notice"><p>{t.empty}</p><a className="button" href={`/${locale}/e-bikes`}>{t.browse}</a></section>}
     {!loading && !error && !success && items.length > 0 && <>
-      <div className="cart-lines">{items.map((item, index) => {
+      {step===1&&<div className="cart-lines">{items.map((item, index) => {
         const product = details[item.productId]?.product;
         const offer = details[item.productId]?.offers.find(row => row.sku === item.sku && row.currency === item.currency);
         const key = `${item.productId}:${item.sku}:${item.currency}`;
@@ -253,9 +276,13 @@ export function CartPage({ locale }: { locale: Locale }) {
           <label>{t.quantity}<input type="number" min="1" max="100" value={quantities[key] ?? String(item.quantity)} onChange={event => setQuantities(current => ({ ...current, [key]: event.target.value }))} /></label>
           <div className="cart-line-actions"><button type="button" disabled={busy} onClick={() => { const quantity = Number(quantities[key] ?? item.quantity); if (Number.isSafeInteger(quantity) && quantity >= 1 && quantity <= 100) { void save(items.map((row, i) => i === index ? { ...row, quantity } : row)); setQuantities(current => { const next = { ...current }; delete next[key]; return next; }); } }}>{t.save}</button><button type="button" disabled={busy} onClick={() => void save(items.filter((_, i) => i !== index))}>{t.remove}</button></div>
         </article>;
-      })}</div>
+      })}</div>}
+      {step===2&&<section aria-label={flow.review}><h2>{flow.review}</h2>{items.map(item=><p key={`${item.productId}|${item.sku}|${item.currency}`}>{details[item.productId]?.product.title||item.sku} · {item.quantity} × {item.sku}</p>)}</section>}
       {available && [...totals.entries()].map(([currency, cents]) => <p className="cart-subtotal" key={currency}>{t.subtotal} · {currency} <strong>{(cents / 100).toFixed(2)}</strong></p>)}
-      {status === 'owner' && available && currencies.length === 1 && <form className="cart-checkout" onSubmit={submit}><h2>{t.request}</h2>{(Object.keys(delivery) as (keyof typeof delivery)[]).map(field => <label key={field}>{t[field]}<input required maxLength={field === 'address' ? 500 : field === 'phone' ? 80 : 120} value={delivery[field]} onChange={event => setDelivery(current => ({ ...current, [field]: event.target.value }))} /></label>)}<button className="button" disabled={busy}>{busy ? '…' : t.request}</button></form>}
+      {step===1 && available && currencies.length===1 && <button className="button" type="button" disabled={busy||Object.keys(quantities).length>0} onClick={()=>navigateStep(2)}>{flow.next}</button>}
+      {step===2 && <button type="button" className="cart-view-link" onClick={()=>navigateStep(1)} disabled={busy}>{flow.back}</button>}
+      {step===2 && <p>{flow.shipping}</p>}
+      {step===2 && status === 'owner' && available && currencies.length === 1 && <form className="cart-checkout" onSubmit={submit}><h2>{t.request}</h2>{(Object.keys(delivery) as (keyof typeof delivery)[]).map(field => <label key={field}>{t[field]}<input required maxLength={field === 'address' ? 500 : field === 'phone' ? 80 : 120} value={delivery[field]} onChange={event => setDelivery(current => ({ ...current, [field]: event.target.value }))} /></label>)}<button className="button" disabled={busy}>{busy ? '…' : t.request}</button></form>}
     </>}
   </main>;
 }

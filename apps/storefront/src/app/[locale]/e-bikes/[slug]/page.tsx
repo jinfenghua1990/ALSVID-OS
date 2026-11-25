@@ -53,9 +53,13 @@ export default async function ProductPage({ params }: Props) {
       ] },
     ],
   };
-  const productContentKeys = new Set(['twoColumn', 'video', 'specs', 'features', 'faq', 'cta']);
+  const productContentKeys = new Set(['twoColumn', 'image', 'carousel', 'divider', 'spacer', 'video', 'features', 'faq', 'cta']);
   const templateBlocks = template?.blocks.filter(block => block.visible !== false && productContentKeys.has(block.componentKey)) || [];
-  const hasSpecsModule = templateBlocks.some(block => block.componentKey === 'specs');
+  const specsModule = template?.blocks.find(block => block.componentKey === 'specs' && block.visible !== false);
+  // 规格仍在原来的固定业务区，模板只决定数据绑定与字段范围。
+  const specifications: { label: string; value: string }[] = specsModule
+    ? (specsModule.data?.specifications || []).map((row: { label: string; value: string; unit?: string }) => ({ label: row.label, value: row.value + (row.unit ? ' ' + row.unit : '') }))
+    : product.specifications;
   // 详情页 8 模块（顺序固定）：①主图+SKU（上方数据驱动区）②营销 ③④预留（空则隐藏）⑤图文详情 ⑥评价 ⑦退换货 ⑧其他。
   const modules = template?.modules;
   const banners = ([
@@ -80,9 +84,9 @@ export default async function ProductPage({ params }: Props) {
           {offers.length ? <ul className="spec-list">{offers.map(offer => <li key={`${offer.sku}-${offer.currency}`}><span>{offer.sku}</span><strong>{offer.currency} {offer.unitPrice}</strong></li>)}</ul> : <p>{UI.priceOnRequest[locale]}</p>}
           <CartActions locale={locale} productId={product.productId} offers={offers} />
           <p className="availability">{availability?.available === null || !availability ? (UI.availabilityUnknown[locale]) : availability.available ? (UI.inStockGermany[locale]) : (UI.outOfStock[locale])}</p>
-          {!hasSpecsModule && <>
+          {specifications.length > 0 && <>
             <h2>{UI.specifications[locale]}</h2>
-            {productLayout.specifications === 'table' ? <table className="product-spec-table"><tbody>{product.specifications.map(row => <tr key={row.label}><th>{row.label}</th><td>{row.value}</td></tr>)}</tbody></table> : productLayout.specifications === 'accordion' ? <details className="product-spec-accordion"><summary>{UI.showSpecifications[locale]}</summary><ul className="spec-list">{product.specifications.map(row => <li key={row.label}><span>{row.label}</span><strong>{row.value}</strong></li>)}</ul></details> : <ul className="spec-list">{product.specifications.map(row => <li key={row.label}><span>{row.label}</span><strong>{row.value}</strong></li>)}</ul>}
+            {productLayout.specifications === 'table' ? <table className="product-spec-table"><tbody>{specifications.map(row => <tr key={row.label}><th>{row.label}</th><td>{row.value}</td></tr>)}</tbody></table> : productLayout.specifications === 'accordion' ? <details className="product-spec-accordion"><summary>{UI.showSpecifications[locale]}</summary><ul className="spec-list">{specifications.map(row => <li key={row.label}><span>{row.label}</span><strong>{row.value}</strong></li>)}</ul></details> : <ul className="spec-list">{specifications.map(row => <li key={row.label}><span>{row.label}</span><strong>{row.value}</strong></li>)}</ul>}
           </>}
           {product.delivery && <section className="product-business-module"><h2>{UI.delivery[locale]}</h2><p>{product.delivery}</p></section>}
           {product.warranty && <section className="product-business-module"><h2>{UI.warranty[locale]}</h2><p>{product.warranty}</p></section>}

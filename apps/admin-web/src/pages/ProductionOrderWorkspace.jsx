@@ -5,7 +5,7 @@ import ProductionAttachmentsPage from './ProductionAttachmentsPage.jsx';
 import DeliveryPage from './DeliveryPage.jsx';
 import ProductionDeliveryItemsPanel from './ProductionDeliveryItemsPanel.jsx';
 
-const tabs = ['订单信息', '发货记录', '附件'];
+const tabs = ['订单信息', '发运管理', '到货入库', '附件'];
 const DISPATCHED_DELIVERY_STATUSES = new Set(['已交运', '在途', '运输中', '已签收', '已入库', '异常']);
 const IN_TRANSIT_DELIVERY_STATUSES = new Set(['在途', '运输中']);
 const today = () => new Date().toISOString().slice(0, 10);
@@ -225,7 +225,7 @@ export default function ProductionOrderWorkspace({ user, order, products, factor
     <div className="tabs pow-tabs" role="tablist" aria-label="生产订单详情">
       {tabs.map((name, index) => <button key={name} type="button" role="tab" aria-selected={tab === name}
         className={'tab' + (tab === name ? ' active' : '')} onClick={() => setTab(name)}>
-        {name}{name === '发货记录' && deliveryStats.count > 0 ? ` (${deliveryStats.count})` : ''}
+        {name}{name === '发运管理' && deliveryStats.count > 0 ? ` (${deliveryStats.count})` : ''}
       </button>)}
     </div>
     {error && <p className="error-text" role="alert">{error}</p>}
@@ -305,8 +305,8 @@ export default function ProductionOrderWorkspace({ user, order, products, factor
             <div className="pow-card__head"><h3>业务关联</h3></div>
             <div className="pow-links__grid">
               <button type="button" onClick={() => setTab('订单信息')}><span>工厂确认</span><strong>{current?.factoryConfirmedAt ? '已确认' : '待确认'}</strong></button>
-              <button type="button" onClick={() => setTab('发货记录')}><span>发货单</span><strong>{deliveryStats.count}</strong></button>
-              <button type="button" onClick={() => setTab('订单信息')}><span>已收数量</span><strong>{current ? `${deliveryStats.received} / ${current.plannedQuantity || 0}` : '—'}</strong></button>
+              <button type="button" onClick={() => setTab('发运管理')}><span>发货单</span><strong>{deliveryStats.count}</strong></button>
+              <button type="button" onClick={() => setTab('到货入库')}><span>已收数量</span><strong>{current ? `${deliveryStats.received} / ${current.plannedQuantity || 0}` : '—'}</strong></button>
               <button type="button" onClick={() => setTab('订单信息')}><span>发票状态</span><strong>{finance?.invoiceStatus || '—'}</strong></button>
               <button type="button" onClick={() => setTab('附件')}><span>附件</span><strong>—</strong></button>
             </div>
@@ -344,11 +344,9 @@ export default function ProductionOrderWorkspace({ user, order, products, factor
         <section className="pow-summary-card pow-summary-card--activity"><div className="pow-card__head"><h3>生产时间线</h3><span className="pow-card__hint">按已记录的时间展示</span></div><ul className="pow-activity">{[
           { date: current.createdAt, title: '订单已建立', detail: current.orderNo },
           { date: current.factoryConfirmedAt, title: '工厂已确认', detail: current.factory },
-          { date: current.productionStartedAt, title: '生产开始', detail: current.factory },
-          { date: current.productionCompletedAt, title: '生产完成', detail: current.factory },
           ...deliveries.flatMap(row => [{ date: row.createdAt, title: '发货批次已建立', detail: row.shipmentNo }, { date: row.shippedAt, title: '发货批次已发运', detail: row.shipmentNo }]),
         ].filter(event => event.date).sort((a,b) => new Date(b.date) - new Date(a.date)).map((event,index) => <li key={`${event.title}-${event.detail}-${index}`}><span>{shortDate(event.date)}</span><b>{event.title}</b><em>{event.detail || '—'}</em></li>)}</ul></section>
-        <section className="pow-summary-card"><div className="pow-card__head"><h3>物流包裹</h3><button type="button" className="btn small" onClick={() => setTab('发货记录')}>管理发货与包裹</button></div>{parcelOverview ? <div className="table-scroll"><table className="table"><thead><tr><th>包裹 / 组件</th><th>关联批次</th><th>物流公司 / 运单号</th><th>VIN / 电池 SN</th><th>状态</th><th>发运 / 签收</th></tr></thead><tbody>{parcelOverview.parcels?.length ? parcelOverview.parcels.map(parcel => <tr key={parcel.id}><td>{parcel.parcelNo || '—'}<small className="block">{parcel.componentType} · {parcel.quantity} 件</small></td><td>{parcel.shipmentNo || '—'}</td><td>{parcel.carrier || '—'}<small className="block">{parcel.trackingNo || '未填写运单号'}</small></td><td>{parcel.vin || parcel.batterySn || '—'}</td><td>{parcel.status || '—'}</td><td>{shortDate(parcel.dispatchedAt)} / {shortDate(parcel.deliveredAt)}</td></tr>) : <tr><td colSpan="6" className="hint">暂无物流包裹，请在发货记录中登记。</td></tr>}</tbody></table></div> : <p className="hint">{detailLoading ? '正在读取物流包裹…' : '物流包裹暂时无法读取，请重试。'}</p>}</section>
+        <section className="pow-summary-card"><div className="pow-card__head"><h3>物流包裹</h3><button type="button" className="btn small" onClick={() => setTab('发运管理')}>管理发货与包裹</button></div>{parcelOverview ? <div className="table-scroll"><table className="table"><thead><tr><th>包裹 / 组件</th><th>关联批次</th><th>物流公司 / 运单号</th><th>VIN / 电池 SN</th><th>状态</th><th>发运 / 签收</th></tr></thead><tbody>{parcelOverview.parcels?.length ? parcelOverview.parcels.map(parcel => <tr key={parcel.id}><td>{parcel.parcelNo || '—'}<small className="block">{parcel.componentType} · {parcel.quantity} 件</small></td><td>{parcel.shipmentNo || '—'}</td><td>{parcel.carrier || '—'}<small className="block">{parcel.trackingNo || '未填写运单号'}</small></td><td>{parcel.vin || parcel.batterySn || '—'}</td><td>{parcel.status || '—'}</td><td>{shortDate(parcel.dispatchedAt)} / {shortDate(parcel.deliveredAt)}</td></tr>) : <tr><td colSpan="6" className="hint">暂无物流包裹，请在发运管理中登记。</td></tr>}</tbody></table></div> : <p className="hint">{detailLoading ? '正在读取物流包裹…' : '物流包裹暂时无法读取，请重试。'}</p>}</section>
       </section>}
 
       {/* 底部常驻操作栏：与顶部主操作同步，长页面编辑无需回到顶部 */}
@@ -361,7 +359,8 @@ export default function ProductionOrderWorkspace({ user, order, products, factor
       </div>
     </form>}
 
-    {tab === '发货记录' && (current ? <><div className="pow-delivery pow-delivery--dispatch"><DeliveryPage user={user} active initialOrderId={current.id} mode="shipping" onChanged={handleChanged} /></div><ProductionDeliveryItemsPanel order={current} products={products} user={user} onChanged={handleChanged} /></> : empty(''))}
+    {tab === '发运管理' && (current ? <><div className="pow-delivery pow-delivery--dispatch"><DeliveryPage user={user} active initialOrderId={current.id} mode="shipping" onChanged={handleChanged} /></div><ProductionDeliveryItemsPanel order={current} products={products} user={user} onChanged={handleChanged} /></> : empty(''))}
+    {tab === '到货入库' && (current ? <div className="pow-delivery"><DeliveryPage user={user} active initialOrderId={current.id} mode="receipt" onChanged={handleChanged}/></div> : empty(''))}
     {tab === '附件' && (current ? <ProductionAttachmentsPage user={user} active initialOrderId={current.id} /> : empty(''))}
   </div>;
 }

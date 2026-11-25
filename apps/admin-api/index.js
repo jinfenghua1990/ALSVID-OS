@@ -255,7 +255,7 @@ const catalog = process.env.DATABASE_URL ? createCatalogStore(process.env.DATABA
 registerCatalogRoutes(app, { catalog, objectStorage });
 const cms = process.env.DATABASE_URL ? createCmsStore(process.env.DATABASE_URL) : null;
 registerCmsRoutes(app, cms);
-registerStorefrontListingRoutes(app, process.env.DATABASE_URL ? createStorefrontListingStore(process.env.DATABASE_URL) : null);
+registerStorefrontListingRoutes(app, process.env.DATABASE_URL ? createStorefrontListingStore(process.env.DATABASE_URL,{onPublicationChanged:()=>catalog?.clearProductCardCache()}) : null);
 registerStorefrontCartRoutes(app,process.env.DATABASE_URL ? createStorefrontCart(process.env.DATABASE_URL) : null);
 const orderStore = process.env.DATABASE_URL ? createStorefrontOrders(process.env.DATABASE_URL) : null;
 registerStorefrontOrderRoutes(app, orderStore);

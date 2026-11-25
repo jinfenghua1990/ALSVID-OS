@@ -38,7 +38,7 @@ function normalizeListing(input) {
   return { channel, slug, document, skus };
 }
 
-function createStorefrontListingStore(url) {
+function createStorefrontListingStore(url,{onPublicationChanged=()=>{}}={}) {
   const pool=createPool(url,{max:3,connectionTimeoutMillis:10000});
   async function load(c,id,lock=false) {
     const row=(await c.query(`SELECT l.id,p.id AS "productId",l.product_uuid AS "productUuid",l.channel,l.slug,l.is_default AS "isDefault",l.draft,l.published,l.revision,l.published_revision AS "publishedRevision",l.legacy_product_market AS "legacyMarket" FROM storefront_listings l JOIN products p ON p.entity_uuid=l.product_uuid WHERE l.id=$1${lock?' FOR UPDATE OF l,p':''}`,[id])).rows[0];
@@ -146,7 +146,7 @@ function createStorefrontListingStore(url) {
       await recordVersion(c,after,'rollback',after.published,input.targetRevision);
       await c.query('INSERT INTO audit_log(actor,action,target,before_json,after_json) VALUES($1,$2,$3,$4,$5)',[currentActor(),'listing.rollback',`storefront-listings/${id}`,JSON.stringify(before),JSON.stringify(after)]);
       await c.query('COMMIT');
-      return {...after,storefrontRevalidate:await revalidateStorefront(['storefront-products','storefront-layout'])};
+      onPublicationChanged();return {...after,storefrontRevalidate:await revalidateStorefront(['storefront-products','storefront-layout'])};
     }catch(e){await c.query('ROLLBACK').catch(()=>{});throw e}finally{c.release()}
   }
   async function transition(id,input,publish) {
@@ -156,7 +156,7 @@ function createStorefrontListingStore(url) {
       if(publish){const p=(await c.query('SELECT status FROM products WHERE entity_uuid=$1 FOR SHARE',[before.productUuid])).rows[0];if(p.status!=='启用')fail('请先启用产品');documentOf(before.draft);if(!before.skus.length)fail('请选择至少一个可销售 SKU');}
       else if(!before.published)fail('商品尚未发布');
       await c.query(`UPDATE storefront_listings SET published=${publish?'draft':'NULL'},revision=revision+1,published_revision=${publish?'revision+1':'NULL'},updated_at=now() WHERE id=$1`,[id]);
-      const after=await load(c,id);await recordVersion(c,after,publish?'publish':'unpublish',publish?after.published:before.published);await c.query('INSERT INTO audit_log(actor,action,target,before_json,after_json) VALUES($1,$2,$3,$4,$5)',[currentActor(),publish?'listing.publish':'listing.unpublish',`storefront-listings/${id}`,JSON.stringify(before),JSON.stringify(after)]);await c.query('COMMIT');return {...after,storefrontRevalidate:await revalidateStorefront(['storefront-products','storefront-layout'])};
+      const after=await load(c,id);await recordVersion(c,after,publish?'publish':'unpublish',publish?after.published:before.published);await c.query('INSERT INTO audit_log(actor,action,target,before_json,after_json) VALUES($1,$2,$3,$4,$5)',[currentActor(),publish?'listing.publish':'listing.unpublish',`storefront-listings/${id}`,JSON.stringify(before),JSON.stringify(after)]);await c.query('COMMIT');onPublicationChanged();return {...after,storefrontRevalidate:await revalidateStorefront(['storefront-products','storefront-layout'])};
     }catch(e){await c.query('ROLLBACK').catch(()=>{});throw e}finally{c.release()}
   }
   return {

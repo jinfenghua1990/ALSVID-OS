@@ -343,7 +343,7 @@ function createCatalogStore(connectionString) {
   function setCachedProductCards(ids, locale, products) {
     productCardCache.set(productCardCacheKey(ids, locale), { at: Date.now(), products });
   }
-  function clearProductCardCache() { productCardCache.clear(); }
+  function clearProductCardCache() { productCardCache.clear(); clearPublishedLayoutCache(); }
   async function decorateProductCards(html, locale) {
     if (typeof html !== 'string' || !html.includes('data-alsvid-product-id=')) return html;
     try {
@@ -351,16 +351,15 @@ function createCatalogStore(connectionString) {
       if (!ids.length) return html;
       let products = getCachedProductCards(ids, locale);
       if (!products) {
-        const rows = (await pool.query(`SELECT p.id,p.kind,l.published,'[]'::jsonb AS prices
+        const rows = (await pool.query(`SELECT p.id,p.kind,l.published,l.slug,'[]'::jsonb AS prices
           FROM products p JOIN storefront_listings l ON l.product_uuid=p.entity_uuid AND l.channel='website' AND l.published IS NOT NULL
           WHERE p.id=ANY($1::text[]) AND p.status='启用' AND l.published->'languages' ? $2`, [ids, locale])).rows;
         products = new Map(rows.map(row => [row.id, publicRow(row, locale)]).filter(([, item]) => item));
         setCachedProductCards(ids, locale, products);
       }
-      if (!products.size) return html;
       return html.replace(/<article\b([^>]*\bdata-alsvid-product-id="([^"]+)"[^>]*)>([\s\S]*?)<\/article>/g, (full, attrs, id, inner) => {
         const item = products.get(id);
-        if (!item) return full;
+        if (!item) return '';
         let body = inner;
         const image = item.images?.[0]?.url;
         if (image) body = body.replace(/<div\s+class="product-image"[^>]*>[\s\S]*?<\/div>/i,

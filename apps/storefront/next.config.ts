@@ -53,6 +53,10 @@ const nextConfig: NextConfig = {
       { source: '/www/en/e-bikes/:slug', destination: '/en/e-bikes/:slug', permanent: true },
       { source: '/www/de/e-bikes', destination: '/de/e-bikes', permanent: true },
       { source: '/www/en/e-bikes', destination: '/en/e-bikes', permanent: true },
+      { source: '/www/zh/products/:slug', destination: '/zh/e-bikes/:slug', permanent: true },
+      { source: '/www/zh/products', destination: '/zh/e-bikes', permanent: true },
+      { source: '/www/zh/e-bikes/:slug', destination: '/zh/e-bikes/:slug', permanent: true },
+      { source: '/www/zh/e-bikes', destination: '/zh/e-bikes', permanent: true },
       // 旧官网通用前缀：具体规则必须排在上面，否则会被通配吃掉。
       { source: '/www/:locale', destination: '/:locale', permanent: true },
       { source: '/www/:locale/:path*', destination: '/:locale/:path*', permanent: true },

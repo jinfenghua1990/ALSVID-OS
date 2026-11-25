@@ -12,6 +12,9 @@ const COMPONENTS = ['hero', 'twoColumn', 'video', 'productGallery', 'specs', 'fe
 const RESERVED_PATHS = ['www', 'catalog', 'api', 'my', 'dealer', 'login'];
 
 function fail(message, statusCode = 400) { throw Object.assign(new Error(message), { statusCode }); }
+function assertLegalReady(path, document, seo) {
+  if(String(path||'').startsWith('/legal/')&&/\{\{TODO_INHALT\}\}/i.test(JSON.stringify({document,seo})))fail('法定页面仍含待填写占位符，禁止发布',422);
+}
 function text(value, max, required = false) {
   if (value == null) { if (required) fail('必填内容不能为空'); return ''; }
   if (typeof value !== 'string' || value.length > max) fail('内容格式或长度无效');
@@ -308,6 +311,7 @@ function createCmsStore(connectionString) {
         if (old.rev !== input.revision) fail('页面草稿已被其他人更新，请重新加载', 409);
         if (!old.draft) fail('请先保存页面草稿');
         const document = documentOf(old.draft);
+        assertLegalReady(old.path,document,old.draftSeo);
         if (old.pageType !== 'product_template' && !document.blocks.some(block => block.visible !== false)) fail('页面至少需要一个可见组件才能发布');
         await validateAssets(c, document);
         const next = (await c.query('SELECT COALESCE(max(version),0)+1 AS version FROM site_page_versions WHERE page_id=$1', [id])).rows[0].version;
@@ -334,6 +338,7 @@ function createCmsStore(connectionString) {
         if (old.rev !== input.revision) fail('页面已更新，请重新加载', 409);
         const snapshot = (await c.query('SELECT snapshot,seo,label FROM site_page_versions WHERE page_id=$1 AND version=$2 AND deleted_at IS NULL', [id, version])).rows[0];
         if (!snapshot) fail('历史版本不存在', 404);
+        assertLegalReady(old.path,snapshot.snapshot,snapshot.seo);
         await validateAssets(c, documentOf(snapshot.snapshot));
         const next = (await c.query('SELECT COALESCE(max(version),0)+1 AS version FROM site_page_versions WHERE page_id=$1', [id])).rows[0].version;
         await c.query('INSERT INTO site_page_versions(page_id,version,snapshot,seo,label,created_by) VALUES($1,$2,$3,$4,$5,$6)', [id, next, JSON.stringify(snapshot.snapshot), JSON.stringify(snapshot.seo || {}), snapshot.label || null, currentActor()]);

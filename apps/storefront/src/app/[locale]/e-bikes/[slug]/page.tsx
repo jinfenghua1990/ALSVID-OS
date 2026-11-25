@@ -1,8 +1,7 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { CmsBlocks } from '@/components/cms-blocks';
-import { CartActions } from '@/components/cart-actions';
-import { ProductGallery } from '@/components/product-gallery';
+import { ProductPurchaseSection } from '@/components/product-purchase-section';
 import { ProductPageNav } from '@/components/product-page-nav';
 import { ImmersiveScene } from '@/components/immersive-scene';
 import { absoluteApiUrl, getAvailability, getCmsProductTemplate, getOffers, getProduct, getReviews, publicApiUrl, publicAssetUrl, type Locale, type ProductModuleBanner, type ProductModuleCopy, type PerformanceConfig, type PerformanceSpec, siteUrl } from '@/lib/alsvid-api';
@@ -90,20 +89,9 @@ export default async function ProductPage({ params, searchParams }: Props) {
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData).replace(/</g, '\\u003c') }}></script>
       <ProductPageNav locale={locale} model={product.model||product.title} hasSpecs={visible('P05')&&specifications.length>0} hasVideo={(visible('P04')&&detailBlocks.some(b=>b.type==='video'))||templateBlocks.some(block=>block.componentKey==='video' && !!block.data?.videoUrl)} purchaseHref={purchaseHref} overviewHref={visible('P02')?'#product-overview':showPurchase||coreContent?'#product-configurator':'#product-details'} hasDownloads={visible('P07')&&!!template?.downloads?.length} />
       {!showPurchase&&<h1 className="sr-only">{product.title}</h1>}
-      {(showPurchase||coreContent)&&<section className="product-p01" id="product-configurator" data-module-id="ALSVID-P01" data-module="info" style={{background:design?.background||'#eaeae6'}}>{showPurchase&&<div className="product-layout" data-module-id="ALSVID-P01-01">
-        <ProductGallery key={product.productId} productId={product.productId} images={product.images} title={product.title} locale={locale} style={productLayout.gallery} />
-        <section>
-          <p className="eyebrow">ALSVID / {product.model}</p>
-          <h1>{product.title}</h1>
-          <p className="lede">{product.description}</p>
-          <p>{UI.availableConfigurations[locale]}</p>
-          {offers.length ? <ul className="spec-list">{offers.map(offer => <li key={`${offer.sku}-${offer.currency}`}><span>{offer.sku}</span><strong>{offer.currency} {offer.unitPrice}</strong></li>)}</ul> : <p>{UI.priceOnRequest[locale]}</p>}
-          <div id="product-purchase"><CartActions locale={locale} productId={product.productId} offers={offers} availability={availability} /></div>
-          <p className="availability">{availability?.available === null || !availability ? (UI.availabilityUnknown[locale]) : availability.available ? (UI.inStockGermany[locale]) : (UI.outOfStock[locale])}</p>
-        </section>
-      </div>}
+      {(showPurchase||coreContent)&&<ProductPurchaseSection product={product} locale={locale} offers={offers} availability={availability} galleryStyle={productLayout.gallery} showPurchase={showPurchase}>
       {coreContent&&<PerformanceBlock config={template?.performance} specs={template?.performanceSpecs||[]} alt={product.title} legacyHref=""/>}
-      </section>}
+      </ProductPurchaseSection>}
       {visible('P02')&&<section id="product-overview" className="product-overview-fallback product-visual" data-module-id="ALSVID-P02" data-module="marketing">
       {visual?<><ImmersiveScene scene={{...visual,type:visual.mediaType,title:visual.title||product.title}} index={0} alt={product.title}/>{visual.marketingEnabled&&<div className="product-visual-promo">{visual.marketingText&&<p>{visual.marketingText}</p>}{visual.buttonText&&<a className="product-visual-button" href={purchaseHref}>{visual.buttonText}</a>}</div>}</>:banners.some(x=>x.key==='marketing')?banners.filter(({key})=>key==='marketing').map(({key,banner})=><MarketingBlock key={key} name={key} banner={banner} alt={product.title} href={bannerHref(banner.href)} nested/>):<ImmersiveScene scene={{type:product.images[0]?'image':'text',url:product.images[0]?.url,title:product.title,fit:'contain',animation:'fade'}} index={0} alt={product.title}/>}
       </section>}

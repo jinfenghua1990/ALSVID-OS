@@ -89,7 +89,7 @@ export function CartDrawer({locale}:{locale:Locale}) {
     return()=>{generation.current++;window.removeEventListener(cartChangedEvent,refresh);window.removeEventListener('storage',storage)};
   },[open,locale]);
   const totals=new Map<string,number>();
-  const ready=rows.length>0&&rows.every(row=>minor(row.unitPrice)!==null&&row.quantity<=100)&&rows.length<=50;
+  const ready=rows.length>0&&rows.every(row=>Number(minor(row.unitPrice))>0&&row.quantity<=100)&&rows.length<=50;
   if(ready)for(const row of rows)totals.set(row.currency,(totals.get(row.currency)||0)+minor(row.unitPrice)!*row.quantity);
   const money=(value:number,currency:string)=>new Intl.NumberFormat(locale==='de'?'de-DE':locale==='zh'?'zh-CN':'en-IE',{style:'currency',currency}).format(value/100);
   return <dialog ref={dialog} className="alsvid-cart-drawer" aria-label={t.title} onClose={()=>setOpen(false)} onClick={event=>{if(event.target===event.currentTarget){const box=event.currentTarget.getBoundingClientRect();if(event.clientX<box.left||event.clientX>box.right||event.clientY<box.top||event.clientY>box.bottom)setOpen(false)}}}>
@@ -97,7 +97,7 @@ export function CartDrawer({locale}:{locale:Locale}) {
       <header><h2>{t.title}</h2><button type="button" onClick={()=>setOpen(false)} aria-label={t.close} autoFocus>×</button></header>
       <div className="alsvid-cart-drawer-lines" aria-live="polite">
         {busy?<p>{t.loading}</p>:error?<p role="alert">{t.error} <button type="button" onClick={()=>void load()}>{locale==='zh'?'重试':locale==='de'?'Erneut versuchen':'Retry'}</button></p>:!rows.length?<p>{t.empty}</p>:rows.map(row=><article key={JSON.stringify([row.productId,row.sku,row.currency])}>
-          {row.image?<img src={row.image} alt=""/>:<span aria-hidden="true"/>}<div><strong>{row.title}</strong><small>{row.sku}</small><small>{t.qty}: {row.quantity}</small></div><span>{minor(row.unitPrice)===null?t.unavailable:money(minor(row.unitPrice)!*row.quantity,row.currency)}</span>
+          {row.image?<img src={row.image} alt=""/>:<span aria-hidden="true"/>}<div><strong>{row.title}</strong><small>{row.sku}</small><small>{t.qty}: {row.quantity}</small></div><span>{!(Number(minor(row.unitPrice))>0)?t.unavailable:money(minor(row.unitPrice)!*row.quantity,row.currency)}</span>
         </article>)}
       </div>
       <div className="alsvid-cart-drawer-bottom">

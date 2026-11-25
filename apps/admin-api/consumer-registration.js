@@ -45,6 +45,8 @@ function createConsumerRegistration(pool,{getConfig=config,deliver=sendCode}={})
     await c.query('UPDATE consumer_registration_challenges SET attempts=attempts+1 WHERE id=$1',[id]);await c.query('COMMIT');fail('验证码无效或已过期');
    }
    await c.query('UPDATE consumer_registration_challenges SET used_at=now() WHERE id=$1',[id]);
+   await c.query('SELECT pg_advisory_xact_lock(912603321)');
+   if(!(await c.query("SELECT 1 FROM app_users WHERE role='admin' AND enabled LIMIT 1")).rowCount)fail('系统尚未初始化',503);
    const salt=randomBytes(16).toString('hex'),hash=await passwordHash(password,salt),uid=uuidv7();
    const inserted=(await c.query("INSERT INTO app_users(id,username,password_salt,password_hash,role) VALUES($1,$2,$3,$4,'owner') ON CONFLICT(username) DO NOTHING RETURNING id",[uid,email,salt,hash])).rows[0];
    if(!inserted){await c.query('COMMIT');fail('该邮箱已有账号，请登录或联系支持',409)}

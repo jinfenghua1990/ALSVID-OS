@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
 import type { Locale } from '@/lib/alsvid-api';
+import { openCartDrawerEvent } from './cart-drawer';
 import { UI } from '@/lib/ui-text';
 import { cartChangedEvent, guestCartKey, guestCartQuantity, readGuestCart } from './cart-storage';
 
@@ -34,7 +35,7 @@ export function CartNavLink({ locale }: { locale: Locale }) {
     };
   }, []);
 
-  return <Link className="cart-nav-link" href={`/${locale}/cart`} aria-label={quantity ? `${label}, ${quantity}` : label} onClick={event => { if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return; event.preventDefault(); window.dispatchEvent(new Event(cartDrawerOpenEvent)); }}>
+  return <Link className="cart-nav-link" href={`/${locale}/cart`} aria-haspopup="dialog" onClick={event=>{if(!event.ctrlKey&&!event.metaKey&&!event.shiftKey&&!event.altKey){event.preventDefault();window.dispatchEvent(new Event(openCartDrawerEvent));}}} aria-label={quantity ? `${label}, ${quantity}` : label} onClick={event => { if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return; event.preventDefault(); window.dispatchEvent(new Event(cartDrawerOpenEvent)); }}>
     {label}{quantity > 0 && <span className="cart-nav-count" aria-hidden="true">{quantity > 99 ? '99+' : quantity}</span>}
   </Link>;
 }

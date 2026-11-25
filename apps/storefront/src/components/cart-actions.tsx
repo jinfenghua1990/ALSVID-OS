@@ -6,6 +6,7 @@ import type { Locale, Offer, ProductAvailability } from '@/lib/alsvid-api';
 import { UI } from '@/lib/ui-text';
 import { guestCartKey, notifyCartChanged, readGuestCart } from './cart-storage';
 import { uuidv7 } from '@/lib/uuid';
+import { cartDrawerOpenEvent } from './cart-nav-link';
 
 const copy = {
   de: { add: 'In den Warenkorb', adding: 'Wird hinzugefügt…', view: 'Warenkorb ansehen', error: 'Der Warenkorb konnte nicht aktualisiert werden. Bitte erneut versuchen.', added: 'Zum Warenkorb hinzugefügt', configuration: 'Konfiguration auswählen', quantity: 'Menge', quantityLimit: 'Pro Konfiguration sind höchstens 100 Stück erlaubt.', limit: 'Der Warenkorb kann höchstens 50 verschiedene Artikel enthalten.' },
@@ -85,6 +86,33 @@ export function CartActions({ locale, productId, offers, availability, giftPrevi
     setBusy(true);
     setMessage('');
     try {
+      // Authenticated additions use the existing revision-checked cart service.
+      // Guest cart entries remain local until the existing login/merge flow.
+      const authResponse = await fetch('/api/auth/status', {cache:'no-store'});
+      if (!authResponse.ok && authResponse.status !== 401) throw new Error('auth unavailable');
+      const auth = authResponse.ok ? await authResponse.json() : null;
+      if (auth?.user?.role === 'owner') {
+        const cart = await data(await fetch('/api/portal/storefront/cart', {cache:'no-store'}));
+        if (!Array.isArray(cart?.items) || !Number.isSafeInteger(cart.revision)) throw new Error('cart unavailable');
+        const key = (item:{productId:string;sku:string;currency:string}) => JSON.stringify([item.productId,item.sku,item.currency]);
+        const requested = {productId,sku:selectedOffer.sku,currency:selectedOffer.currency,quantity};
+        const combined = new Map<string,number>();
+        for (const row of [...cart.items, ...readGuestCart(), requested]) {
+          const k=key(row); const count=(combined.get(k)||0)+row.quantity;
+          if (count>100) throw new Error('maximum quantity');
+          combined.set(k,count);
+        }
+        if (combined.size>50) throw new Error('maximum items');
+        const items = [...cart.items];
+        const index=items.findIndex((row:{productId:string;sku:string;currency:string})=>key(row)===key(requested));
+        if(index<0)items.push(requested);else items[index]={...items[index],quantity:items[index].quantity+quantity};
+        await data(await fetch('/api/portal/storefront/cart',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({revision:cart.revision,items})}));
+        notifyCartChanged();
+        setMessage(t.added);
+        if(direct)window.location.assign(cartHref);
+        else window.dispatchEvent(new Event(cartDrawerOpenEvent));
+        return;
+      }
       const items = readGuestCart();
       const existing = items.findIndex((item: any) => item.productId === productId && item.sku === selectedOffer.sku && item.currency === selectedOffer.currency);
       if (existing >= 0) {

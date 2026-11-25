@@ -12,14 +12,16 @@ function createShippingRateTemplates(url){
    async save(id,input,actor){
      const template=normalizeTemplate(input),expected=input.revision??0;
      if(!Number.isSafeInteger(expected)||expected<0||(id&&!isUuidv7(id))||(!id&&expected!==0))fail('模板版本无效');
+     const editing=Boolean(id);
      id=id||uuidv7();
      const c=await pool.connect();
      try{
        await c.query('BEGIN');
        await c.query('SELECT pg_advisory_xact_lock(hashtextextended($1,0))',[id]);
        const old=(await c.query('SELECT revision FROM shipping_rate_template_versions WHERE id=$1 ORDER BY revision DESC LIMIT 1',[id])).rows[0];
+       if(editing&&!old)fail('运费模板不存在',404);
        if((old?.revision??0)!==expected)fail('模板已更新，请重新读取',409);
-       const warehouse=(await c.query("SELECT id FROM warehouses WHERE id=$1 AND status='启用' AND business_types ? 'B2C' FOR SHARE",[template.warehouseId])).rows[0];
+       const warehouse=(await c.query("SELECT id FROM warehouses WHERE id=$1 AND status='启用' AND kind IN ('国内仓','海外仓') AND business_types ? 'B2C' FOR SHARE",[template.warehouseId])).rows[0];
        if(template.enabled&&!warehouse)fail('请选择已启用且具备 B2C 履约能力的仓库',409);
        const result=(await c.query('INSERT INTO shipping_rate_template_versions(id,revision,warehouse_id,config,created_by) VALUES($1,$2,$3,$4,$5) RETURNING id,revision,config,created_at',[id,expected+1,template.warehouseId,JSON.stringify(template),String(actor||'').slice(0,160)])).rows[0];
        await c.query('COMMIT');return asTemplate(result);

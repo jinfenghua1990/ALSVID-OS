@@ -2,7 +2,6 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { CartDrawer } from '@/components/cart-drawer';
 import { SiteHeader } from '@/components/site-header';
-import { CartDrawer } from '@/components/cart-nav-link';
 import { notFound } from 'next/navigation';
 import '../globals.css';
 import { getCmsProductTemplate, getSiteShell, type Locale, siteUrl } from '@/lib/alsvid-api';
@@ -24,7 +23,6 @@ export default async function LocaleLayout({ children, params }: Readonly<{ chil
     {shell.announcement?.enabled && shell.announcement.text && <aside className="site-announcement" data-module-id="ALSVID-G01">{shell.announcement.href?<Link href={shell.announcement.href}>{shell.announcement.text} →</Link>:shell.announcement.text}</aside>}
     <SiteHeader locale={lang} catalogLayout={template?.catalogLayout||null} config={shell.header}/>
     <div data-module-id="ALSVID-G03">{children}</div>
-    <CartDrawer locale={lang}/>
     <CartDrawer locale={lang}/>
     <footer className="site-footer site-footer--global" data-module-id="ALSVID-G04">
       {!!shell.footer?.groups?.length && <div className="site-footer-groups">{shell.footer.groups.map((group,i)=><nav key={i} aria-label={group.title}><strong>{group.title}</strong>{group.links.map((item,j)=><Link key={j} href={item.href}>{item.label}</Link>)}</nav>)}</div>}

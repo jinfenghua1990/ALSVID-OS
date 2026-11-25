@@ -16,6 +16,7 @@ const AuditPage = lazy(() => import('./pages/AuditPage.jsx'));
 const RulesApiPage = lazy(() => import('./pages/RulesApiPage.jsx'));
 const SystemConnectionsPage = lazy(() => import('./pages/SystemConnectionsPage.jsx'));
 const ProductionPage = lazy(() => import('./pages/ProductionPage.jsx'));
+const ShippingRateTemplates = lazy(() => import('./pages/ShippingRateTemplates.jsx'));
 const WarehouseLogisticsPage = lazy(() => import('./pages/WarehouseLogisticsPage.jsx'));
 const InventoryLedgerWorkspace = lazy(() => import('./pages/InventoryLedgerWorkspace.jsx'));
 const FactoriesPage = lazy(() => import('./pages/FactoriesPage.jsx'));
@@ -141,7 +142,7 @@ function viewTitle(view) {
   if (view.type === 'production-overview') return '生产总览';
   if (view.type === 'logistics') return '物流跟踪';
   if (view.type === 'assets') return '整车台账';
-  return ({workbench:'经营概览',production:'工厂订单',procurement:'采购管理',inventory:'库存总览','inventory-ledger':'出入库流水','warehouse-settings':'仓库设置',factories:'合作工厂',deliveries:'工厂订单',materials:'工厂订单',attachments:'生产附件',finance:'财务对账',catalog:'官网商城',accounts:'内部账号','portal-admin':'门户权限',audit:'操作审计',rules:'规则与接口','system-connections':'连接状态','b2b-customers':'客户档案'})[view.type] || '业务页面';
+  return ({workbench:'经营概览',production:'工厂订单',procurement:'采购管理',inventory:'库存总览','inventory-ledger':'出入库流水','warehouse-settings':'仓库设置','shipping-rate-templates':'运费模板',factories:'合作工厂',deliveries:'工厂订单',materials:'工厂订单',attachments:'生产附件',finance:'财务对账',catalog:'官网商城',accounts:'内部账号','portal-admin':'门户权限',audit:'操作审计',rules:'规则与接口','system-connections':'连接状态','b2b-customers':'客户档案'})[view.type] || '业务页面';
 }
 
 function restoreWorkspaces(storageKey) {
@@ -412,7 +413,7 @@ export default function App({ user, onLogout }) {
             <button className={'side__item' + (view.type === 'finance' ? ' is-active' : '')} onClick={() => setView({ type: 'finance' })}>{sideIcon('财务工作台')}财务工作台</button>
           </>
         : domain === 'warehouse' ? <>
-            {[['assets','整车台账'],['inventory','库存总览'],['inventory-ledger','出入库流水'],['warehouse-settings','仓库设置']].map(([k, label]) => <button key={k} className={'side__item' + (view.type === k ? ' is-active' : '')} onClick={() => setView({ type: k })}>{sideIcon(label === '整车台账' ? 'VIN 车辆档案' : label)}{label}</button>)}
+            {[['assets','整车台账'],['inventory','库存总览'],['inventory-ledger','出入库流水'],['warehouse-settings','仓库设置'],['shipping-rate-templates','运费模板']].map(([k, label]) => <button key={k} className={'side__item' + (view.type === k ? ' is-active' : '')} onClick={() => setView({ type: k })}>{sideIcon(label === '整车台账' ? 'VIN 车辆档案' : label)}{label}</button>)}
           </>
         : domain === 'service' ? <>
             {user.role === 'admin' && <button className={'side__item' + (view.type === 'service-requests' ? ' is-active' : '')} onClick={() => setView({ type: 'service-requests' })}>{sideIcon('服务申请')}门户服务申请</button>}
@@ -475,7 +476,7 @@ export default function App({ user, onLogout }) {
             {page.type==='system-connections'&&user.role==='admin'&&<SystemConnectionsPage/>}
             {(page.type==='production'||page.type==='production-overview')&&<ProductionPage section={page.type==='production-overview'?'overview':'orders'} active={item.key===activeViewKey} user={user} onNavigate={navigateBusinessView} onOpenDelivery={orderId=>setView({type:'deliveries',orderId})}/>}{page.type==='logistics'&&<LogisticsTrackingPage active={item.key===activeViewKey}/>}{(page.type==='sales-orders'||page.type==='sales-orders-overview')&&<SalesOrderPage active={item.key===activeViewKey} user={user} section={page.type==='sales-orders-overview'?'overview':'orders'} orderId={page.orderId} onNavigate={navigateBusinessView}/>}{page.type==='finance'&&<FinancePage active={item.key===activeViewKey}/>}{page.type==='catalog'&&<CatalogAdminPage active={item.key===activeViewKey} section={page.section||'overview'} pageQuery={page.pageQuery||''} pageId={page.pageId||''} productId={page.productId||''} user={user} workspaceKey={item.key} onWorkspaceDirtyChange={updateWorkspaceDirty} onSectionChange={(next,extra)=>setView({type:'catalog',section:next,...(extra||{})})} onOpenProduct={id=>setView({type:'editor',id,fromKind:'vehicle'})} onCreateProduct={kind=>{setDomain('product');setView({type:'create',kind:kind||'vehicle'})}}/>}
             {page.type==='procurement'&&<ProcurementPage active={item.key===activeViewKey} user={user}/>}
-            {page.type==='inventory'&&<WarehouseLogisticsPage section="stock" active={item.key===activeViewKey} user={user}/>}{page.type==='assets'&&<VehicleAssetPage active={item.key===activeViewKey}/>}{page.type==='inventory-outbound'&&<InventoryLedgerWorkspace active={item.key===activeViewKey} user={user}/>}{page.type==='inventory-ledger'&&<InventoryLedgerWorkspace active={item.key===activeViewKey} user={user}/>}{page.type==='warehouse-settings'&&<WarehouseLogisticsPage section="warehouses" active={item.key===activeViewKey} user={user}/>}{page.type==='factories'&&<FactoriesPage active={item.key===activeViewKey} user={user}/>}{(page.type==='deliveries'||page.type==='materials')&&<ProductionPage active={item.key===activeViewKey} user={user}/>}{page.type==='attachments'&&<ProductionAttachmentsPage active={item.key===activeViewKey} user={user}/>}
+            {page.type==='inventory'&&<WarehouseLogisticsPage section="stock" active={item.key===activeViewKey} user={user}/>}{page.type==='assets'&&<VehicleAssetPage active={item.key===activeViewKey}/>}{page.type==='inventory-outbound'&&<InventoryLedgerWorkspace active={item.key===activeViewKey} user={user}/>}{page.type==='inventory-ledger'&&<InventoryLedgerWorkspace active={item.key===activeViewKey} user={user}/>}{page.type==='shipping-rate-templates'&&<ShippingRateTemplates active={item.key===activeViewKey} user={user}/>}{page.type==='warehouse-settings'&&<WarehouseLogisticsPage section="warehouses" active={item.key===activeViewKey} user={user}/>}{page.type==='factories'&&<FactoriesPage active={item.key===activeViewKey} user={user}/>}{(page.type==='deliveries'||page.type==='materials')&&<ProductionPage active={item.key===activeViewKey} user={user}/>}{page.type==='attachments'&&<ProductionAttachmentsPage active={item.key===activeViewKey} user={user}/>}
             {page.type==='placeholder'&&<div className="card placeholder"><div className="placeholder-mark">{DOMAINS.find(d=>d.key===page.domain)?.icon}</div><h2 /><p>该业务域已纳入 ALSVID V2.0 一级架构，当前阶段先建设内部产品管理。</p><span className="hint" /></div>}
             </Suspense>
             </ErrorBoundary>

@@ -115,8 +115,99 @@ const PAGES = [
 ];
 
 const LOCALES = ['de', 'en', 'zh'];
+const RETURN_POLICY = {
+  "de": {
+    "title": "Rückgabe und Widerruf",
+    "sections": [
+      [
+        "Bestelländerung und Stornierung",
+        "Änderungen vor dem Versand sind kostenlos; nach Versand sind Änderungen nicht möglich. Bei freiwilligen Stornierungen außerhalb zwingender Verbraucherrechte gilt eine Bearbeitungsgebühr von 4 %. Nach Versand gelten die unten genannten Rücktransportkosten."
+      ],
+      [
+        "Freiwillige Rückgabe",
+        "Anträge innerhalb von 15 Tagen nach Erhalt. Für unbenutzte Ware werden die anwendbaren Rücktransportkosten abgezogen. Bei gebrauchten Fahrrädern bis 16 km gilt für die freiwillige Rückgabe ein Abzug von 30 % zusätzlich zum Rücktransport. Bei 16–32 km oder Gebrauchsspuren, die den Wiederverkauf beeinträchtigen, gilt ein Abzug von 50 %. Keine freiwillige Rückgabe nach Tag 15, über 32 km oder bei erheblichen Schäden oder fehlenden Hauptkomponenten. Keine 30-tägige Probefahrt."
+      ],
+      [
+        "Rücktransport",
+        "Bei freiwilliger Rückgabe aus persönlichen Gründen: 300 € für E-Bikes, 50 € für Akkus, Motoren, Laufräder und Anhänger, 35 € für sonstige Artikel. Beim gesetzlichen Widerruf trägt der Verbraucher die unmittelbaren Rücksendekosten nur bei ordnungsgemäßer vorheriger Information."
+      ],
+      [
+        "Mängel und Falschlieferungen",
+        "Bitte Transportschäden möglichst innerhalb von 48 Stunden und sicherheitsrelevante Defekte möglichst innerhalb von 15 Werktagen melden und Fotos oder Videos beifügen. Gesetzliche Ansprüche bleiben auch bei späterer Meldung bestehen. ALSVID übernimmt die erforderlichen Kosten der gesetzlichen Nacherfüllung. Bei geringfügigen Problemen sind technische Hilfe und Ersatzteile möglich."
+      ],
+      [
+        "Verpackung und Rückzahlung",
+        "Bei freiwilliger Rückgabe bitte Originalverpackung und sämtliches Zubehör beifügen. Ersatzverpackung für ein Fahrrad: 300 € zuzüglich Versand, soweit freiwillig vereinbart und zulässig. Rückzahlung über das ursprüngliche Zahlungsmittel. Beim gesetzlichen Widerruf gelten die gesetzlichen Fristen; die Rückzahlung kann bis zum Erhalt der Ware oder Versandnachweis zurückgehalten werden."
+      ],
+      [
+        "Gesetzlicher Widerruf",
+        "Verbraucher können den Fernabsatzvertrag binnen 14 Tagen ab Erhalt der Ware ohne Angabe von Gründen widerrufen. Pauschale Stornierungs-, Wiedereinlagerungs- und Verpackungsgebühren sowie Kilometergrenzen schränken dieses Recht nicht ein. Wertersatz nur bei Vorliegen der gesetzlichen Voraussetzungen. Standardlieferkosten werden im gesetzlichen Umfang erstattet. Widerrufsempfänger: {{TODO_SELLER_NAME_ADDRESS_CONTACT}}. Das gesetzliche Musterformular und die elektronische Widerrufsfunktion sind vor Veröffentlichung zu vervollständigen."
+      ]
+    ]
+  },
+  "en": {
+    "title": "Returns and withdrawal",
+    "sections": [
+      [
+        "Order changes and cancellation",
+        "Changes before dispatch are free; changes after dispatch are not supported. For voluntary cancellations outside mandatory consumer rights a 4% handling charge applies. After dispatch, the return transport charges below apply."
+      ],
+      [
+        "Voluntary returns",
+        "Request within 15 days of receipt. Unused goods: refund less applicable return transport. For used bikes up to 16 km, the voluntary return deduction is 30% plus transport; for 16–32 km or wear affecting resale, 50% plus transport. No voluntary return after day 15, beyond 32 km, with serious damage or missing major parts. No 30-day trial ride."
+      ],
+      [
+        "Return transport",
+        "For voluntary returns for personal reasons: €300 for e-bikes, €50 for batteries, motors, wheels and trailers, €35 for other items. For statutory withdrawal the consumer bears direct return costs only where properly informed in advance."
+      ],
+      [
+        "Defects and wrong deliveries",
+        "Report transport damage preferably within 48 hours and safety-related defects preferably within 15 working days, with photos or video. Late reports do not extinguish statutory rights. ALSVID bears necessary statutory remedy costs. Technical support and replacement parts may resolve minor issues."
+      ],
+      [
+        "Packaging and refund",
+        "For voluntary returns include original packaging and accessories. Replacement bike packaging: €300 plus shipping where voluntarily agreed and lawful. Refunds use the original payment method. Statutory refund deadlines apply; refunds may be withheld until goods or proof of dispatch are received."
+      ],
+      [
+        "Statutory withdrawal",
+        "Consumers may withdraw from distance contracts within 14 days after receipt without giving a reason. Fixed cancellation, restocking or packaging fees and mileage limits do not restrict that right. Value loss is chargeable only under statutory conditions. Standard delivery costs are refunded as required by law. Withdrawal recipient: {{TODO_SELLER_NAME_ADDRESS_CONTACT}}. Complete the statutory model form and electronic withdrawal function before publication."
+      ]
+    ]
+  },
+  "zh": {
+    "title": "退换货与撤销权",
+    "sections": [
+      [
+        "订单修改与取消",
+        "发货前修改免费，发货后不支持修改。法定消费者权利之外的自愿取消收取4%处理费，发货后按下列退运费用执行。"
+      ],
+      [
+        "自愿退货",
+        "收货15天内申请。未使用商品扣适用退运费；骑行不超过16公里的自愿退货扣30%及退运费；16至32公里或影响二次销售的使用痕迹扣50%及退运费。超过15天、超过32公里、严重损坏或缺少主要部件不提供自愿退货。不提供30天试骑。"
+      ],
+      [
+        "退运费用",
+        "个人原因自愿退货：整车300欧元，电池、电机、车轮和拖车50欧元，其他配件35欧元。法定撤销时仅在依法事先告知的情况下由消费者承担直接退货运输费。"
+      ],
+      [
+        "质量问题与错发",
+        "运输损坏尽量在48小时内反馈，影响安全的故障尽量在15个工作日内反馈，并提供照片或视频。超出反馈时间不影响法定权利。ALSVID承担法定补救所需费用，轻微问题可提供技术支持或配件。"
+      ],
+      [
+        "包装及退款",
+        "自愿退货请附原包装及全部配件。自行车替换包装在自愿约定且合法的情况下为300欧元另加运费。原支付渠道退款。法定退款期限适用，商家可依法等待收货或发货凭证。"
+      ],
+      [
+        "法定撤销权",
+        "消费者通常可在收货14天内无理由撤销远程销售合同。固定取消费、入库费、包装费和里程限制不得限制法定权利。仅在法定条件满足时扣实际价值减损，标准发货费用依法退还。撤销接收主体：{{TODO_SELLER_NAME_ADDRESS_CONTACT}}。发布前须补充法定表格与电子撤销功能。"
+      ]
+    ]
+  }
+};
+
 
 function buildPage(spec, locale) {
+  if(spec.slug==='widerrufsbelehrung'){const v=RETURN_POLICY[locale];return {locale,path:'/legal/widerrufsbelehrung',pageType:'custom',name:v.title,seo:{title:v.title,description:''},blocks:[{id:'b-legal-widerrufsbelehrung',componentKey:'article',visible:true,props:{heading:v.title,intro:'',imageId:'',imageAlt:'',sections:v.sections.map(([heading,body])=>({heading,body,imageId:'',imageAlt:''}))},bindings:{}}]};}
   const todo = spec.sections[locale].map((heading) => ({
     heading,
     // 正文留占位，不写任何看似成文的条款

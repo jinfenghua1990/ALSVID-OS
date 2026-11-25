@@ -13,7 +13,7 @@ const RESERVED_PATHS = ['www', 'catalog', 'api', 'my', 'dealer', 'login'];
 
 function fail(message, statusCode = 400) { throw Object.assign(new Error(message), { statusCode }); }
 function assertLegalReady(path, document, seo) {
-  if(String(path||'').startsWith('/legal/')&&/\{\{TODO_INHALT\}\}/i.test(JSON.stringify({document,seo})))fail('法定页面仍含待填写占位符，禁止发布',422);
+  if(String(path||'').startsWith('/legal/')&&/\{\{TODO_[A-Z_]+\}\}/i.test(JSON.stringify({document,seo})))fail('法定页面仍含待填写占位符，禁止发布',422);
 }
 function text(value, max, required = false) {
   if (value == null) { if (required) fail('必填内容不能为空'); return ''; }

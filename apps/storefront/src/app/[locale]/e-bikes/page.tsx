@@ -1,12 +1,14 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { CollectionCards } from '@/components/collection-cards';
-import { getCmsProductTemplate, getProducts, siteUrl, type Locale } from '@/lib/alsvid-api';
+import { CmsBlocks } from '@/components/cms-blocks';
+import { getCmsPage, getCmsProductTemplate, getProducts, siteUrl, type Locale } from '@/lib/alsvid-api';
 import { UI } from '@/lib/ui-text';
 
 export async function generateMetadata({ params }: { params: Promise<{ locale: Locale }> }): Promise<Metadata> {
   const { locale } = await params;
-  return { title: 'E-Bikes', alternates: { canonical: `${siteUrl}/${locale}/e-bikes`, languages: { de: `${siteUrl}/de/e-bikes`, en: `${siteUrl}/en/e-bikes`, zh: `${siteUrl}/zh/e-bikes`, 'x-default': `${siteUrl}/de/e-bikes` } } };
+  const page=await getCmsPage(locale,'/e-bikes');
+  return { title: page?.seo.title||page?.name||'E-Bikes',description:page?.seo.description, alternates: { canonical: `${siteUrl}/${locale}/e-bikes`, languages: { de: `${siteUrl}/de/e-bikes`, en: `${siteUrl}/en/e-bikes`, zh: `${siteUrl}/zh/e-bikes`, 'x-default': `${siteUrl}/de/e-bikes` } } };
 }
 
 const navCopy = {
@@ -15,9 +17,10 @@ const navCopy = {
   de: { all: 'Alle Produkte' },
 } as Record<Locale, { all: string }>;
 
-export default async function EbikeListing({ params, searchParams }: { params: Promise<{ locale: Locale }>; searchParams: Promise<{ cat?: string }> }) {
+export default async function EbikeListing({ params, searchParams }: { params: Promise<{ locale: Locale }>; searchParams: Promise<{ cat?: string;q?:string }> }) {
   const { locale } = await params;
-  const { cat } = await searchParams;
+  const { cat,q } = await searchParams;
+  const page=await getCmsPage(locale,'/e-bikes');
   // 版式来自「店铺装修-产品」的 catalogLayout：分类导航 + 按销量自动展示；未装修时维持系统默认渲染。
   const template = await getCmsProductTemplate(locale);
   const catalogLayout = template?.catalogLayout || null;
@@ -34,7 +37,9 @@ export default async function EbikeListing({ params, searchParams }: { params: P
       <Link href={href(-1)} className={active < 0 ? 'is-active' : ''}>{navCopy[locale].all}</Link>
       {categories.map((category, index) => <Link key={`${category.name}-${index}`} href={href(index)} className={active === index ? 'is-active' : ''}>{category.name}</Link>)}
     </nav>}
-    <CollectionCards products={shown} locale={locale}/>
-    {categories.length > 0 && active >= 0 && !shown.length && <p className="catalog-category-empty">{navCopy[locale].all === '全部产品' ? '该分类下暂无已发布产品。' : 'No published products in this category yet.'}</p>}
+    <CmsBlocks blocks={(page?.blocks||[]).filter(block=>block.componentKey!=='faq'&&block.componentKey!=='productGallery')} locale={locale}/>
+    <CollectionCards products={shown} locale={locale} initialSearch={q||''}/>
+    <CmsBlocks blocks={(page?.blocks||[]).filter(block=>block.componentKey==='faq')} locale={locale}/>
+    {categories.length > 0 && active >= 0 && !shown.length && <p className="catalog-category-empty">{navCopy[locale].all === '全部产品' ? '该分类下暂无已发布产品。' : locale==='de'?'Noch keine veröffentlichten Produkte in dieser Kategorie.':'No published products in this category yet.'}</p>}
   </main>;
 }

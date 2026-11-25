@@ -22,7 +22,7 @@ export function CartNavLink({ locale }: { locale: Locale }) {
         const auth = await fetch('/api/auth/status', { cache: 'no-store' }).then(response => response.ok ? response.json() : null);
         if (auth?.user?.role !== 'owner') return;
         const cart = await fetch('/api/portal/storefront/cart', { cache: 'no-store' }).then(response => response.ok ? response.json() : null);
-        if (current === revision && Array.isArray(cart?.items)) setQuantity(cart.items.reduce((total: number, item: { quantity?: number }) => total + (Number(item.quantity) || 0), 0));
+        if (current === revision && Array.isArray(cart?.items)) setQuantity(cart.items.reduce((total: number, item: { quantity?: number }) => total + (Number(item.quantity) || 0), guestCartQuantity()));
       } catch { /* Keep the locally stored guest count when account services are unavailable. */ }
     };
     const onStorage = (event: StorageEvent) => { if (event.key === guestCartKey) void refresh(); };

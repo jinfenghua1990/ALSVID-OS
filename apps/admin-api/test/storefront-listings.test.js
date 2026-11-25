@@ -49,7 +49,14 @@ test('one physical product supports independent channel listings and prices', { 
   assert.equal(restored.draft.languages.de.title,'New title');
   assert.equal(restored.skus[0].prices[0].unitPrice,'1299.00');
   assert.equal((await store.history(first.id)).length,3);
-  const down=await store.unpublish(first.id,{revision:restored.revision});
+  const now=Date.now();
+  const priced=await store.updatePrice(first.id,{revision:restored.revision,sku:'A1-EBI-450-BLK',currency:'EUR',unitPrice:'1299',promotion:{salePrice:'1199',startsAt:new Date(now-60000).toISOString(),endsAt:new Date(now+3600000).toISOString(),referencePrice:'1299',referenceEvidence:'测试价格历史',referenceConfirmed:true}});
+  const current=(await admin.query("SELECT unit_price::text AS price,reference_price::text AS reference FROM alsvid_v2.storefront_effective_listing_prices WHERE listing_id=$1",[first.id])).rows[0];
+  assert.deepEqual(current,{price:'1199.00',reference:'1299.00'});
+  await assert.rejects(store.updatePrice(first.id,{revision:restored.revision,sku:'A1-EBI-450-BLK',currency:'EUR',unitPrice:'1'}),/已更新/);
+  await admin.query("UPDATE alsvid_v2.storefront_listing_promotions SET ends_at=now()-interval '1 second' WHERE listing_id=$1",[first.id]);
+  assert.equal((await admin.query("SELECT unit_price::text AS price FROM alsvid_v2.storefront_effective_listing_prices WHERE listing_id=$1",[first.id])).rows[0].price,'1299.00');
+  const down=await store.unpublish(first.id,{revision:priced.revision});
   assert.equal(down.published,null);
   assert.equal((await store.history(first.id,down.revision)).action,'unpublish');
   assert.deepEqual((await admin.query("SELECT specs FROM alsvid_v2.products WHERE id='a'")).rows[0].specs,{motor:'250W'});

@@ -14,6 +14,8 @@
 'use strict';
 
 const { createPool } = require('./db-pool.js');
+const { isUuidv7 } = require('./uuidv7.js');
+const { paymentAmount, settlementInput } = require('./payment-safety.js');
 
 let pool = null;
 function getPool() {
@@ -81,10 +83,10 @@ async function listProviders() {
   const providers = PROVIDERS.map(meta => {
     const row = byProvider.get(meta.provider) || {};
     const registered = Boolean(ADAPTERS[meta.provider]);
-    const status = registered ? (row.enabled ? 'READY' : 'NOT_CONFIGURED') : (row.adapter_status || 'NOT_IMPLEMENTED');
+    const status = registered ? (row.enabled ? 'READY' : 'NOT_CONFIGURED') : 'NOT_IMPLEMENTED';
     return {
       provider: meta.provider, displayName: meta.displayName, priority: meta.priority,
-      enabled: Boolean(row.enabled), adapterStatus: status, configured: Boolean(row.credential_hint),
+      enabled: registered && Boolean(row.enabled), adapterStatus: status, configured: Boolean(row.credential_hint),
       credentialHint: row.credential_hint || null, lastTestAt: row.last_test_at || null,
       lastTestResult: row.last_test_result || null, required: meta.required, docs: meta.docs,
     };
@@ -147,110 +149,90 @@ async function testProvider(provider) {
 
 // ---------- 统一支付接口 ----------
 
-async function createIntent(provider, input) {
-  const meta = PROVIDERS.find(item => item.provider === provider);
-  if (!meta) fail('支付方式不存在', 404);
-  const adapter = ADAPTERS[provider];
-  if (!adapter) fail(`${meta.displayName} 适配器尚未接入（NOT_IMPLEMENTED），暂不能发起线上支付`, 501);
-  const row = (await getPool().query('SELECT enabled, config FROM payment_providers WHERE provider=$1', [provider])).rows[0];
-  if (!row?.enabled) fail(`${meta.displayName} 尚未启用`, 409);
-  const amountMinor = Number(input?.amountMinor);
-  const currency = String(input?.currency || '').toUpperCase();
-  const orderId = String(input?.orderId || '');
-  if (!/^[0-9a-f-]{36}$/i.test(orderId) || !Number.isSafeInteger(amountMinor) || amountMinor <= 0 || !/^[A-Z]{3}$/.test(currency)) fail('支付参数无效');
-  const idempotencyKey = String(input?.idempotencyKey || `${orderId}:${provider}:${amountMinor}:${currency}`);
-  if (idempotencyKey.length > 200) fail('幂等键过长');
-  // 幂等：同一键重复请求直接返回已有意图，不重复向服务商下单
-  const existing = (await getPool().query('SELECT id, status, provider_intent_id, client_secret FROM payment_intents WHERE idempotency_key=$1', [idempotencyKey])).rows[0];
-  if (existing) return { intentId: existing.id, providerIntentId: existing.provider_intent_id, status: existing.status, clientSecret: existing.client_secret, replayed: true };
-  const result = await adapter.createIntent({ orderId, amountMinor, currency, metadata: input?.metadata || {}, config: row.config, idempotencyKey });
-  const created = (await getPool().query(
-    `INSERT INTO payment_intents(order_id, provider, provider_intent_id, amount_minor, currency, status, idempotency_key, metadata)
-     VALUES($1,$2,$3,$4,$5,$6,$7,$8) RETURNING id`,
-    [orderId, provider, result.providerIntentId || null, amountMinor, currency, result.status || 'pending', idempotencyKey, JSON.stringify(input?.metadata || {})],
-  )).rows[0];
-  return { intentId: created.id, providerIntentId: result.providerIntentId || null, clientSecret: result.clientSecret || null, status: result.status || 'pending', replayed: false };
+async function createIntent(provider, input, user) {
+  const meta=PROVIDERS.find(item=>item.provider===provider);
+  if(!meta)fail('支付方式不存在',404);
+  const adapter=ADAPTERS[provider];
+  if(!adapter)fail(meta.displayName+' 适配器尚未接入，暂不能发起线上支付',501);
+  if(!user||user.role!=='owner')fail('仅订单所属消费者可发起支付',403);
+  const orderId=String(input?.orderId||'').toLowerCase();
+  if(!isUuidv7(orderId))fail('订单编号无效');
+  const c=await getPool().connect();
+  try{
+    await c.query('BEGIN');
+    const order=(await c.query("SELECT o.id,o.status,o.currency FROM storefront_orders o JOIN app_users u ON u.entity_uuid=o.owner_user_uuid WHERE o.id=$1 AND u.id=$2 AND u.role='owner' AND u.enabled FOR UPDATE OF o",[orderId,user.id])).rows[0];
+    if(!order)fail('订单不存在',404);
+    if(!['allocated','partially_paid'].includes(order.status))fail('订单未完成报价确认与库存预占，或已付清',409);
+    const quote=(await c.query("SELECT q.id,q.total_minor FROM storefront_order_quotes q JOIN storefront_order_responses r ON r.quote_id=q.id AND r.decision='accept' WHERE q.order_id=$1 ORDER BY q.revision DESC LIMIT 1",[orderId])).rows[0];
+    if(!quote)fail('订单尚无已接受报价',409);
+    const paid=(await c.query("SELECT COALESCE(sum(p.amount_minor),0)::text AS n FROM storefront_order_payments p WHERE p.order_id=$1 AND NOT EXISTS(SELECT 1 FROM storefront_payment_reversals z WHERE z.payment_id=p.id)",[orderId])).rows[0].n;
+    const amountMinor=paymentAmount(quote.total_minor,paid,input?.amountMinor,input?.currency,order.currency),currency=order.currency;
+    const providerRow=(await c.query('SELECT enabled,config FROM payment_providers WHERE provider=$1',[provider])).rows[0];
+    if(!providerRow?.enabled)fail(meta.displayName+' 尚未启用',409);
+    const pending=(await c.query("SELECT id,provider,provider_intent_id,amount_minor,currency,status FROM payment_intents WHERE order_id=$1 AND (status IN ('created','pending') OR (status='succeeded' AND NOT EXISTS(SELECT 1 FROM storefront_order_payments p WHERE p.id=payment_intents.id))) ORDER BY created_at DESC LIMIT 1",[orderId])).rows[0];
+    if(pending){
+      if(pending.status==='succeeded'||pending.provider!==provider||Number(pending.amount_minor)!==amountMinor||pending.currency!==currency)fail('该订单已有待处理支付，请勿重复付款',409);
+      await c.query('COMMIT');
+      return {intentId:pending.id,providerIntentId:pending.provider_intent_id,status:pending.status,replayed:true};
+    }
+    const idempotencyKey=[orderId,quote.id,provider,amountMinor,currency].join(':');
+    const existing=(await c.query('SELECT id,status FROM payment_intents WHERE idempotency_key=$1',[idempotencyKey])).rows[0];
+    if(existing)fail('该报价已有支付记录，请先核对支付状态',409);
+    const result=await adapter.createIntent({orderId,amountMinor,currency,metadata:{quoteId:quote.id},config:providerRow.config,idempotencyKey});
+    if(typeof result?.providerIntentId!=='string'||!result.providerIntentId||result.providerIntentId.length>300)fail('服务商未返回有效支付意图',502);
+    const created=(await c.query("INSERT INTO payment_intents(order_id,provider,provider_intent_id,amount_minor,currency,status,idempotency_key,metadata) VALUES($1,$2,$3,$4,$5,'pending',$6,$7) RETURNING id",[orderId,provider,result.providerIntentId,amountMinor,currency,idempotencyKey,JSON.stringify({quoteId:quote.id})])).rows[0];
+    await c.query('COMMIT');
+    return {intentId:created.id,providerIntentId:result.providerIntentId,status:'pending',clientSecret:result.clientSecret||null,replayed:false};
+  }catch(error){await c.query('ROLLBACK').catch(()=>{});throw error}finally{c.release()}
 }
 
 // 回调：幂等落库 → 调用适配器验签与解析 → 只有确认成功才推进支付意图与订单
-async function handleWebhook(provider, payload, headers) {
-  const meta = PROVIDERS.find(item => item.provider === provider);
-  if (!meta) fail('支付方式不存在', 404);
-  const adapter = ADAPTERS[provider];
-  if (!adapter) fail(`${meta.displayName} 适配器尚未接入（NOT_IMPLEMENTED），无法处理回调`, 501);
-  const row = (await getPool().query('SELECT config FROM payment_providers WHERE provider=$1', [provider])).rows[0];
-  const config = row?.config || {};
-  // 适配器负责验签并提取标准字段；验签失败直接拒绝，不落库
-  let parsed;
-  try { parsed = await adapter.confirmWebhook({ payload, headers, config }); }
-  catch (error) { fail('回调验签失败：' + (error?.message || 'unknown'), 400); }
-  if (!parsed?.eventId) fail('回调缺少事件 ID，无法保证幂等', 400);
-  const c = await getPool().connect();
-  try {
+async function handleWebhook(provider,payload,headers){
+  const meta=PROVIDERS.find(item=>item.provider===provider),adapter=ADAPTERS[provider];
+  if(!meta)fail('支付方式不存在',404);
+  if(!adapter)fail('支付适配器尚未接入',501);
+  const config=(await getPool().query('SELECT config FROM payment_providers WHERE provider=$1',[provider])).rows[0]?.config||{};
+  let parsed;try{parsed=await adapter.confirmWebhook({payload,headers,config})}catch(_){fail('回调验签失败',400)}
+  if(typeof parsed?.eventId!=='string'||!parsed.eventId||parsed.eventId.length>300)fail('回调缺少有效事件 ID');
+  const c=await getPool().connect();
+  let intent,event,replayed=false;
+  try{
     await c.query('BEGIN');
-    const dup = (await c.query('SELECT status, intent_id FROM payment_webhook_events WHERE provider=$1 AND event_id=$2 FOR UPDATE', [provider, parsed.eventId])).rows[0];
-    if (dup) { await c.query('COMMIT'); return { ok: true, replayed: true, eventStatus: dup.status }; }
-    const intent = parsed.providerIntentId
-      ? (await c.query('SELECT id, order_id, amount_minor, currency, status FROM payment_intents WHERE provider=$1 AND provider_intent_id=$2 FOR UPDATE', [provider, parsed.providerIntentId])).rows[0]
-      : null;
-    const event = (await c.query(
-      `INSERT INTO payment_webhook_events(provider, event_id, event_type, intent_id, payload, status, processed_at)
-       VALUES($1,$2,$3,$4,$5,$6,now()) RETURNING id`,
-      [provider, parsed.eventId, parsed.eventType || 'unknown', intent?.id || null, JSON.stringify(payload || {}), 'processed'],
-    )).rows[0];
-    if (intent && parsed.status === 'succeeded' && intent.status !== 'succeeded') {
-      // 金额与币种必须与服务端创建的意图一致，防止回调篡改
-      if (Number(parsed.amountMinor) !== Number(intent.amount_minor) || String(parsed.currency || '').toUpperCase() !== intent.currency) {
-        await c.query('UPDATE payment_webhook_events SET status=$2, error=$3 WHERE id=$1', [event.id, 'failed', '回调金额或币种与支付意图不一致']);
-        await c.query('COMMIT');
-        fail('回调金额或币种与支付意图不一致', 400);
-      }
-      await c.query("UPDATE payment_intents SET status='succeeded', confirmed_at=now(), updated_at=now() WHERE id=$1", [intent.id]);
+    await c.query('SELECT pg_advisory_xact_lock(hashtextextended($1,0))',[provider+':'+parsed.eventId]);
+    const prior=(await c.query('SELECT id,status,intent_id FROM payment_webhook_events WHERE provider=$1 AND event_id=$2 FOR UPDATE',[provider,parsed.eventId])).rows[0];
+    replayed=!!prior;
+    if(prior&&['processed','ignored'].includes(prior.status)){await c.query('COMMIT');return {ok:true,replayed:true,eventStatus:prior.status}}
+    if(prior?.status==='failed')fail('该回调已被拒绝，需人工核对',409);
+    intent=parsed.providerIntentId?(await c.query('SELECT id,order_id,amount_minor,currency,status,confirmed_at FROM payment_intents WHERE provider=$1 AND provider_intent_id=$2 FOR UPDATE',[provider,parsed.providerIntentId])).rows[0]:null;
+    if(parsed.status==='succeeded'&&!intent)fail('未找到支付意图，请稍后重试',503);
+    if(prior&&prior.intent_id!==(intent?.id||null))fail('回调关联的支付意图不一致',409);
+    event=prior||(await c.query("INSERT INTO payment_webhook_events(provider,event_id,event_type,intent_id,payload,status) VALUES($1,$2,$3,$4,$5,'received') RETURNING id",[provider,parsed.eventId,parsed.eventType||'unknown',intent?.id||null,JSON.stringify(payload||{})])).rows[0];
+    if(parsed.status!=='succeeded'){
+      await c.query("UPDATE payment_webhook_events SET status='ignored',processed_at=now() WHERE id=$1",[event.id]);await c.query('COMMIT');return {ok:true,replayed,eventStatus:'ignored'};
     }
+    if(!Number.isSafeInteger(Number(parsed.amountMinor))||Number(parsed.amountMinor)!==Number(intent.amount_minor)||String(parsed.currency||'').toUpperCase()!==intent.currency||!['created','pending','succeeded'].includes(intent.status)){
+      await c.query("UPDATE payment_webhook_events SET status='failed',error='金额、币种或支付状态不匹配',processed_at=now() WHERE id=$1",[event.id]);await c.query('COMMIT');fail('金额、币种或支付状态不匹配',400);
+    }
+    intent=(await c.query("UPDATE payment_intents SET status='succeeded',confirmed_at=COALESCE(confirmed_at,now()),updated_at=now() WHERE id=$1 RETURNING id,order_id,amount_minor,currency,confirmed_at",[intent.id])).rows[0];
     await c.query('COMMIT');
-    // 订单推进与 Purchase 事件在事务外做：沿用既有 recordPayment 口径，失败不吞
-    if (intent && parsed.status === 'succeeded') {
-      await settleOrder(intent.order_id, intent.amount_minor, intent.currency, provider, parsed.eventId);
-    }
-    return { ok: true, replayed: false, eventStatus: 'processed', intentStatus: intent?.status || null };
-  } catch (error) {
-    await c.query('ROLLBACK').catch(() => {});
-    throw error;
-  } finally { c.release(); }
-}
-
-// 服务商确认收款后，复用既有订单收款口径，触发 Purchase 事件
-async function settleOrder(orderId, amountMinor, currency, provider, eventId) {
-  if (!orderStore || typeof orderStore.recordPayment !== 'function') {
-    fail('订单服务未就绪，无法确认收款', 503);
+  }catch(e){await c.query('ROLLBACK').catch(()=>{});throw e}finally{c.release()}
+  // Intents and events are durable before settlement. Repeated events use the same receipt ID,
+  // date and reference even if the provider sends multiple event IDs or the process restarts.
+  try{
+    if(!orderStore||typeof orderStore.recordPayment!=='function')fail('订单服务未就绪',503);
+    await orderStore.recordPayment(intent.order_id,settlementInput(provider,intent));
+    await getPool().query("UPDATE payment_webhook_events SET status='processed',error=NULL,processed_at=now() WHERE id=$1",[event.id]);
+  }catch(_){
+    await getPool().query("UPDATE payment_webhook_events SET error='收款入账待重试' WHERE id=$1 AND status='received'",[event.id]);
+    fail('支付已确认但订单入账尚未完成，请重试回调',503);
   }
-  const { uuidv7 } = require('./uuidv7.js');
-  const amount = (Number(amountMinor) / 100).toFixed(2);
-  const paymentInput = {
-    id: uuidv7(),
-    amount,
-    method: 'other', // 现有收款表 method 枚举仅 bank_transfer/cash/other；线上支付归 other，reference 记录 provider+事件号
-    reference: `online:${provider}:${String(eventId).slice(0, 80)}`,
-    receivedOn: new Date().toISOString().slice(0, 10),
-    note: `线上支付确认（${provider}）`,
-    verified: true,
-  };
-  // recordPayment 只允许 allocated/partially_paid 订单登记，重复回调由 webhook 幂等表拦截
-  await orderStore.recordPayment(orderId, paymentInput);
-  // Purchase 事件已在 storefront-orders.recordPayment 内挂钩（status==='paid' 时写入），无需重复上报
+  return {ok:true,replayed,eventStatus:'processed',intentStatus:'succeeded'};
 }
 
-async function refund(provider, intentId, input) {
-  const meta = PROVIDERS.find(item => item.provider === provider);
-  if (!meta) fail('支付方式不存在', 404);
-  const adapter = ADAPTERS[provider];
-  if (!adapter || typeof adapter.refund !== 'function') fail(`${meta.displayName} 退款适配器尚未接入`, 501);
-  const intent = (await getPool().query('SELECT * FROM payment_intents WHERE id=$1 AND provider=$2', [intentId, provider])).rows[0];
-  if (!intent) fail('支付意图不存在', 404);
-  const config = (await getPool().query('SELECT config FROM payment_providers WHERE provider=$1', [provider])).rows[0]?.config || {};
-  const result = await adapter.refund({ providerIntentId: intent.provider_intent_id, amountMinor: Number(input?.amountMinor || intent.amount_minor), currency: intent.currency, reason: String(input?.reason || ''), config });
-  await getPool().query("UPDATE payment_intents SET status='refunded', updated_at=now() WHERE id=$1", [intentId]);
-  return { ok: true, refundId: result.refundId || null, status: 'refunded' };
+async function refund(provider,intentId,input){
+  if(!PROVIDERS.some(item=>item.provider===provider))fail('支付方式不存在',404);
+  // Until provider refund idempotency and return/cancellation ledger are connected, fail closed.
+  fail('线上退款与财务退款记录尚未完成联动，暂不可发起',501);
 }
 
 async function status(intentId) {

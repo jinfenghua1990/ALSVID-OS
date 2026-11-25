@@ -190,10 +190,10 @@ app.post('/api/payment/providers/:provider/test', async (req, reply) => {
   try { return await payments.testProvider(req.params.provider); }
   catch (error) { return reply.code(error.statusCode || 500).send({ error: error.statusCode ? error.message : '支付连通性测试失败' }); }
 });
-app.post('/api/payment/intent', async (req, reply) => {
+app.post('/api/payment/intent', {config:{portalRoles:['owner']}}, async (req, reply) => {
   if (!req.user) return reply.code(401).send({ error: '请先登录' });
   if (!trafficReady) return reply.code(503).send({ error: '支付服务暂不可用' });
-  try { return await payments.createIntent(req.body?.provider, req.body || {}); }
+  try { return await payments.createIntent(req.body?.provider, req.body || {}, req.user); }
   catch (error) { return reply.code(error.statusCode || 500).send({ error: error.statusCode ? error.message : '发起支付失败' }); }
 });
 // 服务商回调：白名单放行匿名 POST，安全性由适配器验签保证

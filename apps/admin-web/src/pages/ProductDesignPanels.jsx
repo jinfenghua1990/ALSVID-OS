@@ -384,7 +384,7 @@ const GLOBAL_MODULES = [
 
 // 每个模块在编辑区顶部的定位说明 + 预览侧是否有对应区块（决定点击能否真的滚过去）
 const MODULE_META = {
-  productNavigation: { desc:'整车详情页专属固定导航；名称和锚点由当前商品自动生成', anchor:()=>false },
+  productNavigation: { desc:'整车详情页单行吸顶导航；PC 与手机共用', anchor:()=>false },
   info: { desc: '固定模块，由商品数据自动生成', anchor: () => true },
   marketing: { desc: '促销展现 · 标准模板 3 选 1' },
   reserved3: { desc: '预留位 · 未配置内容时自动隐藏' },
@@ -458,7 +458,7 @@ export function GlobalModulesPanel({ cms, row, locale, onEditGraphic, onSelectMo
   };
 
   const editor = (() => {
-    if (active === 'productNavigation') return <section className="sdp__module"><header><strong>商品专属导航栏</strong><span className="hint">固定模块 · ALSVID-P00</span></header><p>整车详情页自动读取车型名称、概览、图文、技术参数、评价及购买锚点。当前为统一固定样式，预览旧版与正式前台存在差异，样式编辑尚未开放。</p></section>;
+    if (active === 'productNavigation') return <section className="sdp__module"><header><strong>商品专属导航栏</strong><span className="hint">固定模块 · ALSVID-P00</span></header><p>PC 与手机共用一条吸顶导航，不显示品牌 Logo 或品牌名称。营销公告开启时位于其上方。</p><div aria-label="导航结构示意（非实时预览）" style={{display:'flex',alignItems:'center',gap:12,overflowX:'auto',whiteSpace:'nowrap',background:'#111',color:'#fff',padding:'12px 14px',borderRadius:4}}><span>☰</span><strong>当前车型</strong><span>概览</span><span>技术参数</span><span>视频</span><span>下载</span><span style={{background:'#fff',color:'#111',padding:'7px 10px',borderRadius:3}}>配置车型 / 购物车</span><span>个人账户</span></div><p>汉堡菜单保留返回首页；购买入口展开后可配置当前车型或查看购物车。无内容的快捷导航显示禁用状态，避免无效链接。手机端中间导航可横向滑动，两端不删减功能。</p><p className="sdw__tip">该区为四款及后续车型共用的固定结构，模块 ID 保持不变。以上为后台结构示意；真实预览同步和样式编辑仍待完善。</p></section>;
     if (active === 'info') return <div className="sdp">
       <section className="sdp__module">
         <header><strong>主图 · 型号颜色 · 价格</strong><span className="hint">固定模块</span></header>

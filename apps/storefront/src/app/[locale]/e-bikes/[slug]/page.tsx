@@ -4,10 +4,11 @@ import { CmsBlocks } from '@/components/cms-blocks';
 import { CartActions } from '@/components/cart-actions';
 import { ProductGallery } from '@/components/product-gallery';
 import { ProductPageNav } from '@/components/product-page-nav';
+import { ImmersiveScene } from '@/components/immersive-scene';
 import { absoluteApiUrl, getAvailability, getCmsProductTemplate, getOffers, getProduct, getReviews, publicApiUrl, publicAssetUrl, type Locale, type ProductModuleBanner, type ProductModuleCopy, type PerformanceConfig, type PerformanceSpec, siteUrl } from '@/lib/alsvid-api';
 import { UI } from '@/lib/ui-text';
 
-type Props = { params: Promise<{ locale: Locale; slug: string }> };
+type Props = { params: Promise<{ locale: Locale; slug: string }>; searchParams?: Promise<{configure?:string}> };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { locale, slug } = await params;
@@ -24,12 +25,19 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   };
 }
 
-export default async function ProductPage({ params }: Props) {
+export default async function ProductPage({ params, searchParams }: Props) {
   const { locale, slug } = await params;
   const product = await getProduct(slug, locale);
   if (!product || product.kind !== 'vehicle') notFound();
   const [allOffers, availability, reviews, template] = await Promise.all([getOffers(product.slug, locale), getAvailability(product.slug, locale), getReviews(product.productId), getCmsProductTemplate(locale, product.productId)]);
   const offers = allOffers.filter(offer => offer.currency === 'EUR');
+  const design=product.design;
+  const visible=(id:string)=>design?.visibility?.[id]!==false;
+  const configure=(await searchParams)?.configure==='1';
+  const showPurchase=design?.purchaseVisible!==false||configure;
+  const purchaseHref=showPurchase?'#product-purchase':`/${locale}/e-bikes/${encodeURIComponent(product.slug)}?configure=1#product-purchase`;
+  const visual=design?.visual;
+  const faqTitle={zh:'常见问题',de:'Häufige Fragen',en:'Frequently asked questions'}[locale];
   const productLayout = template?.productLayout || { gallery: 'standard', specifications: 'list', reviews: 'list' };
   const structuredData = {
     '@context': 'https://schema.org',
@@ -71,15 +79,15 @@ export default async function ProductPage({ params }: Props) {
     { key: 'marketing', banner: modules?.marketing },
     { key: 'reserved4', banner: modules?.reserved4 },
   ] as { key: string; banner: ProductModuleBanner | undefined }[]).filter((row): row is { key: string; banner: ProductModuleBanner } => !!row.banner?.enabled && !!(row.banner.imageId || row.banner.title || row.banner.description || row.banner.text || row.banner.href));
-  const detailBlocks = (product.detailBlocks || []).filter(block => (block.type === 'image' && block.url) || (block.type === 'text' && block.text));
+  const detailBlocks = (product.detailBlocks || []).filter(block => !block.hidden && ((['image','video'].includes(block.type)&&block.url)||(block.type==='text'&&block.text)));
   const reviewsConfig = modules?.reviews || { enabled: true, limit: 20, style: 'list' };
   const copyModules = [{key:'returns',id:'ALSVID-P12',row:modules?.returns},{key:'other',id:'ALSVID-P13',row:modules?.other}].filter((entry):entry is {key:string;id:string;row:ProductModuleCopy}=>!!entry.row?.enabled&&!!(entry.row.title||entry.row.body));
   const bannerHref = (href: string) => href.replace(/^\/www\/(de|en|zh)\/products(?:\/|$)/, (_, lang: string) => `/${lang}/e-bikes/`);
   return (
     <main className="container product-page product-page--with-nav" data-product-id={product.productId} data-product-slug={product.slug}>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData).replace(/</g, '\\u003c') }}></script>
-      <ProductPageNav locale={locale} model={product.model||product.title} hasSpecs={specifications.length>0} hasVideo={templateBlocks.some(block=>block.componentKey==='video' && !!block.data?.videoUrl)} hasDownloads={templateBlocks.some(block=>block.componentKey==='manuals' && !!block.data?.manuals?.length)} />
-      <section className="product-p01" id="product-configurator" data-module-id="ALSVID-P01" data-module="info"><div className="product-layout" data-module-id="ALSVID-P01-01">
+      <ProductPageNav locale={locale} model={product.model||product.title} hasSpecs={visible('P05')&&specifications.length>0} hasVideo={(visible('P04')&&detailBlocks.some(b=>b.type==='video'))||templateBlocks.some(block=>block.componentKey==='video' && !!block.data?.videoUrl)} purchaseHref={purchaseHref} overviewHref={visible('P02')?'#product-overview':'#product-configurator'} hasDownloads={templateBlocks.some(block=>block.componentKey==='manuals' && !!block.data?.manuals?.length)} />
+      <section className="product-p01" id="product-configurator" data-module-id="ALSVID-P01" data-module="info" style={{background:design?.background||'#eaeae6'}}>{showPurchase&&<div className="product-layout" data-module-id="ALSVID-P01-01">
         <ProductGallery key={product.productId} productId={product.productId} images={product.images} title={product.title} locale={locale} style={productLayout.gallery} />
         <section>
           <p className="eyebrow">ALSVID / {product.model}</p>
@@ -90,28 +98,28 @@ export default async function ProductPage({ params }: Props) {
           <div id="product-purchase"><CartActions locale={locale} productId={product.productId} offers={offers} availability={availability} /></div>
           <p className="availability">{availability?.available === null || !availability ? (UI.availabilityUnknown[locale]) : availability.available ? (UI.inStockGermany[locale]) : (UI.outOfStock[locale])}</p>
         </section>
-      </div>
-      <PerformanceBlock config={template?.performance} specs={template?.performanceSpecs||[]} alt={product.title} legacyHref=""/>
+      </div>}
+      {design?.coreVisible!==false&&<PerformanceBlock config={template?.performance} specs={template?.performanceSpecs||[]} alt={product.title} legacyHref=""/>}
       </section>
-      <section id="product-overview" data-module-id="ALSVID-P02" data-module="marketing">
-      {banners.filter(({key})=>key==='marketing').map(({key,banner})=><MarketingBlock key={key} name={key} banner={banner} alt={product.title} href={bannerHref(banner.href)} nested/>)}
-      {!banners.some(({key})=>key==='marketing')&&<div className="product-overview-fallback">{product.images[0]&&<img src={publicApiUrl(product.images[0].url)} alt={product.title}/>}<h2>{product.title}</h2></div>}
-      </section>
-      {(detailBlocks.length>0||banners.some(x=>x.key==='reserved4')||(!modules?.performance&&modules?.reserved3?.enabled))&&<section className="product-immersive" id="product-details" data-module-id="ALSVID-P04" data-module="detail">
+      {visible('P02')&&<section id="product-overview" className="product-overview-fallback product-visual" data-module-id="ALSVID-P02" data-module="marketing">
+      {visual?<><ImmersiveScene scene={{...visual,type:visual.mediaType,title:visual.title||product.title}} index={0} alt={product.title}/>{visual.marketingEnabled&&<div className="product-visual-promo">{visual.marketingText&&<p>{visual.marketingText}</p>}{visual.buttonText&&<a className="product-visual-button" href={purchaseHref}>{visual.buttonText}</a>}</div>}</>:banners.some(x=>x.key==='marketing')?banners.filter(({key})=>key==='marketing').map(({key,banner})=><MarketingBlock key={key} name={key} banner={banner} alt={product.title} href={bannerHref(banner.href)} nested/>):<ImmersiveScene scene={{type:product.images[0]?'image':'text',url:product.images[0]?.url,title:product.title,fit:'contain',animation:'fade'}} index={0} alt={product.title}/>}
+      </section>}
+      {visible('P04')&&(detailBlocks.length>0||banners.some(x=>x.key==='reserved4')||(!modules?.performance&&modules?.reserved3?.enabled))&&<section className="product-immersive" id="product-details" data-module-id="ALSVID-P04" data-module="detail">
         {!modules?.performance&&modules?.reserved3?.enabled&&<MarketingBlock name="reserved3" banner={modules.reserved3} alt={product.title} href={bannerHref(modules.reserved3.href)} nested/>}
         {banners.filter(({key})=>key==='reserved4').map(({key,banner})=><MarketingBlock key={key} name={key} banner={banner} alt={product.title} href={bannerHref(banner.href)} nested/>)}
-        {detailBlocks.map((block,index)=><section key={index} data-module-id={'ALSVID-P04-'+String(index+1).padStart(2,'0')} className="product-immersive__scene">{block.type==='image'?<img src={publicApiUrl(block.url!)} alt={block.alt||product.title} loading="lazy"/>:<p>{block.text}</p>}</section>)}
+        {detailBlocks.map((block,index)=><ImmersiveScene key={index} scene={block} index={index+1} anchor={block.type==='video'&&index===detailBlocks.findIndex(b=>b.type==='video')?'product-video':undefined} alt={product.title}/>)}
       </section>}
-      {specifications.length > 0 && <section className="product-support-section" id="product-specifications" data-module-id="ALSVID-P05" data-module="specifications">
+      {visible('P05') && specifications.length > 0 && <section className="product-support-section" id="product-specifications" data-module-id="ALSVID-P05" data-module="specifications">
             <h2>{UI.specifications[locale]}</h2>
             {productLayout.specifications === 'table' ? <table className="product-spec-table"><tbody>{specifications.map(row => <tr key={row.label}><th>{row.label}</th><td>{row.value}</td></tr>)}</tbody></table> : productLayout.specifications === 'accordion' ? <details className="product-spec-accordion"><summary>{UI.showSpecifications[locale]}</summary><ul className="spec-list">{specifications.map(row => <li key={row.label}><span>{row.label}</span><strong>{row.value}</strong></li>)}</ul></details> : <ul className="spec-list">{specifications.map(row => <li key={row.label}><span>{row.label}</span><strong>{row.value}</strong></li>)}</ul>}
           </section>}
-      {product.warranty&&<section className="product-support-section" data-module-id="ALSVID-P09" data-module="warranty"><h2>{UI.warranty[locale]}</h2><p>{product.warranty}</p></section>}
-      {product.delivery&&<section className="product-support-section" data-module-id="ALSVID-P10" data-module="delivery"><h2>{UI.delivery[locale]}</h2><p>{product.delivery}</p></section>}
-      {templateBlocks.map((block,index) => {
+      {visible('P08')&&!!design?.faq?.length&&<section className="product-support-section" data-module-id="ALSVID-P08" data-module="faq"><h2>{faqTitle}</h2>{design.faq.map((item,i)=><details key={i}><summary>{item.question}</summary><p>{item.answer}</p></details>)}</section>}
+      {visible('P09')&&product.warranty&&<section className="product-support-section" data-module-id="ALSVID-P09" data-module="warranty"><h2>{UI.warranty[locale]}</h2><p>{product.warranty}</p></section>}
+      {visible('P10')&&product.delivery&&<section className="product-support-section" data-module-id="ALSVID-P10" data-module="delivery"><h2>{UI.delivery[locale]}</h2><p>{product.delivery}</p></section>}
+      {templateBlocks.filter(block=>block.componentKey!=='faq').map((block,index) => {
         const isVideo=block.componentKey==='video' && !!block.data?.videoUrl;
         const isDownload=block.componentKey==='manuals' && !!block.data?.manuals?.length;
-        const firstVideo=isVideo && index===templateBlocks.findIndex(item=>item.componentKey==='video' && !!item.data?.videoUrl);
+        const firstVideo=isVideo && !(visible('P04')&&detailBlocks.some(b=>b.type==='video')) && block.id===templateBlocks.find(item=>item.componentKey==='video' && !!item.data?.videoUrl)?.id;
         const firstDownload=isDownload && index===templateBlocks.findIndex(item=>item.componentKey==='manuals' && !!item.data?.manuals?.length);
         const anchor=firstVideo?'product-video':firstDownload?'product-downloads':null;
         return anchor ? <div id={anchor} key={block.id}><CmsBlocks blocks={[block]} locale={locale}/></div> : <CmsBlocks key={block.id} blocks={[block]} locale={locale}/>;

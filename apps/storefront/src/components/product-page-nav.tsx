@@ -17,10 +17,10 @@ function Icon({ name }: { name: 'menu' | 'cart' | 'account' }) {
   </svg>;
 }
 
-export function ProductPageNav({ locale, model, hasSpecs, hasVideo, hasDownloads }: { locale: Locale; model: string; hasSpecs: boolean; hasVideo: boolean; hasDownloads: boolean }) {
+export function ProductPageNav({ locale, model, hasSpecs, hasVideo, hasDownloads, purchaseHref='#product-purchase', overviewHref='#product-overview' }: { locale: Locale; model: string; hasSpecs: boolean; hasVideo: boolean; hasDownloads: boolean; purchaseHref?:string; overviewHref?:string }) {
   const t = copy[locale];
   const ref = useRef<HTMLElement>(null);
-  const [active,setActive]=useState('#product-overview');
+  const [active,setActive]=useState(overviewHref);
   useEffect(() => {
     const nav = ref.current;
     const shell = nav?.closest<HTMLElement>('[lang]');
@@ -49,12 +49,12 @@ export function ProductPageNav({ locale, model, hasSpecs, hasVideo, hasDownloads
   }, [locale]);
   const closeMenus = () => ref.current?.querySelectorAll<HTMLDetailsElement>('details[open]').forEach(item => { item.open = false; });
   const links = [
-    { label: t.overview, href: '#product-overview', enabled: true },
+    { label: t.overview, href: overviewHref, enabled: true },
     { label: t.specs, href: '#product-specifications', enabled: hasSpecs },
     { label: t.video, href: '#product-video', enabled: hasVideo },
     { label: t.downloads, href: '#product-downloads', enabled: hasDownloads },
   ];
-  useEffect(()=>{const update=()=>{const offset=(ref.current?.getBoundingClientRect().bottom||0)+40;const anchors=['#product-overview','#product-specifications','#product-video','#product-downloads'];const found=anchors.map(href=>({href,el:document.getElementById(href.slice(1))})).filter(x=>x.el&&x.el.getBoundingClientRect().top<=offset).sort((a,b)=>(b.el?.getBoundingClientRect().top||0)-(a.el?.getBoundingClientRect().top||0))[0];setActive(found?.href||'#product-overview')};update();window.addEventListener('scroll',update,{passive:true});return()=>window.removeEventListener('scroll',update)},[hasSpecs,hasVideo,hasDownloads]);
+  useEffect(()=>{const update=()=>{const offset=(ref.current?.getBoundingClientRect().bottom||0)+40;const anchors=[overviewHref,'#product-specifications','#product-video','#product-downloads'];const found=anchors.map(href=>({href,el:document.getElementById(href.slice(1))})).filter(x=>x.el&&x.el.getBoundingClientRect().top<=offset).sort((a,b)=>(b.el?.getBoundingClientRect().top||0)-(a.el?.getBoundingClientRect().top||0))[0];setActive(found?.href||overviewHref)};update();window.addEventListener('scroll',update,{passive:true});return()=>window.removeEventListener('scroll',update)},[overviewHref,hasSpecs,hasVideo,hasDownloads]);
   return <nav ref={ref} className="product-section-nav product-section-nav--single" aria-label={t.nav} data-module-id="ALSVID-P00" data-module="productNavigation" onKeyDown={event => {
     if (event.key === 'Escape') {
       const open = ref.current?.querySelector<HTMLDetailsElement>('details[open]');
@@ -75,7 +75,7 @@ export function ProductPageNav({ locale, model, hasSpecs, hasVideo, hasDownloads
     <div className="product-nav-trailing">
       <details className="product-nav-purchase">
         <summary className="product-section-nav__buy"><Icon name="cart"/><span>{t.configure}</span></summary>
-        <div className="product-nav-popover" onClick={closeMenus}><a href="#product-purchase">{t.configure}</a><CartNavLink locale={locale}/></div>
+        <div className="product-nav-popover" onClick={closeMenus}><a href={purchaseHref}>{t.configure}</a><CartNavLink locale={locale}/></div>
       </details>
       <Link className="product-nav-icon" href={'/' + locale + '/account'} aria-label={t.account}><Icon name="account"/></Link>
     </div>

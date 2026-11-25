@@ -128,7 +128,7 @@ export default function CatalogPage({ lang, productId }) {
     <header className="catalog-header"><a href={home} className="catalog-brand"><img className="alsvid-brand-logo" src="/alsvid-logo.png" alt="ALSVID" /><span>{t.subtitle}</span></a><nav><a href={`${home}?orders=1`}>{lang==='zh'?'我的订单申请':lang==='de'?'Meine Anfragen':'My requests'}</a><a href={`${home}?cart=1`} aria-label={`${lang==='zh'?'购物车':lang==='de'?'Warenkorb':'Cart'}${cartCount?`, ${cartCount}`:''}`}>{lang==='zh'?'购物车':lang==='de'?'Warenkorb':'Cart'}{cartCount>0&&<span className="catalog-cart-count">{cartCount>99?'99+':cartCount}</span>}</a></nav></header>
     <main>
       {showOrders ? <CatalogOrders lang={lang}/> : showCart ? <CatalogCart lang={lang}/> : error ? <section className="catalog-state" role="alert"><p>{error}</p><button onClick={() => setAttempt(n => n + 1)}>{t.retry}</button> <a href={home}>{t.back}</a></section> : !data ? <p className="catalog-state" role="status">{t.loading}</p> : productId ? (
-        isImmersiveVehicle ? <>
+        isImmersiveVehicle ? <Fc1ScrollStory>
           {/* 旗舰整车专属沉浸式交互选配展厅（图 1 核心体验） */}
           <section id="overview" className={`${fc1Styles.hero} ${fc1Styles.interestHero}`} data-fc1-chapter>
             <Fc1ColourConfigurator locale={lang} productTitle={data?.title} productDescription={data?.description} productImage={data?.images?.[0]?.url} />
@@ -138,7 +138,7 @@ export default function CatalogPage({ lang, productId }) {
           <nav className="catalog-chapter-nav" aria-label="章节导航">
             <a href="#fc1-features">核心亮点</a>
             <a href="#fc1-two-entry">低跨车架</a>
-            <a href="#fc1-two-fold">紧凑折叠</a>
+            <a href="#fc1-folding-interactive">紧凑折叠</a>
             <a href="#fc1-two-front">隐藏前避震</a>
             <a href="#fc1-two-rear">后空气减震</a>
             <a href="#fc1-two-drive">动力响应</a>
@@ -155,10 +155,17 @@ export default function CatalogPage({ lang, productId }) {
               ? <ExistingProductPage locale={lang} myUrl="/my" dealerUrl="/dealer" catalogProduct={data}/>
               : templateBlocks.length > 0 && <BlocksRenderer blocks={templateBlocks} lang={lang}/>}
 
+          {/* 苹果/大疆级交互：机构毫米级测距与展开/闭合双态演示 */}
+          <section id="fc1-folding-interactive" className="catalog-interactive-fold" data-fc1-chapter>
+            <div className="catalog-interactive-fold__inner">
+              <FoldStatePreview locale={lang} />
+            </div>
+          </section>
+
           {data.relatedAccessories?.length>0&&<section id="fc1-accessories" className="catalog-related"><p className="catalog-eyebrow">{lang==='zh'?'适配配件':lang==='de'?'Passendes Zubehör':'Compatible accessories'}</p><h2>{lang==='zh'?'为这款车型适配':lang==='de'?'Kompatibel mit diesem Modell':'Fits this model'}</h2><div className="catalog-related__grid">{data.relatedAccessories.map(item=><a className="catalog-related__card" key={item.productId} href={`${home}/${encodeURIComponent(item.slug)}`}><div>{item.images?.[0]?<img src={item.images[0].url} alt={item.title} loading="lazy"/>:<span>{t.noImage}</span>}</div><strong>{item.title}</strong>{item.prices?.length>0&&<small>{item.prices.map(price=>`${price.currency} ${price.unitPrice}`).join(' · ')}</small>}</a>)}</div></section>}
           {(isSpecialPage || reviewsConfig.enabled) && <section className={`catalog-reviews catalog-reviews--${productLayout.reviews}`} data-module="reviews"><p className="catalog-eyebrow">{lang==='zh'?'用户评价':lang==='de'?'Kundenbewertungen':'Customer reviews'}</p><h2>{reviews?.counts?.total?`${reviews.counts.average} / 5 · ${reviews.counts.total}`:lang==='zh'?'暂无公开评价':lang==='de'?'Noch keine Bewertungen':'No reviews yet'}</h2>{(reviews?.items||[]).slice(0, isSpecialPage ? 20 : reviewsConfig.limit).map(review=><article key={review.id}><strong className="catalog-review__stars" aria-label={`${review.rating} / 5`}>{'★'.repeat(review.rating)}{'☆'.repeat(5-review.rating)}</strong><p>{review.content}</p>{review.reply&&<p className="catalog-reviews__reply">{lang==='zh'?'ALSVID 回复：':lang==='de'?'Antwort von ALSVID:':'ALSVID reply:'} {review.reply}</p>}</article>)}</section>}
           {copyModules.map((row, index) => <section className="catalog-business-module" data-module={index === 0 ? 'returns' : 'other'} key={`standard-${index}`}><h2>{row.title || (index === 0 ? (lang==='zh'?'退换货政策':lang==='de'?'Rückgabe & Umtausch':'Returns & exchanges') : (lang==='zh'?'其他说明':lang==='de'?'Weitere Informationen':'Other information'))}</h2><p>{row.body}</p></section>)}
-        </> : <>
+        </Fc1ScrollStory> : <>
           <a className="catalog-back" href={listingPath(page,selectedKind,search)}>← {t.back}</a><article className="catalog-product" data-module="info">
             <div className={`catalog-gallery catalog-gallery--${productLayout.gallery}`}>
               {productLayout.gallery === 'mosaic' && data.images.length > 1 ? <div className="catalog-gallery__mosaic">{data.images.map((image,i)=><button type="button" key={image.id} aria-label={`${data.title} ${i+1}`} onClick={()=>setActiveImage(i)}><img src={image.url} alt={`${data.title} ${i+1}`} loading={i?'lazy':undefined}/></button>)}</div> : <>

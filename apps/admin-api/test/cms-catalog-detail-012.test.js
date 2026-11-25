@@ -21,8 +21,10 @@ test('WEB-012: 分类列表页按 catalogLayout 分类导航与筛选', () => {
 
 test('WEB-012: 商品详情页支持固定业务区、真实购买与参数绑定', () => {
   const detailSrc = fs.readFileSync(path.join(__dirname, '..', '..', 'storefront', 'src', 'app', '[locale]', 'e-bikes', '[slug]', 'page.tsx'), 'utf-8');
-  assert.ok(detailSrc.includes('ProductGallery'), '包含商品主图画廊');
-  assert.ok(detailSrc.includes('CartActions'), '包含真实购买区交互 (加入购物车/选配)');
+  const purchaseSrc = fs.readFileSync(path.join(__dirname, '..', '..', 'storefront', 'src', 'components', 'product-purchase-section.tsx'), 'utf-8');
+  assert.ok(detailSrc.includes('<ProductPurchaseSection product={product} locale={locale} offers={offers} availability={availability}'), '详情页将真实商品、报价和库存传给 P01');
+  assert.ok(purchaseSrc.includes('<ProductGallery') && purchaseSrc.includes('images={product.images}'), 'P01 包含真实商品主图画廊');
+  assert.ok(purchaseSrc.includes('<CartActions') && purchaseSrc.includes('offers={offers} availability={availability}'), 'P01 包含真实购买区交互及报价库存绑定');
   assert.ok(detailSrc.includes('getCmsProductTemplate(locale, product.productId)'), '根据 productId 获取对应模板或按商品独立覆盖');
   assert.ok(detailSrc.includes('specsModule?.data?.specifications'), '技术参数绑定商品主档');
 });

@@ -55,14 +55,14 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const page = await getCmsPage(locale, `/legal/${slug}`);
   // 法定页不做 SEO 竞争，但必须可被抓取（Impressum 是德国站点信任信号）；
   // 未发布时明确 noindex，避免搜索引擎记录一个 404 页面。
-  if (!page) return { title: LEGAL_LABELS[locale].missing, robots: { index: false, follow: false } };
+  if (!page || /\{\{TODO_[A-Z_]+\}\}/i.test(JSON.stringify(page))) return { title: LEGAL_LABELS[locale].missing, robots: { index: false, follow: false } };
   return { title: pageTitle(page.seo.title, page.name), description: page.seo.description, alternates: { canonical: `${siteUrl}/${locale}/legal/${encodeURIComponent(slug)}` } };
 }
 
 export default async function LegalPage({ params }: Props) {
   const { locale, slug } = await params;
   const page = await getCmsPage(locale, `/legal/${slug}`);
-  if (!page) notFound();
+  if (!page || /\{\{TODO_[A-Z_]+\}\}/i.test(JSON.stringify(page))) notFound();
   const labels = LEGAL_LABELS[locale];
   const updated = updatedLine(page.blocks, labels.updated);
   const contents = toc(page.blocks, labels.toc);

@@ -59,7 +59,7 @@ export function useCmsDocument(row, enabled = true) {
   const publish = async () => {
     if (!row || busy) return null;
     setBusy(true);
-    try { return await api.publishCmsPage(row.id, revision); }
+    try { if(dirty)throw Error('请先保存草稿，再发布'); const updated=await api.publishCmsPage(row.id, revision); setRevision(updated.revision); setPage(updated); return updated; }
     catch (e) { setError(e.message || '发布失败'); } finally { setBusy(false); }
     return null;
   };
@@ -217,6 +217,8 @@ export function CatalogLayoutPanel({ row, locale, products, publishedMap, onPubl
   </div>;
 }
 
+import ListingVersions from './ListingVersions.jsx';
+
 export function StandardDetailPanel({ locale, products, publishedMap, productId }) {
   const [listing, setListing] = useState(null);
   const [doc, setDoc] = useState(null);
@@ -226,6 +228,7 @@ export function StandardDetailPanel({ locale, products, publishedMap, productId 
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [assets, setAssets] = useState([]);
+  const [notice,setNotice]=useState('');
   const product = products.find(p => p.id === productId);
   useEffect(() => { api.assetsAll({ category: 'page', kind: 'image' }).then(rows => setAssets(Array.isArray(rows) ? rows : [])).catch(() => setAssets([])); }, []);
   useEffect(() => {
@@ -260,8 +263,10 @@ export function StandardDetailPanel({ locale, products, publishedMap, productId 
   const doPublish = async () => {
     setBusy(true); setError('');
     try {
-      if (dirty) { const updated = await api.saveListing(listing.id, { channel: listing.channel, slug: listing.slug, document: doc, skus: listing.skus, revision }); setRevision(updated.revision); setBaseline(JSON.stringify(doc)); await api.publishListing(listing.id, updated.revision); }
-      else await api.publishListing(listing.id, revision);
+      let result;
+      if (dirty) { const updated = await api.saveListing(listing.id, { channel: listing.channel, slug: listing.slug, document: doc, skus: listing.skus, revision }); setRevision(updated.revision); setBaseline(JSON.stringify(doc)); result=await api.publishListing(listing.id, updated.revision); }
+      else result=await api.publishListing(listing.id, revision);
+      setNotice(result.storefrontRevalidate?.ok?'商品已发布，缓存回调已确认；真实页面待验收。':'商品已发布，但前台缓存刷新未确认。');
       const rows = await api.productListings(productId);
       const website = (rows || []).find(row => row.channel === 'website');
       if (website) { setListing(website); setRevision(website.revision); const clone = JSON.parse(JSON.stringify(website.draft || website.published || {})); setDoc(clone); setBaseline(JSON.stringify(clone)); }
@@ -274,7 +279,7 @@ export function StandardDetailPanel({ locale, products, publishedMap, productId 
   const poolImages = productImages.filter(image => !mediaIds.includes(image.id));
   const imageLabel = id => {
     const found = productImages.find(image => image.id === id);
-    return found?.label || '未命名图片';
+    return found?.label || assets.find(asset=>asset.id===id)?.label || '未命名图片';
   };
   const setCover = index => {
     if (index <= 0) return;
@@ -293,7 +298,8 @@ export function StandardDetailPanel({ locale, products, publishedMap, productId 
   const blockImageOptions = [...productImages.map((image, index) => ({ id: image.id, label: `商品图 ${index + 1}${image.label ? ` · ${image.label}` : ''}` })), ...assets.map(asset => ({ id: asset.id, label: `素材库 · ${asset.label || asset.fileName || asset.id}` }))];
   const imagePreview = id => productImages.some(image => image.id === id) ? `/api/products/${encodeURIComponent(productId)}/media/${encodeURIComponent(id)}` : api.assetUrl(id);
   return <div className="sdp">
-    <SaveBar dirty={dirty} busy={busy} error={error} onSave={doSave} onPublish={doPublish} publishedVersion={listing.published ? 1 : null}/>
+    <SaveBar dirty={dirty} busy={busy} error={error} onSave={doSave} onPublish={doPublish} publishedVersion={listing.publishedRevision} hint={notice}/>
+    <ListingVersions key={listing.id} listing={{...listing,revision}} disabled={dirty||busy} onRolledBack={updated=>{setListing(updated);setRevision(updated.revision);const clone=JSON.parse(JSON.stringify(updated.draft||updated.published||{}));setDoc(clone);setBaseline(JSON.stringify(clone));}}/>
     <section className="sdp__module sdp__gallery">
       <header className="sdg__head">
         <div className="sdg__head-main">
@@ -311,7 +317,7 @@ export function StandardDetailPanel({ locale, products, publishedMap, productId 
       {mediaIds.length > 0 && <div className="sdg__grid">
         {mediaIds.map((id, index) => <article className="sdg__card" key={id}>
           <div className="sdg__thumb">
-            <img src={`/api/products/${encodeURIComponent(productId)}/media/${encodeURIComponent(id)}`} alt={imageLabel(id)} loading="lazy"/>
+            <img src={imagePreview(id)} alt={imageLabel(id)} loading="lazy"/>
             {index === 0 && <span className="sdg__cover">商品封面</span>}
             <span className="sdg__no">{String(index + 1).padStart(2, '0')}</span>
           </div>
@@ -462,6 +468,8 @@ export function GlobalModulesPanel({ cms, row, locale, onEditGraphic, onSelectMo
       </section>
     </div>;
     if (active === 'returns') return <div className="sdp">
+      <button type="button" className="btn small" onClick={()=>{if((modules.returns?.body||modules.returns?.title)&&!window.confirm('替换当前语言退换货摘要草稿？线上内容不会立即改变。'))return;const copy={de:{title:'Rückgabe und Widerruf',body:'15 Tage freiwillige Rückgabe gemäß den Rückgabebedingungen. Keine 30-tägige Probefahrt. Bei freiwilliger Rückgabe aus persönlichen Gründen gelten Rücktransportkosten von 300 € für E-Bikes, 50 € für bestimmte große Zubehörteile und 35 € für sonstige Artikel. Gesetzliche Verbraucherrechte bleiben unberührt.'},en:{title:'Returns and withdrawal',body:'15-day voluntary returns under the return policy. No 30-day trial ride. For voluntary returns for personal reasons, transport charges are €300 for e-bikes, €50 for designated large accessories and €35 for other items. Statutory consumer rights remain unaffected.'},zh:{title:'退换货与撤销权',body:'按退换货政策提供15天自愿退货，不提供30天试骑。个人原因自愿退货的运输费：整车300欧元，指定大件配件50欧元，其他配件35欧元。消费者法定权利不受影响。'}};patchModules({returns:{enabled:true,...(copy[locale]||copy.zh)}})}}>载入 ALSVID 标准退换货摘要</button>
+      <p className="hint">仅替换当前语言草稿；完整政策需在法定页面审核发布后才在正式商品页展示。</p>
       <CopyEditor title="07 退换货政策" defaultTitle="退换货政策" value={modules.returns} onChange={returns => patchModules({ returns })}/>
     </div>;
     if (active === 'other') return <div className="sdp">

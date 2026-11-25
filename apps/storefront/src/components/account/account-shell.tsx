@@ -6,6 +6,7 @@ import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import type { Locale } from '@/lib/alsvid-api';
 import { ApiError, apiJson, postJson } from './account-api';
 import { COMMON, LOGIN, NAV, ROLE, SECURITY } from '@/lib/account-text';
+import { RegistrationForm } from './registration-form';
 
 type AccountUser = { id: string; username: string; role: string };
 type Status = 'loading' | 'guest' | 'forbidden' | 'owner';
@@ -149,6 +150,7 @@ function LoginGate({ locale, forbidden, username, onSignedIn, onLogout }: {
       {error && <p className="account-error" role="alert">{error}</p>}
       <button className="button" type="submit" disabled={busy || !form.username.trim() || !form.password}>{busy ? COMMON.submitting[locale] : LOGIN.submit[locale]}</button>
     </form>
+    <RegistrationForm locale={locale} onRegistered={email=>{setForm({username:email,password:''});setNotice(locale==='de'?'E-Mail bestätigt. Bitte melden Sie sich an.':locale==='en'?'Email verified. Please sign in.':'邮箱验证成功，请登录。')}}/>
     <p className="account-note">{LOGIN.notice[locale]}</p>
   </main>;
 }

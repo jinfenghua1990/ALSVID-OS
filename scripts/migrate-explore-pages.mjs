@@ -39,7 +39,7 @@ const valueOf = name => {
   return index >= 0 && args[index + 1] && !args[index + 1].startsWith('--') ? args[index + 1] : '';
 };
 const BASE = valueOf('base') || 'http://127.0.0.1:8089';
-const OUT = valueOf('out') || 'server/migrations/data/explore-pages.json';
+const OUT = valueOf('out') || 'apps/admin-api/migrations/data/explore-pages.json';
 const only = valueOf('only') ? new Set(valueOf('only').split(',').map(v => v.trim()).filter(Boolean)) : null;
 const apply = flag('apply');
 const publish = flag('publish');

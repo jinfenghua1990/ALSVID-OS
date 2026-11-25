@@ -118,6 +118,12 @@ function sessionToken(req) { const match=String(req.headers.cookie||'').match(/(
 app.addHook('onRequest',apiAccessHook(auth,sessionToken));
 app.addHook('onRequest',(req,reply,done)=>runAsActor(req.user?.username||'system',done));
 app.get('/api/auth/status',async req=>({initialized:auth?await auth.hasUsers():false,user:auth?await auth.user(sessionToken(req)):null}));
+app.get('/api/auth/registration',async()=>({enabled:!!auth?.registration.ready()}));
+for(const [suffix,action] of [['start','start'],['verify','verify']])app.post('/api/auth/registration/'+suffix,{bodyLimit:8192},async(req,reply)=>{
+  if(!auth)return reply.code(503).send({error:'账号服务不可用'});
+  if(await auth.user(sessionToken(req)))return reply.code(409).send({error:'请先退出已有账号'});
+  try{return await auth.registration[action](req.body||{})}catch(e){return reply.code(e.statusCode||503).send({error:e.statusCode?e.message:'注册服务暂不可用'})}
+});
 app.post('/api/auth/setup',async(req,reply)=>{if(!auth)return reply.code(503).send({error:'账号服务不可用'});try{await auth.setup(req.body?.username,req.body?.password);return reply.code(201).send({ok:true});}catch(e){const allowed=['管理员已设置','请输入有效邮箱或 3–64 位字母、数字、. _ - 账号','密码须为 8–20 个字符'];return reply.code(400).send({error:allowed.includes(e.message)?e.message:'管理员设置失败'});}});
 app.post('/api/auth/login',async(req,reply)=>{
   if(!auth)return reply.code(503).send({error:'账号服务不可用'});
@@ -190,10 +196,10 @@ app.post('/api/payment/providers/:provider/test', async (req, reply) => {
   try { return await payments.testProvider(req.params.provider); }
   catch (error) { return reply.code(error.statusCode || 500).send({ error: error.statusCode ? error.message : '支付连通性测试失败' }); }
 });
-app.post('/api/payment/intent', async (req, reply) => {
+app.post('/api/payment/intent', {config:{portalRoles:['owner']}}, async (req, reply) => {
   if (!req.user) return reply.code(401).send({ error: '请先登录' });
   if (!trafficReady) return reply.code(503).send({ error: '支付服务暂不可用' });
-  try { return await payments.createIntent(req.body?.provider, req.body || {}); }
+  try { return await payments.createIntent(req.body?.provider, req.body || {}, req.user); }
   catch (error) { return reply.code(error.statusCode || 500).send({ error: error.statusCode ? error.message : '发起支付失败' }); }
 });
 // 服务商回调：白名单放行匿名 POST，安全性由适配器验签保证
@@ -255,7 +261,7 @@ const catalog = process.env.DATABASE_URL ? createCatalogStore(process.env.DATABA
 registerCatalogRoutes(app, { catalog, objectStorage });
 const cms = process.env.DATABASE_URL ? createCmsStore(process.env.DATABASE_URL) : null;
 registerCmsRoutes(app, cms);
-registerStorefrontListingRoutes(app, process.env.DATABASE_URL ? createStorefrontListingStore(process.env.DATABASE_URL) : null);
+registerStorefrontListingRoutes(app, process.env.DATABASE_URL ? createStorefrontListingStore(process.env.DATABASE_URL,{onPublicationChanged:()=>catalog?.clearProductCardCache()}) : null);
 registerStorefrontCartRoutes(app,process.env.DATABASE_URL ? createStorefrontCart(process.env.DATABASE_URL) : null);
 const orderStore = process.env.DATABASE_URL ? createStorefrontOrders(process.env.DATABASE_URL) : null;
 registerStorefrontOrderRoutes(app, orderStore);
@@ -331,7 +337,7 @@ app.get('/api/products/:id/media/:mediaId', async (req,reply)=>{
 });
 
 // ---------- 静态前端 ----------
-const DIST = path.join(__dirname, '..', 'client', 'dist');
+const DIST = path.join(__dirname, '..', 'admin-web', 'dist');
 app.register(fastifyStatic, { root: DIST });
 
 const publicSiteOrigin='https://www.alsvidbike.com';
@@ -1067,7 +1073,7 @@ app.get('/api/search', async (req) => {
 // 崩溃留痕：后台进程被终止或异常退出时，至少能查到原因
 // 注意：data/ 目录可能不存在（干净部署、首次启动、被清理过）。
 // 这里必须自己建目录，并在文件写入失败时退回 stderr；否则致命错误会静默丢失。
-const ERR_DIR = path.join(__dirname, '..', 'data');
+const ERR_DIR = path.join(__dirname, 'data');
 const ERR_LOG = path.join(ERR_DIR, 'server-error.log');
 function logFatal(tag, e) {
   const line = `[${new Date().toISOString()}] ${tag}: ${e && e.stack ? e.stack : e}\n`;

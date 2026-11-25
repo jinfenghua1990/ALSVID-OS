@@ -103,21 +103,32 @@ function createStorefrontReviews(url){
     },
 
     // 公开展示：只出未隐藏评价，隐去买家账号只留脱敏用户名
-    async publicList(limit=20,productId=null){
+    async publicList(limit=20,productId=null,options={}){
       const size=Number.isSafeInteger(limit)&&limit>0&&limit<=50?limit:20;
-      if(productId!==null&&!isUuidv7(productId))fail('商品编号无效');
-      const params=productId===null?[size]:[size,productId];
-      const productFilter=productId===null?'':` AND EXISTS (SELECT 1 FROM jsonb_array_elements(o.items) item WHERE item->>'productId'=$2)`;
-      const rows=(await pool.query(`SELECT r.id,r.rating,r.content,r.reply,r.replied_at AS "repliedAt",r.created_at AS "createdAt",o.items FROM storefront_reviews r JOIN storefront_orders o ON o.id=r.order_id WHERE NOT r.hidden${productFilter} ORDER BY r.created_at DESC,r.id DESC LIMIT $1`,params)).rows;
-      const countFilter=productId===null?'':` AND EXISTS (SELECT 1 FROM jsonb_array_elements(o.items) item WHERE item->>'productId'=$1)`;
-      const countRows=(await pool.query(`SELECT count(*)::int AS total,COALESCE(round(avg(r.rating)::numeric,2),0)::text AS average,count(*) FILTER(WHERE r.rating>=4)::int AS good FROM storefront_reviews r JOIN storefront_orders o ON o.id=r.order_id WHERE NOT r.hidden${countFilter}`,productId===null?[]:[productId])).rows[0];
-      return {items:rows.map(row=>({...row,items:(row.items||[]).filter(item=>productId===null||item.productId===productId).map(item=>({productId:item.productId,productName:item.productNames?.zh||item.productName,sku:item.sku}))})),counts:{average:countRows.average,total:countRows.total,goodRate:countRows.total?Math.round(countRows.good*100/countRows.total):0}};
+      const {page,rating,sort}=publicReviewQuery(options);
+      if(productId!==null&&!validProductId(productId))fail('商品编号无效');
+      const params=[],filters=['NOT r.hidden'];
+      if(productId!==null){params.push(productId);filters.push(`EXISTS (SELECT 1 FROM jsonb_array_elements(o.items) item WHERE item->>'productId'=$${params.length})`)}
+      const baseWhere=filters.join(' AND '),baseParams=[...params];
+      if(rating){params.push(rating);filters.push(`r.rating=$${params.length}`)}
+      const orderBy=sort==='highest'?'r.rating DESC,r.created_at DESC,r.id DESC':sort==='lowest'?'r.rating ASC,r.created_at DESC,r.id DESC':'r.created_at DESC,r.id DESC';
+      params.push(size+1,(page-1)*size);
+      const rows=(await pool.query(`SELECT r.id,r.rating,r.content,r.reply,r.replied_at AS "repliedAt",r.created_at AS "createdAt",o.items FROM storefront_reviews r JOIN storefront_orders o ON o.id=r.order_id WHERE ${filters.join(' AND ')} ORDER BY ${orderBy} LIMIT $${params.length-1} OFFSET $${params.length}`,params)).rows;
+      const countRows=(await pool.query(`SELECT count(*)::int AS total,COALESCE(round(avg(r.rating)::numeric,2),0)::text AS average,count(*) FILTER(WHERE r.rating>=4)::int AS good,jsonb_build_object('1',count(*) FILTER(WHERE r.rating=1),'2',count(*) FILTER(WHERE r.rating=2),'3',count(*) FILTER(WHERE r.rating=3),'4',count(*) FILTER(WHERE r.rating=4),'5',count(*) FILTER(WHERE r.rating=5)) AS distribution FROM storefront_reviews r JOIN storefront_orders o ON o.id=r.order_id WHERE ${baseWhere}`,baseParams)).rows[0];
+      return {items:rows.slice(0,size).map(row=>({...row,items:(row.items||[]).filter(item=>productId===null||item.productId===productId).map(item=>({productId:item.productId,productName:item.productNames?.zh||item.productName,sku:item.sku}))})),page,hasMore:rows.length>size,filteredTotal:rating?Number(countRows.distribution?.[rating]||0):countRows.total,counts:{average:countRows.average,total:countRows.total,distribution:countRows.distribution,goodRate:countRows.total?Math.round(countRows.good*100/countRows.total):0}};
     },
 
     close:()=>pool.end()
   };
 }
 
+// Product identifiers in order snapshots use products.id, not entity_uuid.
+function validProductId(value){return typeof value==='string'&&value.length>0&&value.length<=160&&value===value.trim()&&!/[\x00-\x1f\x7f]/.test(value)}
+function publicReviewQuery(input={}) {
+ const page=Number(input.page??1),rating=Number(input.rating??0),sort=input.sort??'recent';
+ if(!Number.isSafeInteger(page)||page<1||page>10000||!Number.isSafeInteger(rating)||rating<0||rating>5||!['recent','highest','lowest'].includes(sort))fail('评价筛选参数无效');
+ return {page,rating,sort};
+}
 function registerStorefrontReviewRoutes(app,reviews){
   const guard=(req,reply)=>req.user?.role!=='admin'?(reply.code(403).send({error:'仅管理员可管理评价'}),false):true;
 
@@ -157,13 +168,13 @@ function registerStorefrontReviewRoutes(app,reviews){
   });
 
   app.get('/api/site/reviews',{config:{publicCatalog:true}},async(req,reply)=>{
-    reply.header('Cache-Control','public, max-age=120');
+    reply.header('Cache-Control','no-store');
     if(!reviews)return reply.code(503).send({error:'评价服务不可用'});
     const productId=typeof req.query.productId==='string'?req.query.productId:null;
-    if(productId!==null&&!isUuidv7(productId))return reply.code(400).send({error:'商品编号无效'});
-    try{return await reviews.publicList(Number(req.query.limit||20),productId)}
-    catch(_){return reply.code(500).send({error:'评价读取失败'})}
+    if(productId!==null&&!validProductId(productId))return reply.code(400).send({error:'商品编号无效'});
+    try{const options=publicReviewQuery(req.query);return await reviews.publicList(Number(req.query.limit||20),productId,options)}
+    catch(e){return reply.code(e.statusCode||500).send({error:e.statusCode?e.message:'评价读取失败'})}
   });
 }
 
-module.exports={createStorefrontReviews,registerStorefrontReviewRoutes};
+module.exports={createStorefrontReviews,registerStorefrontReviewRoutes,validProductId,publicReviewQuery};

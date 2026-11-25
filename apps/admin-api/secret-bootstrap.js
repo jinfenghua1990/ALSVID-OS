@@ -75,6 +75,7 @@ function readSecretFromManager() {
 }
 
 function loadRuntimeEnvironment() {
+  if (process.env.ALSVID_TEST_MODE === '1') throw Error('测试模式禁止读取正式环境 Secret Manager');
   let config;
   if (process.env.ALSVID_SECRET_JSON) {
     try { config = JSON.parse(process.env.ALSVID_SECRET_JSON); }

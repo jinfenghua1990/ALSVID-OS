@@ -560,6 +560,13 @@ function createAssetLibraryStore(url, objectStorage) {
       return { asset, object: await objectStorage.get(asset.key) };
     },
 
+    async publicSkuFile(id) {
+      if (!isUuidv7(id)) fail('素材不存在',404);
+      const asset=(await pool.query("SELECT ma.object_key AS key,ma.content_type AS \"contentType\" FROM media_assets ma WHERE ma.id=$1 AND ma.visibility='public' AND ma.status='published' AND ma.content_type IN ('image/jpeg','image/png','image/webp','image/avif') AND EXISTS (SELECT 1 FROM asset_links al JOIN skus sku ON sku.code=al.target_id JOIN storefront_listing_skus ls ON ls.sku_uuid=sku.entity_uuid JOIN storefront_listings l ON l.id=ls.listing_id AND l.channel='website' AND l.published IS NOT NULL JOIN products p ON p.entity_uuid=l.product_uuid AND p.status='启用' WHERE al.asset_id=ma.id AND al.target_type='sku' AND al.channel IN ('product','storefront') AND al.role IN ('hero','gallery'))",[id])).rows[0];
+      if(!asset)fail('素材不存在',404);
+      if(!objectStorage)fail('对象存储尚未配置',503);
+      return {asset,object:await objectStorage.get(asset.key)};
+    },
     async publicCmsFile(id) {
       if (!isUuidv7(id)) fail('素材不存在', 404);
       const asset = (await pool.query(`SELECT ma.object_key AS key,ma.content_type AS "contentType" FROM media_assets ma
@@ -614,6 +621,11 @@ function registerAssetLibraryRoutes(app, store) {
       const result = await store.publicHomeFile(req.params.id);
       return reply.header('X-Content-Type-Options','nosniff').header('Content-Security-Policy',"default-src 'none'; style-src 'unsafe-inline'; sandbox").header('Cache-Control','public, max-age=3600').type(result.asset.contentType).send(result.object.Body);
     } catch (error) { if (!error.statusCode) console.error(JSON.stringify({code:'HOME_MEDIA_READ_FAILED',name:error.name,errorCode:error.code,httpStatus:error.$metadata?.httpStatusCode})); return reply.code(error.statusCode || 502).send({error:error.statusCode ? error.message : '素材读取失败'}); }
+  });
+  app.get('/api/public/sku-media/:id', {config:{publicCatalog:true}}, async (req,reply)=>{
+    if(!store)return reply.code(503).send({error:'素材库服务暂不可用'});
+    try{const result=await store.publicSkuFile(req.params.id);return reply.header('X-Content-Type-Options','nosniff').header('Content-Security-Policy',"default-src 'none'; sandbox").header('Cache-Control','public, max-age=3600').type(result.asset.contentType).send(result.object.Body)}
+    catch(error){return reply.code(error.statusCode||502).send({error:error.statusCode?error.message:'素材读取失败'})}
   });
   app.get('/api/public/cms-media/:id', {config:{publicCatalog:true}}, async (req, reply) => {
     if (!store) return reply.code(503).send({error:'素材库服务暂不可用'});

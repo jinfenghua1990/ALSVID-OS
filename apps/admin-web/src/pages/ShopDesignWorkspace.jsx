@@ -7,7 +7,7 @@ import { CatalogLayoutPanel, StandardDetailPanel, GlobalModulesPanel, useCmsDocu
 const LOCALES = [['zh', '中文'], ['de', 'Deutsch'], ['en', 'English']];
 const PATH_ORDER = ['/', '/products', '/dealers', '/services', '/brand'];
 // 首页历史版本走 layout-draft 快照，和普通 CMS 页面共用同一套展示，但来源标签不同。
-const LAYOUT_VERSION_ORIGIN = { publish: '发布', rollback: '回滚', manual: '手动保存' };
+const LAYOUT_VERSION_ORIGIN = { publish: '发布', rollback: '回滚', manual: '手动保存', locale: '语言发布 / 下线' };
 
 function fmt(value) {
   if (!value) return '—';
@@ -230,13 +230,13 @@ export default function ShopDesignWorkspace({ active = true, user, onSectionChan
 
   const status = useMemo(() => {
     if (!current) return { text: '—', tone: 'none' };
-    if (current.path === '/') return layout?.publishedVersion ? { text: '线上版本正常', tone: 'live' } : { text: '尚未发布', tone: 'draft' };
+    if (current.path === '/') return layout?.publishedVersion ? { text: '已发布 · 待前台验收', tone: 'live' } : { text: '尚未发布', tone: 'draft' };
     if (current.type === 'product_template') {
       if (subPage === 'list') return row?.publishedVersion ? (row.hasDraft ? { text: '线上版式正常 · 有新草稿', tone: 'live' } : { text: '线上版式正常', tone: 'live' }) : { text: '版式未发布', tone: 'draft' };
       if (subPage === 'global') return row?.publishedVersion ? (row.hasDraft ? { text: '公共模块已发布 · 有新草稿', tone: 'live' } : { text: '公共模块已发布', tone: 'live' }) : { text: '公共模块未发布', tone: 'draft' };
       return { text: '按商品独立发布', tone: 'none' };
     }
-    if (row?.publishedVersion) return row.hasDraft ? { text: '线上版本正常 · 有新草稿', tone: 'live' } : { text: '线上版本正常', tone: 'live' };
+    if (row?.publishedVersion) return row.hasDraft ? { text: '已发布 · 有新草稿', tone: 'live' } : { text: '已发布 · 待前台验收', tone: 'live' };
     if (row?.hasDraft) return { text: '草稿待发布', tone: 'draft' };
     return { text: '未发布', tone: 'none' };
   }, [current, row, layout, subPage]);
@@ -278,7 +278,7 @@ export default function ShopDesignWorkspace({ active = true, user, onSectionChan
   // 顶部动作条：公共模块的保存 / 发布（状态来自提升到本层的 useCmsDocument）
   const doGlobalSave = async () => { if (await globalCms.save()) setNotice('公共模块草稿已保存'); };
   const doGlobalPublish = async () => {
-    if (await globalCms.publish()) { setNotice('公共模块已发布，全部商品详情页生效'); await refreshPages(); }
+    const result=await globalCms.publish(); if(result){setNotice(result.storefrontRevalidate?.ok?'公共模块已发布，缓存回调已确认；真实商品页面待验收。':'公共模块已发布，但前台缓存刷新未确认。');await refreshPages();await refreshVersions();}
   };
   // 发布记录里的「载入为草稿」：换草稿内容，不动线上，也不覆盖原始快照
   const loadVersionAsDraft = async version => {
@@ -535,10 +535,10 @@ export default function ShopDesignWorkspace({ active = true, user, onSectionChan
         </>
       </aside>}
 
-      {/* 右侧：官网实时预览（预览自己的工具条：看哪个商品、哪个版本） */}
+      {/* 右侧：后台版式预览（非正式站验收）（预览自己的工具条：看哪个商品、哪个版本） */}
       <section className="sdw__preview">
         <div className="sdw__preview-head">
-          <span className="sdw__preview-title">官网实时预览</span>
+          <span className="sdw__preview-title">后台版式预览（非正式站验收）</span>
           <div className="sdw__preview-tools">
             {isProduct && subPage !== 'list' && <select className="sdw__vselect" aria-label="预览商品" value={designProductId || ''} onChange={e => { setDesignProductId(e.target.value); setSelected('live'); }}>
               {products.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}

@@ -14,6 +14,10 @@ test('application database accepts only the explicitly configured isolated Neon 
     process.env.ALSVID_TEST_MODE = '1';
     process.env.TEST_DATABASE_URL = isolatedUrl;
     assert.doesNotThrow(() => assertApplicationDatabase(isolatedUrl));
+    assert.throws(() => assertApplicationDatabase(productionUrl), /refusing database fallback/);
+    delete process.env.TEST_DATABASE_URL;
+    assert.throws(() => assertApplicationDatabase(productionUrl), /refusing database fallback/);
+    process.env.TEST_DATABASE_URL = isolatedUrl;
     const inheritedDatabaseName = 'postgresql://user:pass@ep-test-branch-b9laycln.c-7.eu-central-1.aws.neon.tech/ALSVID%20Production';
     process.env.TEST_DATABASE_URL = inheritedDatabaseName;
     assert.doesNotThrow(() => assertApplicationDatabase(inheritedDatabaseName));

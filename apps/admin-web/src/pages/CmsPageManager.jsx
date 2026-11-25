@@ -184,7 +184,7 @@ export default function CmsPageManager({ active = true, user, onDirtyChange, onB
     setBusy(true);
     try {
       const next = await api.publishCmsPage(record.id, record.revision);
-      setRecord(next); notify('已发布，公开页面已更新。');
+      setRecord(next); notify(next.storefrontRevalidate?.ok?'已发布，缓存回调已确认；真实页面待验收。':'已发布，但前台缓存刷新未确认。',!next.storefrontRevalidate?.ok);
     } catch (e) { notify(e.message, true); }
     finally { setBusy(false); }
   };
@@ -197,12 +197,12 @@ export default function CmsPageManager({ active = true, user, onDirtyChange, onB
   const rollback = async version => {
     if (!window.confirm('将已发布内容回滚到该时间版本？会生成一个新的发布版本，旧版本记录不会被删除。')) return;
     setBusy(true);
-    try { const next = await api.rollbackCmsPage(record.id, version, record.revision); setRecord(next); setVersions(await api.cmsVersions(record.id)); notify('已回滚到所选时间版本，并生成新的发布记录。'); }
+    try { const next = await api.rollbackCmsPage(record.id, version, record.revision); setRecord(next); setVersions(await api.cmsVersions(record.id)); notify(next.storefrontRevalidate?.ok?'已回滚并生成新版本；缓存回调已确认，真实页面待验收。':'已回滚，但前台缓存刷新未确认。',!next.storefrontRevalidate?.ok); }
     catch (e) { notify(e.message, true); }
     finally { setBusy(false); }
   };
   const toggleStatus = async row => {
-    try { await api.setCmsPageStatus(row.id, row.status === 'active' ? 'disabled' : 'active'); loadRows(); notify(row.status === 'active' ? '页面已停用，公开访问将返回未发布。' : '页面已启用。'); }
+    try { const next=await api.setCmsPageStatus(row.id, row.status === 'active' ? 'disabled' : 'active'); loadRows(); notify((row.status === 'active' ? '页面已停用' : '页面已启用')+(next.storefrontRevalidate?.ok?'；缓存回调已确认，真实页面待验收。':'；前台缓存刷新未确认。'),!next.storefrontRevalidate?.ok); }
     catch (e) { notify(e.message, true); }
   };
   const remove = async row => {
@@ -263,7 +263,7 @@ export default function CmsPageManager({ active = true, user, onDirtyChange, onB
         </div>
       </div>
       {error && <p className="error-text" role="alert">{error}</p>}
-      {message && <p className="hint" role="status" />}
+      {message && <p className="hint" role="status">{typeof message === "string" ? message : message.text || message.message || ""}</p>}
       <div className="cms-editor-meta">
         <label>页面名称<input value={name} maxLength={120} onChange={e => { setName(e.target.value); setDirty(true); }}/></label>
         <label>页面路径<input value={path} maxLength={160} disabled={record.pageType === 'home' || record.pageType === 'product_template' && path.startsWith('/products/')} onChange={e => { setPath(e.target.value); setDirty(true); }}/></label>
@@ -343,7 +343,7 @@ export default function CmsPageManager({ active = true, user, onDirtyChange, onB
       <span className="hint" />
     </div>
     {error && <p className="error-text" role="alert">{error}</p>}
-    {message && <p className="hint" role="status" />}
+    {message && <p className="hint" role="status">{typeof message === "string" ? message : message.text || message.message || ""}</p>}
     {createOpen && <div className="card mt16"><h4>新建页面</h4><div className="form-grid">
       <label>页面名称<input value={form.name} maxLength={120} onChange={e => setForm({ ...form, name: e.target.value })}/></label>
       <label>页面类型<select value={form.pageType} onChange={e => setForm({ ...form, pageType: e.target.value })}>{PAGE_TYPES.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>

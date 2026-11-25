@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
-import type { Locale, Offer } from '@/lib/alsvid-api';
+import type { Locale, Offer, ProductAvailability } from '@/lib/alsvid-api';
 import { UI } from '@/lib/ui-text';
 import { guestCartKey, notifyCartChanged, readGuestCart } from './cart-storage';
 import { uuidv7 } from '@/lib/uuid';
@@ -13,13 +13,16 @@ const copy = {
   zh: { add: '加入购物车', adding: '正在加入…', view: '查看购物车', error: '购物车更新失败，请重试。', added: '已加入购物车', configuration: '选择配置', quantity: '数量', quantityLimit: '每种配置最多 100 件。', limit: '购物车最多容纳 50 种不同商品。' },
 } satisfies Record<Locale, Record<string, string>>;
 
+const COLOR_SWATCHES:Record<string,string>={BLK:'#222725',BLACK:'#222725',GRY:'#929997',GREY:'#929997',GRAY:'#929997',BLU:'#315f8a',BLUE:'#315f8a',SIL:'#c8ccca',SILVER:'#c8ccca',RED:'#a33b35',WHT:'#ffffff',WHITE:'#ffffff',GRN:'#4b7255',GREEN:'#4b7255'};
+function colorSwatch(value:string){return COLOR_SWATCHES[value.trim().toUpperCase()]||''}
+
 async function data(response: Response) {
   const body = await response.json().catch(() => null);
   if (!response.ok) throw Object.assign(new Error(body?.error || 'Request failed'), { status: response.status });
   return body;
 }
 
-export function CartActions({ locale, productId, offers }: { locale: Locale; productId: string; offers: Offer[] }) {
+export function CartActions({ locale, productId, offers, availability }: { locale: Locale; productId: string; offers: Offer[]; availability?: ProductAvailability | null }) {
   const t = copy[locale];
   const [selected, setSelected] = useState('');
   const [quantity, setQuantity] = useState(1);
@@ -27,14 +30,17 @@ export function CartActions({ locale, productId, offers }: { locale: Locale; pro
   const [message, setMessage] = useState('');
   const cartHref = `/${locale}/cart`;
   const selectedOffer = useMemo(() => offers.find(offer => `${offer.sku}|${offer.currency}` === selected), [offers, selected]);
+  const stock=selectedOffer?availability?.items?.find(item=>item.sku===selectedOffer.sku)?.available:undefined;
+  const blocked=stock===false||(!availability?.items?.length&&availability?.available===false);
+  const money=(value:string,currency:string)=>new Intl.NumberFormat(locale==='de'?'de-DE':locale==='zh'?'zh-CN':'en-IE',{style:'currency',currency}).format(Number(value));
 
   useEffect(() => {
     if (offers.length && !selected) setSelected(`${offers[0]!.sku}|${offers[0]!.currency}`);
   }, [offers, selected]);
   useEffect(() => { setQuantity(1); }, [productId]);
 
-  const add = async () => {
-    if (!selectedOffer || busy) return;
+  const add = async (direct=false) => {
+    if (!selectedOffer || busy || blocked || !Number.isSafeInteger(quantity)||quantity<1||quantity>100) return;
     setBusy(true);
     setMessage('');
     try {
@@ -50,16 +56,23 @@ export function CartActions({ locale, productId, offers }: { locale: Locale; pro
       localStorage.setItem(guestCartKey, JSON.stringify(items));
       notifyCartChanged();
       setMessage(t.added);
+      if(direct) window.location.assign(cartHref);
     } catch (error) { setMessage(error instanceof Error && error.message === 'maximum items' ? t.limit : error instanceof Error && error.message === 'maximum quantity' ? t.quantityLimit : t.error); }
     finally { setBusy(false); }
   };
+  useEffect(()=>{window.dispatchEvent(new CustomEvent('alsvid:purchase-config',{detail:{productId,price:selectedOffer?money(selectedOffer.unitPrice,selectedOffer.currency):'',disabled:!selectedOffer||blocked||busy,images:selectedOffer?.images||[]}}))},[productId,selectedOffer?.sku,selectedOffer?.unitPrice,selectedOffer?.currency,blocked,busy,locale]);
+  useEffect(()=>{const handler=(event:Event)=>{const detail=(event as CustomEvent).detail;if(detail?.productId===productId)void add(true)};window.addEventListener('alsvid:purchase-now',handler);return()=>window.removeEventListener('alsvid:purchase-now',handler)},[productId,selectedOffer,blocked,busy,quantity]);
 
-  return <div className="cart-actions">
-    {offers.length > 0 && <label className="cart-configuration"><span>{t.configuration}</span><select value={selected} onChange={event => setSelected(event.target.value)}>{offers.map(offer => <option key={`${offer.sku}|${offer.currency}`} value={`${offer.sku}|${offer.currency}`}>{offer.spec || offer.sku} · {offer.color} · {offer.currency} {offer.unitPrice}</option>)}</select></label>}
-    <label className="cart-configuration"><span>{t.quantity}</span><input type="number" min="1" max="100" step="1" value={quantity} onChange={event => setQuantity(Number(event.target.value))}/></label>
-    <button className="button" type="button" onClick={add} disabled={busy || !selectedOffer || !Number.isSafeInteger(quantity) || quantity < 1 || quantity > 100}>{busy ? t.adding : t.add}</button>
+  return <div className="cart-actions purchase-controls" id="purchase-controls">
+    <div className="purchase-price" aria-live="polite">{selectedOffer?money(selectedOffer.unitPrice,selectedOffer.currency):UI.priceOnRequest[locale]}{selectedOffer?.referencePrice&&Number(selectedOffer.referencePrice)>Number(selectedOffer.unitPrice)&&<div className="price-reference"><del>{money(selectedOffer.referencePrice,selectedOffer.currency)}</del><small>{locale==='de'?'Niedrigster Preis der 30 Tage vor der Preisermäßigung':locale==='en'?'Lowest price in the 30 days before the reduction':'降价前30天最低售价'}</small></div>}</div>
+    {offers.length>0&&<fieldset className="purchase-variants"><legend>{t.configuration}</legend><div className="variant-options">{offers.map(offer=>{const key=offer.sku+'|'+offer.currency;return <label className={'variant-option'+(selected===key?' selected':'')} key={key}><input type="radio" name={'configuration-'+productId} checked={selected===key} onChange={()=>setSelected(key)}/><span className="variant-option__label"><strong><i className="variant-swatch" aria-hidden="true" style={colorSwatch(offer.color)?{backgroundColor:colorSwatch(offer.color)}:undefined}/>{offer.color||offer.sku}</strong><small>{offer.spec||offer.sku}</small></span></label>})}</div></fieldset>}
+    <p className="availability" aria-live="polite">{blocked?UI.outOfStock[locale]:stock===true?UI.inStockGermany[locale]:UI.availabilityUnknown[locale]}</p>
+    <div className="purchase-qty"><span>{t.quantity}</span><div><button type="button" aria-label="−" disabled={quantity<=1} onClick={()=>setQuantity(n=>Math.max(1,n-1))}>−</button><input aria-label={t.quantity} type="number" min="1" max="100" step="1" value={quantity} onChange={e=>setQuantity(Number(e.target.value))}/><button type="button" aria-label="+" disabled={quantity>=100} onClick={()=>setQuantity(n=>Math.min(100,n+1))}>+</button></div></div>
+    <button className="button" type="button" onClick={()=>add()} disabled={busy||!selectedOffer||blocked||!Number.isSafeInteger(quantity)||quantity<1||quantity>100}>{busy?t.adding:t.add}</button>
+    <button className="purchase-direct" type="button" onClick={()=>add(true)} disabled={busy||!selectedOffer||blocked||!Number.isSafeInteger(quantity)||quantity<1||quantity>100}>{locale==='de'?'Zur Bestellung':locale==='en'?'Continue to order':'立即订购'}</button>
     <Link className="cart-view-link" href={cartHref}>{t.view} →</Link>
-    {message && <p role="status">{message}</p>}
+    <p className="purchase-disclaimer">{locale==='de'?'Unverbindliche Bestellanfrage; keine Online-Zahlung.':locale==='en'?'Non-binding order request; no online payment.':'非约束性订购申请，暂不在线收款。'}</p>
+    {message&&<p role="status">{message}</p>}
   </div>;
 }
 

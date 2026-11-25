@@ -195,7 +195,7 @@ function createCatalogStore(connectionString) {
     const rows = (await pool.query(`SELECT p.id,p.kind,l.published,l.slug,COALESCE(price.rows,'[]'::jsonb) AS prices
       FROM fits f JOIN products p ON p.entity_uuid=f.part_product_uuid
       JOIN storefront_listings l ON l.product_uuid=p.entity_uuid AND l.channel='website' AND l.published IS NOT NULL
-      LEFT JOIN LATERAL (SELECT jsonb_agg(jsonb_build_object('currency',offers.currency,'unitPrice',offers.unit_price) ORDER BY offers.currency) AS rows FROM (SELECT lp.currency,min(lp.unit_price)::text AS unit_price FROM storefront_listing_prices lp JOIN storefront_listing_skus ls ON ls.listing_id=lp.listing_id AND ls.sku_uuid=lp.sku_uuid WHERE lp.listing_id=l.id AND lp.published GROUP BY lp.currency) offers) price ON true
+      LEFT JOIN LATERAL (SELECT jsonb_agg(jsonb_build_object('currency',offers.currency,'unitPrice',offers.unit_price,'referencePrice',offers.reference_price) ORDER BY offers.currency) AS rows FROM (SELECT DISTINCT ON (lp.currency) lp.currency,lp.unit_price::text AS unit_price,lp.reference_price::text AS reference_price FROM storefront_effective_listing_prices lp JOIN storefront_listing_skus ls ON ls.listing_id=lp.listing_id AND ls.sku_uuid=lp.sku_uuid JOIN skus s ON s.entity_uuid=ls.sku_uuid AND NOT s.disabled WHERE lp.listing_id=l.id AND lp.published ORDER BY lp.currency,lp.unit_price,lp.sku_uuid) offers) price ON true
       WHERE f.vehicle_product_uuid=(SELECT entity_uuid FROM products WHERE id=$1 AND kind='vehicle') AND p.kind='part' AND p.status='启用' AND l.published->'languages' ? $2
       ORDER BY p.name,p.id LIMIT 12`, [productId, lang])).rows;
     return rows.map(row => publicRow(row, lang)).filter(Boolean);
@@ -343,7 +343,7 @@ function createCatalogStore(connectionString) {
   function setCachedProductCards(ids, locale, products) {
     productCardCache.set(productCardCacheKey(ids, locale), { at: Date.now(), products });
   }
-  function clearProductCardCache() { productCardCache.clear(); }
+  function clearProductCardCache() { productCardCache.clear(); clearPublishedLayoutCache(); }
   async function decorateProductCards(html, locale) {
     if (typeof html !== 'string' || !html.includes('data-alsvid-product-id=')) return html;
     try {
@@ -351,16 +351,15 @@ function createCatalogStore(connectionString) {
       if (!ids.length) return html;
       let products = getCachedProductCards(ids, locale);
       if (!products) {
-        const rows = (await pool.query(`SELECT p.id,p.kind,l.published,'[]'::jsonb AS prices
+        const rows = (await pool.query(`SELECT p.id,p.kind,l.published,l.slug,'[]'::jsonb AS prices
           FROM products p JOIN storefront_listings l ON l.product_uuid=p.entity_uuid AND l.channel='website' AND l.published IS NOT NULL
           WHERE p.id=ANY($1::text[]) AND p.status='启用' AND l.published->'languages' ? $2`, [ids, locale])).rows;
         products = new Map(rows.map(row => [row.id, publicRow(row, locale)]).filter(([, item]) => item));
         setCachedProductCards(ids, locale, products);
       }
-      if (!products.size) return html;
       return html.replace(/<article\b([^>]*\bdata-alsvid-product-id="([^"]+)"[^>]*)>([\s\S]*?)<\/article>/g, (full, attrs, id, inner) => {
         const item = products.get(id);
-        if (!item) return full;
+        if (!item) return '';
         let body = inner;
         const image = item.images?.[0]?.url;
         if (image) body = body.replace(/<div\s+class="product-image"[^>]*>[\s\S]*?<\/div>/i,
@@ -440,11 +439,12 @@ function createCatalogStore(connectionString) {
           for(const [code,entry] of Object.entries(prevLocales)) if(!packedLocales[code]) packedLocales[code]=entry;
         }
       }
-      const snapshot=JSON.stringify({html:packText(html),css:packText(css||''),version:old.version,locales:packedLocales});
-      const after=(await c.query('UPDATE storefront_layout_drafts SET html=$1,css=$2,published=$3::jsonb,published_version=version,published_by=$4,published_at=now() WHERE id=$5 RETURNING published_version AS "publishedVersion",published_at AS "publishedAt"',[packText(html),packText(css||''),snapshot,currentActor(),old.id])).rows[0];
+      const releaseVersion=await nextLayoutVersion(c,old);
+      const snapshot=JSON.stringify({html:packText(html),css:packText(css||''),version:releaseVersion,sourceDraftVersion:old.version,locales:packedLocales});
+      const after=(await c.query('UPDATE storefront_layout_drafts SET html=$1,css=$2,published=$3::jsonb,published_version=$6,published_by=$4,published_at=now() WHERE id=$5 RETURNING published_version AS "publishedVersion",published_at AS "publishedAt"',[packText(html),packText(css||''),snapshot,currentActor(),old.id,releaseVersion])).rows[0];
       await c.query('INSERT INTO audit_log(actor,action,target,before_json,after_json) VALUES($1,$2,$3,$4,$5)',[currentActor(),'storefront.layout.publish','storefront-layout-drafts/home',JSON.stringify({publishedVersion:old.publishedVersion||null}),JSON.stringify({publishedVersion:after.publishedVersion,bytes:Buffer.byteLength(html,'utf8'),locales:Object.keys(locales)})]);
       // 版本快照：回滚的唯一依据。audit_log 只记元数据，不含内容，故单独落表。
-      // 表由迁移 178 建立；未迁移时静默跳过，发布主流程不受影响。
+      // 快照失败则整个发布事务回滚。
       await recordLayoutVersion(c,{version:after.publishedVersion,snapshot,origin:'publish',publishedBy:currentActor()});
       await c.query('COMMIT');
       clearPublishedLayoutCache();
@@ -497,10 +497,11 @@ function createCatalogStore(connectionString) {
       const snapshot=localeSnapshotOf(old.published);
       // 中文是源语言：它没发布过就先发中文，否则 /zh 会拿到空页面
       if(locale!=='zh'&&!unpackText(snapshot.html).trim())fail('请先发布中文首页，再发布其他语言');
+      const releaseVersion=await nextLayoutVersion(c,old);
       if(locale==='zh'){snapshot.html=packText(html);snapshot.css=packText(rawCss||'')}
-      else snapshot.locales[locale]={html:packText(html),css:packText(rawCss||''),version:old.version,publishedAt:new Date().toISOString(),publishedBy:currentActor()};
-      snapshot.version=old.version;
-      const after=(await c.query('UPDATE storefront_layout_drafts SET published=$1::jsonb,published_version=version,published_by=$2,published_at=now() WHERE id=$3 RETURNING published_version AS "publishedVersion",published_at AS "publishedAt"',[JSON.stringify(snapshot),currentActor(),old.id])).rows[0];
+      else snapshot.locales[locale]={html:packText(html),css:packText(rawCss||''),version:releaseVersion,publishedAt:new Date().toISOString(),publishedBy:currentActor()};
+      snapshot.version=releaseVersion;snapshot.sourceDraftVersion=old.version;
+      const after=(await c.query('UPDATE storefront_layout_drafts SET published=$1::jsonb,published_version=$4,published_by=$2,published_at=now() WHERE id=$3 RETURNING published_version AS "publishedVersion",published_at AS "publishedAt"',[JSON.stringify(snapshot),currentActor(),old.id,releaseVersion])).rows[0];
       // 单语言发布同样改变 published，必须留版本快照，否则回滚会跨过这一步
       await recordLayoutVersion(c,{version:after.publishedVersion,snapshot:JSON.stringify(snapshot),origin:'locale',publishedBy:currentActor(),note:(LAYOUT_LOCALE_LABELS[locale]||locale)+' 单独发布'});
       await c.query('INSERT INTO audit_log(actor,action,target,before_json,after_json) VALUES($1,$2,$3,$4,$5)',[currentActor(),'storefront.layout.publish_locale','storefront-layout-drafts/home',JSON.stringify({publishedVersion:old.publishedVersion||null,locale}),JSON.stringify({publishedVersion:after.publishedVersion,locale,untranslated})]);
@@ -525,7 +526,9 @@ function createCatalogStore(connectionString) {
       const snapshot=localeSnapshotOf(old.published);
       if(!snapshot.locales[locale]){await c.query('ROLLBACK');return {locale,removed:false,publishedVersion:old.publishedVersion||null}}
       delete snapshot.locales[locale];
-      const after=(await c.query('UPDATE storefront_layout_drafts SET published=$1::jsonb,published_version=version,published_by=$2,published_at=now() WHERE id=$3 RETURNING published_version AS "publishedVersion"',[JSON.stringify(snapshot),currentActor(),old.id])).rows[0];
+      const releaseVersion=await nextLayoutVersion(c,old);
+      snapshot.version=releaseVersion;snapshot.sourceDraftVersion=old.version;
+      const after=(await c.query('UPDATE storefront_layout_drafts SET published=$1::jsonb,published_version=$4,published_by=$2,published_at=now() WHERE id=$3 RETURNING published_version AS "publishedVersion"',[JSON.stringify(snapshot),currentActor(),old.id,releaseVersion])).rows[0];
       await recordLayoutVersion(c,{version:after.publishedVersion,snapshot:JSON.stringify(snapshot),origin:'locale',publishedBy:currentActor(),note:(LAYOUT_LOCALE_LABELS[locale]||locale)+' 下线'});
       await c.query('INSERT INTO audit_log(actor,action,target,before_json,after_json) VALUES($1,$2,$3,$4,$5)',[currentActor(),'storefront.layout.unpublish_locale','storefront-layout-drafts/home',JSON.stringify({locale}),JSON.stringify({locale,publishedVersion:after.publishedVersion})]);
       await c.query('COMMIT');
@@ -617,13 +620,14 @@ function createCatalogStore(connectionString) {
     return syncHomeLayout({html,css,version:snapshot.version||null});
   }
   // ── 发布版本历史与回滚（迁移 178） ──
-  // 版本快照是回滚的唯一依据，因此默认「非表不存在的错误一律让发布失败」，
-  // 绝不能出现「发布成功但无法回滚」的版本。
-  // 过渡期例外：迁移 178 尚未执行时（42P01）放行，便于先上线功能；
-  // 设置 ALSVID_LAYOUT_VERSION_STRICT=1 后连这种情况也视为失败，正式上线必须开启。
-  const LAYOUT_VERSION_STRICT = String(process.env.ALSVID_LAYOUT_VERSION_STRICT || '') === '1';
+  // 快照是发布事务的强制条件，不允许关闭。
+  // All callers hold the same transaction advisory lock. Release IDs are independent of draft revisions.
+  async function nextLayoutVersion(client,row){
+    const max=(await client.query("SELECT COALESCE(MAX(version),0) AS version FROM storefront_layout_versions WHERE slug='home'")).rows[0].version;
+    return Math.max(Number(max),Number(row.publishedVersion||0),Number(row.version||0)-1)+1;
+  }
   async function recordLayoutVersion(client,{version,snapshot,origin='publish',rolledBackFrom=null,publishedBy,note=null}){
-    if(!Number.isSafeInteger(version)||version<=0)return;
+    if(!Number.isSafeInteger(version)||version<=0)fail('版本快照编号无效，已取消操作',500);
     // 必须用 SAVEPOINT 隔离：PostgreSQL 里一条语句失败会让整个事务进入 aborted 状态，
     // 后续 COMMIT 会静默变成 ROLLBACK。先回滚到保存点，再决定是放行还是让发布失败。
     try{
@@ -631,20 +635,12 @@ function createCatalogStore(connectionString) {
       await client.query(
         `INSERT INTO storefront_layout_versions(slug,version,snapshot,published_by,published_at,origin,rolled_back_from,note)
          VALUES('home',$1,$2::jsonb,$3,now(),$4,$5,$6)
-         -- 同一版本号若先被「保存版本」占用，正式发布必须覆盖成发布快照，
-         -- 否则版本历史里记的是旧内容，回滚会拿到错的版本。
-         ON CONFLICT (slug,version) DO UPDATE SET
-           snapshot=EXCLUDED.snapshot, published_by=EXCLUDED.published_by, published_at=EXCLUDED.published_at,
-           origin=EXCLUDED.origin, rolled_back_from=EXCLUDED.rolled_back_from, note=EXCLUDED.note`,
+`,
         [version,snapshot,publishedBy,origin,rolledBackFrom,note]);
       await client.query('RELEASE SAVEPOINT layout_version');
     }catch(error){
       await client.query('ROLLBACK TO SAVEPOINT layout_version').catch(()=>{});
       const missingTable = error?.code === '42P01';
-      if(missingTable && !LAYOUT_VERSION_STRICT){
-        console.error(JSON.stringify({level:'warn',code:'LAYOUT_VERSION_TABLE_MISSING',message:'迁移 178 未执行，本次发布不留版本快照（过渡期放行）'}));
-        return;
-      }
       console.error(JSON.stringify({level:'error',code:'LAYOUT_VERSION_RECORD_FAILED',sqlState:error?.code||null,message:String(error?.message||'').slice(0,200)}));
       // 抛出后由 publishStorefrontLayoutDraft 的 catch 回滚整个事务 —— 发布不会生效
       fail('版本快照保存失败，已取消本次发布（' + (missingTable ? '版本历史表不存在，请先执行迁移 178' : String(error?.message||'未知错误').slice(0,120)) + '）', 500);
@@ -710,9 +706,12 @@ function createCatalogStore(connectionString) {
       if(!source)fail('找不到该版本的发布快照',404);
       const old=(await c.query("SELECT id,version,published_version AS \"publishedVersion\" FROM storefront_layout_drafts WHERE slug=$1 FOR UPDATE",['home'])).rows[0];
       if(!old)fail('云端还没有装修草稿');
-      if(old.publishedVersion===target&&old.version===target)fail('当前线上就是这个版本，无需回滚',409);
-      const snapshot=typeof source.snapshot==='string'?source.snapshot:JSON.stringify(source.snapshot);
-      const after=(await c.query('UPDATE storefront_layout_drafts SET published=$1::jsonb,published_version=version,published_by=$2,published_at=now() WHERE id=$3 RETURNING published_version AS "publishedVersion",published_at AS "publishedAt"',[snapshot,currentActor(),old.id])).rows[0];
+      const current=(await c.query("SELECT rolled_back_from FROM storefront_layout_versions WHERE slug='home' AND version=$1",[old.publishedVersion])).rows[0];
+      if(old.publishedVersion===target||current?.rolled_back_from===target)fail('当前线上就是这个版本，无需回滚',409);
+      const releaseVersion=await nextLayoutVersion(c,old);
+      const original=typeof source.snapshot==='string'?JSON.parse(source.snapshot):source.snapshot;
+      const snapshot=JSON.stringify({...original,version:releaseVersion});
+      const after=(await c.query('UPDATE storefront_layout_drafts SET published=$1::jsonb,published_version=$4,published_by=$2,published_at=now() WHERE id=$3 RETURNING published_version AS "publishedVersion",published_at AS "publishedAt"',[snapshot,currentActor(),old.id,releaseVersion])).rows[0];
       await c.query('INSERT INTO audit_log(actor,action,target,before_json,after_json) VALUES($1,$2,$3,$4,$5)',[currentActor(),'storefront.layout.rollback','storefront-layout-drafts/home',JSON.stringify({publishedVersion:old.publishedVersion||null}),JSON.stringify({publishedVersion:after.publishedVersion,rolledBackFrom:target})]);
       await recordLayoutVersion(c,{version:after.publishedVersion,snapshot,origin:'rollback',rolledBackFrom:target,publishedBy:currentActor(),note:typeof note==='string'&&note.trim()?note.trim().slice(0,500):null});
       await c.query('COMMIT');
@@ -737,7 +736,7 @@ function createCatalogStore(connectionString) {
       return {publishedVersion:null,storefrontRevalidate};
     }catch(error){await c.query('ROLLBACK').catch(()=>{});throw error}finally{c.release()}
   }
-  async function saveStorefrontLayoutDraft(input) {
+  async function saveStorefrontLayoutDraft(input,saveSnapshot=false) {
     if(!input||!input.project||typeof input.project!=='object'||Array.isArray(input.project))fail('装修方案格式无效');
     if(!Number.isSafeInteger(input.expectedVersion)||input.expectedVersion<0)fail('请先读取最新云端草稿');
     const html=cleanPageHtml(layoutText(input.html,'页面 HTML',2*1024*1024)),css=layoutText(input.css,'页面样式',2*1024*1024);
@@ -760,27 +759,21 @@ function createCatalogStore(connectionString) {
         ?(await c.query(`UPDATE storefront_layout_drafts SET project=$1,html=COALESCE($4,html),css=COALESCE($5,css),translations=COALESCE($6::jsonb,translations),version=version+1,updated_by=$2,updated_at=now() WHERE id=$3 RETURNING ${LAYOUT_META_COLUMNS}`,[serialized,currentActor(),old.id,htmlPack,cssPack,translationsJson])).rows[0]
         :(await c.query(`INSERT INTO storefront_layout_drafts(slug,project,html,css,translations,version,updated_by) VALUES($1,$2,$4,$5,COALESCE($6::jsonb,'{}'::jsonb),1,$3) RETURNING ${LAYOUT_META_COLUMNS}`,['home',serialized,currentActor(),htmlPack,cssPack,translationsJson])).rows[0];
       await c.query('INSERT INTO audit_log(actor,action,target,before_json,after_json) VALUES($1,$2,$3,$4,$5)',[currentActor(),'storefront.layout_draft.save','storefront-layout-drafts/home',old?JSON.stringify({version:old.version,updatedAt:old.updatedAt}):null,JSON.stringify({version:after.version,updatedAt:after.updatedAt})]);
+      if(saveSnapshot){
+        const row=(await c.query("SELECT html,css,version,published_version AS \"publishedVersion\" FROM storefront_layout_drafts WHERE slug='home'")).rows[0];
+        const snapshotVersion=await nextLayoutVersion(c,row);
+        const snapshot=JSON.stringify({html:row.html||'',css:row.css||'',version:snapshotVersion,sourceDraftVersion:row.version,locales:{}});
+        const note=typeof input.note==='string'?input.note.trim().slice(0,120):'';
+        await recordLayoutVersion(c,{version:snapshotVersion,snapshot,origin:'manual',publishedBy:currentActor(),note:note||'手动保存'});
+        after.snapshotVersion=snapshotVersion;
+      }
       await c.query('COMMIT');
       return after;
     }catch(error){await c.query('ROLLBACK').catch(()=>{});throw error}finally{c.release()}
   }
   // 保存版本：把当前内容落盘成草稿（版本号 +1），并在版本历史里留一份 origin='manual' 的快照。
   // 与「发布」的区别是完全不碰 published / published_version，线上不受影响。
-  async function saveLayoutSnapshot(input={}) {
-    const note=typeof input.note==='string'&&input.note.trim()?input.note.trim().slice(0,120):null;
-    const after=await saveStorefrontLayoutDraft(input);
-    // 草稿已落盘，html/css 是 packText 后的文本，直接塞进快照即可（读取端会透明解压）
-    const row=(await pool.query("SELECT html,css,version FROM storefront_layout_drafts WHERE slug='home'")).rows[0];
-    if(!row)fail('保存版本失败：云端草稿不存在');
-    const snapshot=JSON.stringify({html:row.html||'',css:row.css||'',version:row.version,locales:{}});
-    const c=await pool.connect();
-    try{
-      await c.query('BEGIN');
-      await recordLayoutVersion(c,{version:row.version,snapshot,origin:'manual',publishedBy:currentActor(),note:note||('手动保存 v'+row.version)});
-      await c.query('COMMIT');
-    }catch(error){await c.query('ROLLBACK').catch(()=>{});throw error}finally{c.release()}
-    return {...after,snapshotVersion:row.version};
-  }
+  async function saveLayoutSnapshot(input={}) { return saveStorefrontLayoutDraft(input,true); }
   return {
     clearProductCardCache,
     async getDraft(id) { await product(pool, id); return (await pool.query(`SELECT ${columns} FROM catalog_publications WHERE product_id=$1`, [id])).rows[0] || empty(id); },
@@ -828,7 +821,7 @@ function createCatalogStore(connectionString) {
       // 销量=已付款/已发货/已送达订单的商品数量合计；无订单时 sold=0，顺序回退 p.id 保持稳定。
       const salesJoin=sort==='sales'?" LEFT JOIN LATERAL (SELECT COALESCE(sum(oi.quantity),0)::int AS sold FROM storefront_order_items oi JOIN storefront_orders o ON o.id=oi.order_id AND o.status IN ('paid','shipped','delivered') JOIN storefront_listing_skus ls ON ls.sku_uuid=oi.sku_uuid WHERE ls.listing_id=l.id) sales ON true":'';
       const orderBy=sort==='sales'?'sales.sold DESC,p.id':'p.id';
-      const rows = (await pool.query(`SELECT p.id,p.kind,l.published,l.slug,COALESCE(price.rows,'[]'::jsonb) AS prices FROM products p JOIN storefront_listings l ON l.product_uuid=p.entity_uuid AND l.channel='website' AND l.published IS NOT NULL LEFT JOIN LATERAL (SELECT jsonb_agg(jsonb_build_object('currency',offers.currency,'unitPrice',offers.unit_price) ORDER BY offers.currency) AS rows FROM (SELECT lp.currency,min(lp.unit_price)::text AS unit_price FROM storefront_listing_prices lp JOIN storefront_listing_skus ls ON ls.listing_id=lp.listing_id AND ls.sku_uuid=lp.sku_uuid WHERE lp.listing_id=l.id AND lp.published GROUP BY lp.currency) offers) price ON true${salesJoin} WHERE p.status='启用' AND l.published->'languages' ? $1${filter} ORDER BY ${orderBy} LIMIT 25 OFFSET $2`, values)).rows;
+      const rows = (await pool.query(`SELECT p.id,p.kind,l.published,l.slug,COALESCE(price.rows,'[]'::jsonb) AS prices FROM products p JOIN storefront_listings l ON l.product_uuid=p.entity_uuid AND l.channel='website' AND l.published IS NOT NULL LEFT JOIN LATERAL (SELECT jsonb_agg(jsonb_build_object('currency',offers.currency,'unitPrice',offers.unit_price,'referencePrice',offers.reference_price) ORDER BY offers.currency) AS rows FROM (SELECT DISTINCT ON (lp.currency) lp.currency,lp.unit_price::text AS unit_price,lp.reference_price::text AS reference_price FROM storefront_effective_listing_prices lp JOIN storefront_listing_skus ls ON ls.listing_id=lp.listing_id AND ls.sku_uuid=lp.sku_uuid JOIN skus s ON s.entity_uuid=ls.sku_uuid AND NOT s.disabled WHERE lp.listing_id=l.id AND lp.published ORDER BY lp.currency,lp.unit_price,lp.sku_uuid) offers) price ON true${salesJoin} WHERE p.status='启用' AND l.published->'languages' ? $1${filter} ORDER BY ${orderBy} LIMIT 25 OFFSET $2`, values)).rows;
       return { items: rows.slice(0, 24).map(row => publicRow(row, lang)), hasMore: rows.length > 24 };
     },
     async get(slug, lang, options = {}) {
@@ -842,7 +835,7 @@ function createCatalogStore(connectionString) {
       const product = publicRow({ ...row, published: row.document }, lang);
       return { ...product, detailBlocks: await detailImageUrls(row.id, product.detailBlocks), relatedAccessories: row.kind === 'vehicle' ? await relatedAccessories(row.id, lang) : [] };
     },
-    async offers(slug,lang) {return (await pool.query(`SELECT s.code AS sku,s.spec,s.color_code AS color,lp.currency,lp.unit_price::text AS "unitPrice" FROM storefront_listings l JOIN products p ON p.entity_uuid=l.product_uuid JOIN storefront_listing_skus ls ON ls.listing_id=l.id JOIN skus s ON s.entity_uuid=ls.sku_uuid JOIN storefront_listing_prices lp ON lp.listing_id=l.id AND lp.sku_uuid=s.entity_uuid WHERE l.channel='website' AND (l.slug=$1 OR p.id=$1 OR BTRIM(LOWER(p.specs->>'_seoProductId'))=$1) AND l.published IS NOT NULL AND p.status='启用' AND l.published->'languages' ? $2 AND lp.published ORDER BY s.code,lp.currency`,[slug,lang])).rows;},
+    async offers(slug,lang) {return (await pool.query(`SELECT s.code AS sku,s.spec,s.color_code AS color,lp.currency,lp.unit_price::text AS "unitPrice",lp.reference_price::text AS "referencePrice",lp.promotion_ends_at AS "promotionEndsAt",COALESCE(sku_media.images,'[]'::jsonb) AS images FROM storefront_listings l JOIN products p ON p.entity_uuid=l.product_uuid JOIN storefront_listing_skus ls ON ls.listing_id=l.id JOIN skus s ON s.entity_uuid=ls.sku_uuid JOIN storefront_effective_listing_prices lp ON lp.listing_id=l.id AND lp.sku_uuid=s.entity_uuid LEFT JOIN LATERAL (SELECT jsonb_agg(jsonb_build_object('id',ma.id::text,'url','/api/public/sku-media/'||ma.id::text) ORDER BY al.sort_order,ma.id) AS images FROM asset_links al JOIN media_assets ma ON ma.id=al.asset_id WHERE al.target_type='sku' AND al.target_id=s.code AND al.channel IN ('product','storefront') AND al.role IN ('hero','gallery') AND ma.visibility='public' AND ma.status='published' AND ma.content_type IN ('image/jpeg','image/png','image/webp','image/avif')) sku_media ON true WHERE l.channel='website' AND (l.slug=$1 OR p.id=$1 OR BTRIM(LOWER(p.specs->>'_seoProductId'))=$1) AND l.published IS NOT NULL AND p.status='启用' AND l.published->'languages' ? $2 AND lp.published AND NOT s.disabled ORDER BY s.code,lp.currency`,[slug,lang])).rows;},
     async availability(slug,lang) {
       const product=(await pool.query(`SELECT p.entity_uuid,l.id AS listing_id FROM products p JOIN storefront_listings l ON l.product_uuid=p.entity_uuid AND l.channel='website' AND (l.slug=$1 OR p.id=$1 OR BTRIM(LOWER(p.specs->>'_seoProductId'))=$1) AND l.published IS NOT NULL
         WHERE p.status='启用' AND l.published->'languages' ? $2`,[slug,lang])).rows[0];
@@ -860,7 +853,7 @@ function createCatalogStore(connectionString) {
         WHERE w.country_code='DE' AND w.status='启用' AND w.warehouse_purpose='B2C 仓'
           AND stock.quantity-reserved.quantity>0) AS available
         FROM storefront_listing_skus ls JOIN skus s ON s.entity_uuid=ls.sku_uuid JOIN storefront_listing_prices lp ON lp.listing_id=ls.listing_id AND lp.sku_uuid=s.entity_uuid
-        WHERE ls.listing_id=$1 AND lp.published AND lp.currency='EUR' GROUP BY s.code ORDER BY s.code`,[product.listing_id])).rows;
+        WHERE ls.listing_id=$1 AND lp.published AND NOT s.disabled AND lp.currency='EUR' GROUP BY s.code ORDER BY s.code`,[product.listing_id])).rows;
       return {available:rows.some(row=>row.available),items:rows};
     },
     async sitemapProducts() {return (await pool.query(`SELECT l.slug,array_agg(DISTINCT languages.code ORDER BY languages.code) AS languages FROM products p JOIN storefront_listings l ON l.product_uuid=p.entity_uuid AND l.channel='website' AND l.published IS NOT NULL CROSS JOIN LATERAL jsonb_object_keys(l.published->'languages') AS languages(code) WHERE p.status='启用' AND languages.code=ANY($1::text[]) AND l.slug<>'' GROUP BY p.id,l.slug ORDER BY p.id`,[LANGUAGES])).rows;},

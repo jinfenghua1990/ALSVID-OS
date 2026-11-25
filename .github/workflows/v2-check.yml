@@ -1,0 +1,33 @@
+name: ALSVID V2 build checks (no deployment)
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths: ['apps/admin-api/**', 'apps/admin-web/**', 'apps/storefront/**', 'scripts/**', 'infra/**', '.dockerignore', '.github/workflows/v2-check.yml']
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node scripts/verify-v2.mjs --install
+  docker-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate isolated compose
+        env:
+          TEST_DATABASE_URL: postgresql://test:placeholder@ep-test.invalid.neon.tech/test
+          ALSVID_PREVIEW_SECRET: ci-placeholder-not-a-real-secret-1234
+          ALSVID_REVALIDATE_TOKEN: ci-placeholder-not-a-real-token
+        run: docker compose -f infra/docker-compose.v2-test.yml config --quiet
+      - name: Build images only (no database, no deployment)
+        run: |
+          docker build -f infra/docker/Dockerfile.v2-api -t alsvid-v2-api-ci .
+          docker build -f infra/docker/Dockerfile.v2-storefront -t alsvid-v2-storefront-ci .

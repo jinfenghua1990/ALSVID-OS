@@ -8,6 +8,7 @@ import { L7ProductPage } from '../website/_components/product/l7-product';
 import { L8ProductPage } from '../website/_components/product/l8-product';
 import { Fc2ProductPage } from '../website/_components/product/fc2-product';
 import { Fc1StoryPage } from '../website/_components/product/fc1-story-v4';
+import A1UltraImmersiveStory from './A1UltraImmersiveStory.jsx';
 import { Fc1ColourConfigurator } from '../website/_components/product/fc1-colour-configurator';
 import { Fc1ScrollStory } from '../website/_components/product/fc1-scroll-story';
 import { FoldStatePreview } from '../website/_components/product/fc1-interactions';
@@ -128,10 +129,12 @@ export default function CatalogPage({ lang, productId }) {
     <header className="catalog-header"><a href={home} className="catalog-brand"><img className="alsvid-brand-logo" src="/alsvid-logo.png" alt="ALSVID" /><span>{t.subtitle}</span></a><nav><a href={`${home}?orders=1`}>{lang==='zh'?'我的订单申请':lang==='de'?'Meine Anfragen':'My requests'}</a><a href={`${home}?cart=1`} aria-label={`${lang==='zh'?'购物车':lang==='de'?'Warenkorb':'Cart'}${cartCount?`, ${cartCount}`:''}`}>{lang==='zh'?'购物车':lang==='de'?'Warenkorb':'Cart'}{cartCount>0&&<span className="catalog-cart-count">{cartCount>99?'99+':cartCount}</span>}</a></nav></header>
     <main>
       {showOrders ? <CatalogOrders lang={lang}/> : showCart ? <CatalogCart lang={lang}/> : error ? <section className="catalog-state" role="alert"><p>{error}</p><button onClick={() => setAttempt(n => n + 1)}>{t.retry}</button> <a href={home}>{t.back}</a></section> : !data ? <p className="catalog-state" role="status">{t.loading}</p> : productId ? (
-        isImmersiveVehicle ? <Fc1ScrollStory>
-          {/* 旗舰整车专属沉浸式交互选配展厅（图 1 核心体验） */}
+        data?.productId === '01a1cdb7-a32b-7ea7-aa18-fcbd53429c60' ? (
+          <A1UltraImmersiveStory lang={lang} product={data} templateBlocks={templateBlocks} />
+        ) : isImmersiveVehicle ? <Fc1ScrollStory>
+          {/* 旗舰整车专属沉浸式交互选配展厅（图 1 核心体验：透明精修图 + 实时调色 + 影棚灯光） */}
           <section id="overview" className={`${fc1Styles.hero} ${fc1Styles.interestHero}`} data-fc1-chapter>
-            <Fc1ColourConfigurator locale={lang} productTitle={data?.title} productDescription={data?.description} productImage={data?.images?.[0]?.url} />
+            <Fc1ColourConfigurator locale={lang} productTitle="ALSVID A1 Ultra" productDescription={data?.description} />
           </section>
 
           {/* 粘性章节导航条 */}

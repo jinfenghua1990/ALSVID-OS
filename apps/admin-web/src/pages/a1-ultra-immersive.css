@@ -1,0 +1,627 @@
+/* ========================================================
+   ALSVID A1 Ultra 苹果/大疆级全景沉浸式工业叙事美学样式表
+   ======================================================== */
+
+.a1-story-root {
+  background: #06090d;
+  color: #f0f4f6;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+.a1-section {
+  position: relative;
+  width: 100%;
+}
+
+.a1-eyebrow {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: #45bfe8;
+  margin-bottom: 14px;
+}
+
+/* 01. 巨幕首屏选配区：微光呼吸影棚背景 */
+.a1-hero {
+  background: radial-gradient(ellipse 90% 75% at 50% 60%, #172834 0%, #0c151c 55%, #06090d 100%);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+.a1-hero__stage {
+  max-width: 100%;
+  margin: 0 auto;
+}
+
+/* 02. 大疆级工业核心性能大仪表标杆 (Impact Metrics) */
+.a1-metrics-bar {
+  background: rgba(14, 22, 29, 0.7);
+  backdrop-filter: blur(20px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 44px 5%;
+}
+.a1-metrics-grid {
+  max-width: 1280px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 24px;
+  text-align: center;
+}
+.a1-metric-item {
+  position: relative;
+  padding: 0 16px;
+}
+.a1-metric-item + .a1-metric-item::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 15%;
+  height: 70%;
+  width: 1px;
+  background: rgba(255, 255, 255, 0.08);
+}
+.a1-metric-item strong {
+  display: block;
+  font-size: clamp(34px, 3.8vw, 54px);
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  color: #ffffff;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+.a1-metric-item strong small {
+  font-size: 0.45em;
+  font-weight: 500;
+  color: #45bfe8;
+  margin-left: 2px;
+}
+.a1-metric-item span {
+  display: block;
+  margin-top: 10px;
+  font-size: 13px;
+  color: #8da2ae;
+  letter-spacing: 0.04em;
+}
+
+/* 03. 粘性极简导航 */
+.a1-sticky-nav {
+  position: sticky;
+  top: 0;
+  z-index: 99;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: clamp(14px, 3vw, 40px);
+  padding: 16px 24px;
+  background: rgba(6, 9, 13, 0.88);
+  backdrop-filter: blur(24px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+.a1-sticky-nav a {
+  color: #899ea9;
+  font-size: 13px;
+  font-weight: 500;
+  text-decoration: none;
+  padding: 4px 0;
+  border-bottom: 2px solid transparent;
+  transition: all 0.22s ease;
+}
+.a1-sticky-nav a:hover {
+  color: #45bfe8;
+  border-bottom-color: #45bfe8;
+}
+
+/* 04. 电影感双栏大图区 (Cinema Block) */
+.a1-cinema-block {
+  padding: clamp(80px, 8vw, 130px) 6%;
+  background: radial-gradient(ellipse 65% 55% at 50% 50%, #0d1a24 0%, #06090d 100%);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+.a1-cinema-container {
+  max-width: 1400px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+  gap: clamp(40px, 6vw, 100px);
+  align-items: center;
+}
+.a1-cinema-block.a1-reverse .a1-cinema-container {
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
+}
+.a1-cinema-block.a1-reverse .a1-cinema-copy {
+  grid-column: 2;
+  grid-row: 1;
+}
+.a1-cinema-block.a1-reverse .a1-cinema-visual {
+  grid-column: 1;
+  grid-row: 1;
+}
+.a1-cinema-copy h2 {
+  font-size: clamp(34px, 4vw, 56px);
+  font-weight: 650;
+  line-height: 1.16;
+  letter-spacing: -0.04em;
+  color: #ffffff;
+  margin: 0 0 24px;
+}
+.a1-cinema-copy p {
+  color: #9ab0bd;
+  font-size: clamp(15px, 1.2vw, 17px);
+  line-height: 1.85;
+  margin: 0 0 32px;
+  max-width: 520px;
+}
+.a1-pill-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 8px 18px;
+  border-radius: 30px;
+  background: rgba(69, 191, 232, 0.08);
+  border: 1px solid rgba(69, 191, 232, 0.28);
+  color: #8edef5;
+  font-size: 13px;
+  font-weight: 500;
+}
+.a1-cinema-visual {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+.a1-spotlight-frame {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 11;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+  border-radius: 28px;
+  background: radial-gradient(ellipse 75% 65% at 50% 50%, #1a2c3a 0%, #0d161d 65%, #080d11 100%);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+.a1-spotlight-frame img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  filter: drop-shadow(0 25px 35px rgba(0, 0, 0, 0.7));
+  transition: transform 0.65s cubic-bezier(0.2, 0.65, 0.3, 1);
+}
+.a1-spotlight-frame:hover img {
+  transform: scale(1.04);
+}
+
+.a1-specs-quick {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin-top: 36px;
+  padding-top: 24px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+.a1-specs-quick strong {
+  display: block;
+  font-size: 24px;
+  font-weight: 700;
+  color: #45bfe8;
+}
+.a1-specs-quick span {
+  display: block;
+  font-size: 12px;
+  color: #859ba8;
+  margin-top: 4px;
+}
+
+/* 05. 折叠实验室 (Fold Lab) */
+.a1-fold-lab {
+  padding: clamp(80px, 8vw, 130px) 6%;
+  background: linear-gradient(180deg, #06090d 0%, #0b141c 50%, #06090d 100%);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+.a1-fold-container {
+  max-width: 1400px;
+  margin: 0 auto;
+}
+.a1-fold-header {
+  text-align: center;
+  max-width: 720px;
+  margin: 0 auto 50px;
+}
+.a1-fold-header h2 {
+  font-size: clamp(34px, 4.2vw, 58px);
+  font-weight: 650;
+  letter-spacing: -0.04em;
+  color: #ffffff;
+  margin: 0 0 18px;
+}
+.a1-fold-header p {
+  color: #9ab0bd;
+  font-size: 16px;
+  line-height: 1.8;
+  margin: 0;
+}
+.a1-fold-interactive-stage {
+  position: relative;
+  border-radius: 32px;
+  padding: 48px;
+  background: radial-gradient(ellipse 85% 75% at 50% 50%, #162633 0%, #0d171f 65%, #080d12 100%);
+  border: 1px solid rgba(69, 191, 232, 0.18);
+  box-shadow: 0 35px 90px rgba(0, 0, 0, 0.65), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+/* 覆盖 interactions 内部冲突的默认样式 */
+.a1-fold-interactive-stage [class*="foldStoryLayout"] {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
+  gap: clamp(32px, 5vw, 80px);
+  align-items: center;
+}
+.a1-fold-interactive-stage [class*="foldImageFrame"] {
+  position: relative;
+  width: 100%;
+  max-width: 700px;
+  aspect-ratio: 1100 / 970;
+  margin: 0 auto;
+}
+.a1-fold-interactive-stage [class*="foldPhoto"] {
+  position: relative !important;
+  inset: auto !important;
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: contain;
+  filter: drop-shadow(0 25px 40px rgba(0, 0, 0, 0.7));
+}
+.a1-fold-interactive-stage [class*="foldDimensionOverlay"] {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+.a1-fold-interactive-stage [class*="foldDimensionLabels"] rect {
+  fill: #101c25;
+  stroke: #45bfe8;
+  stroke-width: 2;
+}
+.a1-fold-interactive-stage [class*="foldDimensionLabels"] text {
+  fill: #ebf8fd;
+  font-family: inherit;
+  font-weight: 700;
+  font-size: 36px;
+}
+.a1-fold-interactive-stage [class*="foldStoryCopy"] h2 {
+  font-size: clamp(28px, 3vw, 44px);
+  font-weight: 650;
+  color: #ffffff;
+  margin: 0 0 16px;
+}
+.a1-fold-interactive-stage [class*="foldStoryCopy"] p {
+  color: #9cb1a9;
+  font-size: 15px;
+  line-height: 1.8;
+}
+.a1-fold-interactive-stage [class*="foldStorySpecs"] {
+  margin: 24px 0;
+  padding: 18px 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+.a1-fold-interactive-stage [class*="foldStorySpecs"] small {
+  color: #45bfe8;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+.a1-fold-interactive-stage [class*="foldStorySpecs"] strong {
+  display: block;
+  font-size: 38px;
+  font-weight: 700;
+  color: #ffffff;
+  margin-top: 4px;
+}
+.a1-fold-interactive-stage [class*="segmented"] {
+  display: inline-flex;
+  gap: 4px;
+  padding: 5px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 30px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+.a1-fold-interactive-stage [class*="segmented"] button {
+  padding: 10px 26px;
+  border-radius: 24px;
+  border: 0;
+  background: transparent;
+  color: #a0b2bd;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.22s ease;
+}
+.a1-fold-interactive-stage [class*="segmented"] button[aria-pressed=true] {
+  background: #45bfe8;
+  color: #06090d;
+  box-shadow: 0 4px 16px rgba(69, 191, 232, 0.4);
+}
+
+/* 06. 前后双避震影棚级微距卡片 (Dual Macro Cards) */
+.a1-duo-macro {
+  padding: clamp(80px, 8vw, 130px) 6%;
+  background: #06090d;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+.a1-duo-header {
+  text-align: center;
+  max-width: 800px;
+  margin: 0 auto 60px;
+}
+.a1-duo-header h2 {
+  font-size: clamp(34px, 4vw, 56px);
+  font-weight: 650;
+  line-height: 1.2;
+  letter-spacing: -0.04em;
+  color: #ffffff;
+  margin: 0;
+}
+.a1-duo-grid {
+  max-width: 1360px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 32px;
+}
+.a1-macro-card {
+  position: relative;
+  border-radius: 28px;
+  overflow: hidden;
+  background: radial-gradient(ellipse 90% 70% at 50% 30%, #152531 0%, #0d171e 65%, #080c10 100%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.5);
+  transition: transform 0.4s ease, border-color 0.4s ease;
+}
+.a1-macro-card:hover {
+  transform: translateY(-4px);
+  border-color: rgba(69, 191, 232, 0.4);
+}
+.a1-macro-visual {
+  width: 100%;
+  height: 380px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 30px;
+}
+.a1-macro-visual img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  filter: drop-shadow(0 20px 30px rgba(0, 0, 0, 0.7));
+  transition: transform 0.5s ease;
+}
+.a1-macro-card:hover .a1-macro-visual img {
+  transform: scale(1.05);
+}
+.a1-macro-copy {
+  padding: 36px 40px 44px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(8, 13, 17, 0.6);
+}
+.a1-tag {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  color: #45bfe8;
+  margin-bottom: 8px;
+}
+.a1-macro-copy h3 {
+  font-size: 26px;
+  font-weight: 650;
+  color: #ffffff;
+  margin: 0 0 14px;
+}
+.a1-macro-copy p {
+  color: #92a7b4;
+  font-size: 15px;
+  line-height: 1.8;
+  margin: 0;
+}
+
+/* 07. 极简座舱横幅 (Cockpit Banner) */
+.a1-cockpit-banner {
+  padding: clamp(80px, 8vw, 130px) 6%;
+  background: radial-gradient(ellipse 70% 60% at 50% 50%, #152430 0%, #06090d 100%);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+.a1-cockpit-content {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.8fr);
+  gap: 60px;
+  align-items: center;
+}
+.a1-cockpit-visual {
+  width: 100%;
+  height: 420px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  border-radius: 28px;
+  background: radial-gradient(ellipse 80% 70% at 50% 50%, #1a2a35 0%, #0d161d 70%, #070c0f 100%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+.a1-cockpit-visual img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  filter: drop-shadow(0 20px 30px rgba(0, 0, 0, 0.7));
+}
+.a1-cockpit-copy h2 {
+  font-size: clamp(32px, 3.8vw, 52px);
+  font-weight: 650;
+  color: #ffffff;
+  margin: 0 0 20px;
+}
+.a1-cockpit-copy p {
+  color: #9ab0bd;
+  font-size: 16px;
+  line-height: 1.85;
+  margin: 0;
+}
+
+/* 08. 技术参数与车型规格 (Specs) */
+.a1-specs-section {
+  padding: clamp(80px, 8vw, 130px) 6%;
+  background: #06090d;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+.a1-specs-container {
+  max-width: 1100px;
+  margin: 0 auto;
+}
+.a1-specs-header {
+  text-align: center;
+  margin-bottom: 48px;
+}
+.a1-specs-header h2 {
+  font-size: clamp(30px, 3.4vw, 48px);
+  font-weight: 650;
+  color: #ffffff;
+  margin: 0;
+}
+.a1-specs-table-wrap {
+  border-radius: 20px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  background: rgba(13, 22, 28, 0.4);
+  backdrop-filter: blur(20px);
+}
+.a1-specs-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.a1-specs-table th,
+.a1-specs-table td {
+  padding: 18px 24px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  font-size: 14px;
+  text-align: left;
+}
+.a1-specs-table tr:last-child th,
+.a1-specs-table tr:last-child td {
+  border-bottom: 0;
+}
+.a1-specs-table th {
+  width: 32%;
+  color: #8da2ae;
+  font-weight: 500;
+  background: rgba(255, 255, 255, 0.02);
+}
+.a1-specs-table td {
+  color: #ffffff;
+  font-weight: 500;
+}
+
+/* 09. 底部行动号召 (Footer CTA) */
+.a1-story-footer {
+  padding: 120px 6%;
+  text-align: center;
+  background: radial-gradient(ellipse 70% 60% at 50% 60%, #152936 0%, #09131a 50%, #06090d 100%);
+}
+.a1-story-footer h2 {
+  font-size: clamp(32px, 4vw, 56px);
+  font-weight: 650;
+  color: #ffffff;
+  margin: 0 0 16px;
+}
+.a1-story-footer p {
+  color: #a4bcc9;
+  font-size: 17px;
+  max-width: 620px;
+  margin: 0 auto 40px;
+}
+.a1-footer-actions {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+.a1-btn-primary {
+  display: inline-flex;
+  align-items: center;
+  padding: 16px 36px;
+  border-radius: 40px;
+  background: #45bfe8;
+  color: #06090d;
+  font-size: 14px;
+  font-weight: 700;
+  text-decoration: none;
+  transition: all 0.22s ease;
+  box-shadow: 0 8px 24px rgba(69, 191, 232, 0.35);
+}
+.a1-btn-primary:hover {
+  background: #62cbf1;
+  transform: translateY(-2px);
+  box-shadow: 0 12px 30px rgba(69, 191, 232, 0.45);
+}
+.a1-btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  padding: 16px 36px;
+  border-radius: 40px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: all 0.22s ease;
+}
+.a1-btn-secondary:hover {
+  background: rgba(255, 255, 255, 0.14);
+  transform: translateY(-2px);
+}
+
+/* 响应式排版适配 */
+@media (max-width: 960px) {
+  .a1-metrics-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 28px 16px;
+  }
+  .a1-metric-item + .a1-metric-item::before {
+    display: none;
+  }
+  .a1-cinema-container,
+  .a1-cinema-block.a1-reverse .a1-cinema-container {
+    grid-template-columns: 1fr;
+    gap: 40px;
+  }
+  .a1-cinema-block.a1-reverse .a1-cinema-copy {
+    grid-column: 1;
+    grid-row: 1;
+  }
+  .a1-cinema-block.a1-reverse .a1-cinema-visual {
+    grid-column: 1;
+    grid-row: 2;
+  }
+  .a1-fold-interactive-stage [class*="foldStoryLayout"] {
+    grid-template-columns: 1fr;
+    gap: 32px;
+  }
+  .a1-duo-grid {
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+  .a1-cockpit-content {
+    grid-template-columns: 1fr;
+    gap: 32px;
+  }
+  .a1-sticky-nav {
+    display: none;
+  }
+}

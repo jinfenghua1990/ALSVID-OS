@@ -60,7 +60,7 @@ const SHOP_NAV = [
   { title: '概览', items: [{ key: 'overview', label: '商城概览' }, { key: 'module-ledger', label: '模块台账' }] },
   { title: '流量运营', items: [{ key: 'seo-traffic', label: 'SEO 与流量中心' }] },
   { title: '商品管理', items: [{ key: 'products', label: '商品列表' }, { key: 'pricing', label: '价格设置' }, { key: 'media', label: '素材库' }] },
-  { title: '店铺装修', items: [{ key: 'design', label: '店铺装修' }, { key: 'product-design', label: '商品装修' }] },
+  { title: '店铺装修', items: [{ key: 'design', label: '店铺装修' }, { key: 'product-design', label: '商品装修' }, { key: 'pages', label: '页面管理' }] },
   { title: '交易管理', items: [{ key: 'orders', label: '订单管理' }, { key: 'payments', label: '线上支付' }, { key: 'reviews', label: '评价管理' }] },
 ];
 

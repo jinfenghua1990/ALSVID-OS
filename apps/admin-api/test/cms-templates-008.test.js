@@ -202,7 +202,7 @@ test('WEB-008: ensureProductOverride 创建按商品独立覆盖模板', async (
 });
 
 test('WEB-009: Admin CmsPageManager 包含三栏编辑器结构树与共享状态 UI', () => {
-  const src = fs.readFileSync(path.join(__dirname, '..', '..', 'client', 'src', 'pages', 'CmsPageManager.jsx'), 'utf-8');
+  const src = fs.readFileSync(path.join(__dirname, '..', '..', 'admin-web', 'src', 'pages', 'CmsPageManager.jsx'), 'utf-8');
   assert.ok(src.includes('页面结构'), '应包含左侧页面结构树 Tab');
   assert.ok(src.includes('cms-ref-badge'), '应显示共享/独立状态徽标');
   assert.ok(src.includes('cms-shared-box'), '右栏应包含共享引用模式配置');

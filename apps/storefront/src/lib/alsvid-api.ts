@@ -95,7 +95,7 @@ async function getJson<T>(path: string): Promise<T | null> {
   const url = resolveUrl(path);
   if (!url) return null;
   try {
-    const response = await fetch(url, { next: { revalidate: 60, tags: ['storefront-products'] } });
+    const response = await fetch(url, { next: { revalidate: 60, tags: ['storefront-products','storefront-cms'] } });
     if (!response.ok) return null;
     return await response.json() as T;
   } catch {

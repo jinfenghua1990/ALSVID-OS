@@ -1,6 +1,8 @@
 'use strict';
 
 const { createPool } = require('./db-pool');
+const { revalidateStorefront } = require('./storefront-revalidate');
+const refreshCms = () => revalidateStorefront(['storefront-cms','storefront-products','storefront-layout']);
 const { currentActor } = require('./audit-context');
 const { isUuidv7, uuidv7 } = require('./uuidv7');
 
@@ -313,7 +315,7 @@ function createCmsStore(connectionString) {
         const after = (await c.query(`UPDATE site_pages SET published=$1,published_seo=$2,published_revision=revision+1,published_version=$3,revision=revision+1,updated_by=$4,updated_at=now() WHERE id=$5 RETURNING ${columns}`, [JSON.stringify(document), JSON.stringify(old.draftSeo || {}), next, currentActor(), id])).rows[0];
         await c.query('INSERT INTO audit_log(actor,action,target,before_json,after_json) VALUES($1,$2,$3,$4,$5)', [currentActor(), 'cms.page.publish', `site-pages/${id}`, JSON.stringify({ publishedVersion: old.publishedVersion, revision: old.rev }), JSON.stringify({ publishedVersion: next, revision: after.revision })]);
         await c.query('COMMIT');
-        return after;
+        return {...after,storefrontRevalidate:await refreshCms()};
       } catch (error) { await c.query('ROLLBACK').catch(() => {}); throw error; } finally { c.release(); }
     },
     async versions(id) {
@@ -332,12 +334,13 @@ function createCmsStore(connectionString) {
         if (old.rev !== input.revision) fail('页面已更新，请重新加载', 409);
         const snapshot = (await c.query('SELECT snapshot,seo,label FROM site_page_versions WHERE page_id=$1 AND version=$2 AND deleted_at IS NULL', [id, version])).rows[0];
         if (!snapshot) fail('历史版本不存在', 404);
+        await validateAssets(c, documentOf(snapshot.snapshot));
         const next = (await c.query('SELECT COALESCE(max(version),0)+1 AS version FROM site_page_versions WHERE page_id=$1', [id])).rows[0].version;
         await c.query('INSERT INTO site_page_versions(page_id,version,snapshot,seo,label,created_by) VALUES($1,$2,$3,$4,$5,$6)', [id, next, JSON.stringify(snapshot.snapshot), JSON.stringify(snapshot.seo || {}), snapshot.label || null, currentActor()]);
         const after = (await c.query(`UPDATE site_pages SET published=$1,published_seo=$2,published_revision=revision+1,published_version=$3,revision=revision+1,updated_by=$4,updated_at=now() WHERE id=$5 RETURNING ${columns}`, [JSON.stringify(snapshot.snapshot), JSON.stringify(snapshot.seo || {}), next, currentActor(), id])).rows[0];
         await c.query('INSERT INTO audit_log(actor,action,target,before_json,after_json) VALUES($1,$2,$3,$4,$5)', [currentActor(), 'cms.page.rollback', `site-pages/${id}`, JSON.stringify({ publishedVersion: old.publishedVersion }), JSON.stringify({ rolledBackFrom: version, publishedVersion: next })]);
         await c.query('COMMIT');
-        return after;
+        return {...after,storefrontRevalidate:await refreshCms()};
       } catch (error) { await c.query('ROLLBACK').catch(() => {}); throw error; } finally { c.release(); }
     },
     // 以指定历史版本为基础重建草稿：只改草稿，不动线上内容，也不覆盖原历史快照
@@ -432,7 +435,17 @@ function createCmsStore(connectionString) {
       if (!['active', 'disabled'].includes(status)) fail('页面状态无效');
       const old = await row(id);
       if (old.pageType === 'home' && status === 'disabled') fail('官网首页不能停用');
-      return (await pool.query('UPDATE site_pages SET status=$1,updated_by=$2,updated_at=now() WHERE id=$3 RETURNING id::text AS id,status', [status, currentActor(), id])).rows[0];
+      const c=await pool.connect();
+      try {
+        await c.query('BEGIN');
+        const before=(await c.query(`SELECT ${columns} FROM site_pages WHERE id=$1 FOR UPDATE`,[id])).rows[0];
+        if(!before)fail('页面不存在',404);
+        if(before.pageType==='home'&&status==='disabled')fail('官网首页不能停用');
+        const after=(await c.query('UPDATE site_pages SET status=$1,revision=revision+1,updated_by=$2,updated_at=now() WHERE id=$3 RETURNING id::text AS id,status,revision',[status,currentActor(),id])).rows[0];
+        await c.query('INSERT INTO audit_log(actor,action,target,before_json,after_json) VALUES($1,$2,$3,$4,$5)',[currentActor(),'cms.page.status',`site-pages/${id}`,JSON.stringify({status:before.status}),JSON.stringify(after)]);
+        await c.query('COMMIT');
+        return {...after,storefrontRevalidate:await refreshCms()};
+      }catch(e){await c.query('ROLLBACK').catch(()=>{});throw e}finally{c.release()}
     },
     async remove(id) {
       const c = await pool.connect();
@@ -511,7 +524,7 @@ function createCmsStore(connectionString) {
 function registerCmsRoutes(app, cms) {
   function route(method, url, handler, isPublic = false) {
     app.route({ method, url, config: { publicCatalog: isPublic }, bodyLimit: 2 * 1024 * 1024, handler: async (req, reply) => {
-      reply.header('Cache-Control', isPublic ? 'public, max-age=60' : 'no-store');
+      reply.header('Cache-Control', 'no-store');
       if (!cms) return reply.code(503).send({ error: '页面服务暂不可用' });
       if (!isPublic && req.user?.role !== 'admin') return reply.code(403).send({ error: '仅管理员可管理页面' });
       try { return await handler(req, reply); }
@@ -536,8 +549,8 @@ function registerCmsRoutes(app, cms) {
     const draft = String(req.query.draft || '') === '1';
     const version = Number(req.query.version || 0) || null;
     // 草稿预览只给管理员；公开路由不能缓存草稿内容
-    if (draft) {
-      if (req.user?.role !== 'admin') return reply.code(403).send({ error: '仅管理员可预览草稿' });
+    if (draft || version) {
+      if (req.user?.role !== 'admin') return reply.code(403).send({ error: '仅管理员可预览草稿或历史版本' });
       reply.header('Cache-Control', 'no-store');
     }
     return cms.publicPage(String(req.query.locale || ''), String(req.query.path || ''), { version, draft });
@@ -547,8 +560,8 @@ function registerCmsRoutes(app, cms) {
     const draft = String(req.query.draft || '') === '1';
     const version = Number(req.query.version || 0) || null;
     // 草稿预览只给管理员；公开路由不能缓存草稿内容
-    if (draft) {
-      if (req.user?.role !== 'admin') return reply.code(403).send({ error: '仅管理员可预览草稿' });
+    if (draft || version) {
+      if (req.user?.role !== 'admin') return reply.code(403).send({ error: '仅管理员可预览草稿或历史版本' });
       reply.header('Cache-Control', 'no-store');
     }
     return cms.publicProductTemplate(String(req.query.locale || ''), String(req.query.productId || ''), { draft, version });

@@ -59,7 +59,7 @@ export function useCmsDocument(row, enabled = true) {
   const publish = async () => {
     if (!row || busy) return null;
     setBusy(true);
-    try { return await api.publishCmsPage(row.id, revision); }
+    try { if(dirty)throw Error('请先保存草稿，再发布'); const updated=await api.publishCmsPage(row.id, revision); setRevision(updated.revision); setPage(updated); return updated; }
     catch (e) { setError(e.message || '发布失败'); } finally { setBusy(false); }
     return null;
   };
@@ -228,6 +228,7 @@ export function StandardDetailPanel({ locale, products, publishedMap, productId 
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [assets, setAssets] = useState([]);
+  const [notice,setNotice]=useState('');
   const product = products.find(p => p.id === productId);
   useEffect(() => { api.assetsAll({ category: 'page', kind: 'image' }).then(rows => setAssets(Array.isArray(rows) ? rows : [])).catch(() => setAssets([])); }, []);
   useEffect(() => {
@@ -262,8 +263,10 @@ export function StandardDetailPanel({ locale, products, publishedMap, productId 
   const doPublish = async () => {
     setBusy(true); setError('');
     try {
-      if (dirty) { const updated = await api.saveListing(listing.id, { channel: listing.channel, slug: listing.slug, document: doc, skus: listing.skus, revision }); setRevision(updated.revision); setBaseline(JSON.stringify(doc)); await api.publishListing(listing.id, updated.revision); }
-      else await api.publishListing(listing.id, revision);
+      let result;
+      if (dirty) { const updated = await api.saveListing(listing.id, { channel: listing.channel, slug: listing.slug, document: doc, skus: listing.skus, revision }); setRevision(updated.revision); setBaseline(JSON.stringify(doc)); result=await api.publishListing(listing.id, updated.revision); }
+      else result=await api.publishListing(listing.id, revision);
+      setNotice(result.storefrontRevalidate?.ok?'商品已发布，缓存回调已确认；真实页面待验收。':'商品已发布，但前台缓存刷新未确认。');
       const rows = await api.productListings(productId);
       const website = (rows || []).find(row => row.channel === 'website');
       if (website) { setListing(website); setRevision(website.revision); const clone = JSON.parse(JSON.stringify(website.draft || website.published || {})); setDoc(clone); setBaseline(JSON.stringify(clone)); }
@@ -276,7 +279,7 @@ export function StandardDetailPanel({ locale, products, publishedMap, productId 
   const poolImages = productImages.filter(image => !mediaIds.includes(image.id));
   const imageLabel = id => {
     const found = productImages.find(image => image.id === id);
-    return found?.label || '未命名图片';
+    return found?.label || assets.find(asset=>asset.id===id)?.label || '未命名图片';
   };
   const setCover = index => {
     if (index <= 0) return;
@@ -295,7 +298,7 @@ export function StandardDetailPanel({ locale, products, publishedMap, productId 
   const blockImageOptions = [...productImages.map((image, index) => ({ id: image.id, label: `商品图 ${index + 1}${image.label ? ` · ${image.label}` : ''}` })), ...assets.map(asset => ({ id: asset.id, label: `素材库 · ${asset.label || asset.fileName || asset.id}` }))];
   const imagePreview = id => productImages.some(image => image.id === id) ? `/api/products/${encodeURIComponent(productId)}/media/${encodeURIComponent(id)}` : api.assetUrl(id);
   return <div className="sdp">
-    <SaveBar dirty={dirty} busy={busy} error={error} onSave={doSave} onPublish={doPublish} publishedVersion={listing.publishedRevision}/>
+    <SaveBar dirty={dirty} busy={busy} error={error} onSave={doSave} onPublish={doPublish} publishedVersion={listing.publishedRevision} hint={notice}/>
     <ListingVersions key={listing.id} listing={{...listing,revision}} disabled={dirty||busy} onRolledBack={updated=>{setListing(updated);setRevision(updated.revision);const clone=JSON.parse(JSON.stringify(updated.draft||updated.published||{}));setDoc(clone);setBaseline(JSON.stringify(clone));}}/>
     <section className="sdp__module sdp__gallery">
       <header className="sdg__head">
@@ -314,7 +317,7 @@ export function StandardDetailPanel({ locale, products, publishedMap, productId 
       {mediaIds.length > 0 && <div className="sdg__grid">
         {mediaIds.map((id, index) => <article className="sdg__card" key={id}>
           <div className="sdg__thumb">
-            <img src={`/api/products/${encodeURIComponent(productId)}/media/${encodeURIComponent(id)}`} alt={imageLabel(id)} loading="lazy"/>
+            <img src={imagePreview(id)} alt={imageLabel(id)} loading="lazy"/>
             {index === 0 && <span className="sdg__cover">商品封面</span>}
             <span className="sdg__no">{String(index + 1).padStart(2, '0')}</span>
           </div>

@@ -8,7 +8,7 @@ import { NextRequest, NextResponse } from 'next/server';
 export const runtime = 'nodejs';
 
 // 只允许失效已知 tag：否则任何持令牌方都能构造任意 tag 把缓存打穿。
-const ALLOWED_TAGS = new Set(['storefront-layout','storefront-products']);
+const ALLOWED_TAGS = new Set(['storefront-layout','storefront-products','storefront-cms']);
 
 function tokenMatches(received: string, expected: string) {
   if (!received || !expected) return false;

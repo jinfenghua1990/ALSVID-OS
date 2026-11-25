@@ -99,7 +99,7 @@ export default async function Home({ params }: { params: Promise<{ locale: Local
   const snapshotHtml = layout?.html ? prepareLayoutSnapshot(layout.html, locale) : '';
 
   const products = await getProducts(locale);
-  return <main>
+  return <main data-alsvid-layout-version={layout?.version ?? 'unpublished'} data-alsvid-preview={preview?'draft':'live'}>
     {preview && <div className="preview-banner" role="status">
       <strong>{PREVIEW_TEXT[locale].label}</strong>
       <span>{previewSourceMismatch ? PREVIEW_TEXT[locale].sourceMismatch : PREVIEW_TEXT[locale].hint}</span>

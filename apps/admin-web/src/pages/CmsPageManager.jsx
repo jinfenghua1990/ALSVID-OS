@@ -7,7 +7,7 @@ const PAGE_TYPES = [['custom', '自定义页面'], ['product_template', '商品�
 const TYPE_LABELS = { home: '官网首页', custom: '自定义页面', product_template: '商品详情模板' };
 const STATE_LABELS = { active: '启用', disabled: '已停用' };
 const LANG_LABEL = { zh: '中文', en: '英文', de: '德文', '*': '多语言' };
-const PRODUCT_CONTENT_BLOCKS = new Set(['twoColumn', 'video', 'specs', 'features', 'faq', 'cta']);
+const PRODUCT_CONTENT_BLOCKS = new Set(['twoColumn', 'image', 'carousel', 'divider', 'spacer', 'video', 'specs', 'features', 'faq', 'cta']);
 const DEFAULT_PRODUCT_LAYOUT = { gallery: 'standard', specifications: 'list', reviews: 'list' };
 const emptyDraft = () => ({ blocks: [], seo: { title: '', description: '' }, productLayout: DEFAULT_PRODUCT_LAYOUT });
 
@@ -24,7 +24,7 @@ function fmtTime(value) {
 const PALETTE_GROUPS = [
   { title: '首屏模块', items: [
     { key: 'hero', label: 'KV 首屏', ready: true },
-    { key: null, label: '图片轮播', ready: false },
+    { key: 'carousel', label: '图片轮播', ready: true },
     { key: 'video', label: '视频展示', ready: true },
   ] },
   { title: '商品模块', items: [
@@ -37,7 +37,7 @@ const PALETTE_GROUPS = [
     { key: 'specs', label: '技术参数', ready: true },
     { key: 'features', label: '卖点卡片', ready: true },
     { key: 'faq', label: '常见问题', ready: true },
-    { key: null, label: '单张图片', ready: false },
+    { key: 'image', label: '单张图片', ready: true },
   ] },
   { title: '营销模块', items: [
     { key: 'cta', label: '行动按钮', ready: true },
@@ -45,8 +45,8 @@ const PALETTE_GROUPS = [
   ] },
   { title: '基础模块', items: [
     { key: null, label: '页面标题', ready: false },
-    { key: null, label: '分隔区域', ready: false },
-    { key: null, label: '留白区域', ready: false },
+    { key: 'divider', label: '分隔区域', ready: true },
+    { key: 'spacer', label: '留白区域', ready: true },
     { key: null, label: '页脚', ready: false },
   ] },
 ];

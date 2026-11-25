@@ -12,3 +12,9 @@ test('scheduled sale and verified reference price are distinct',()=>{
  assert.throws(()=>normalizePrice({...base,promotion:{...base.promotion,startsAt:'2026-11-26T00:00:00Z',referencePrice:'1899',referenceEvidence:'记录',referenceConfirmed:true}},now));
  assert.throws(()=>normalizePrice({...base,promotion:{...base.promotion,startsAt:'2026-11-25T00:00:00'}},now));
 });
+
+test('ordinary prices cannot be zero until server-authorized gift entitlement exists',()=>{
+ assert.throws(()=>normalizePrice({...base,unitPrice:'0.00',promotion:null},now),/大于零/);
+ assert.throws(()=>normalizePrice({...base,promotion:{...base.promotion,salePrice:'0'}},now),/大于零/);
+ assert.equal(normalizePrice({...base,unitPrice:'0.01',promotion:null},now).unitPrice,'0.01');
+});

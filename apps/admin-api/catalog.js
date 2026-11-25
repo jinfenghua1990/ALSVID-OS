@@ -835,7 +835,7 @@ function createCatalogStore(connectionString) {
       const product = publicRow({ ...row, published: row.document }, lang);
       return { ...product, detailBlocks: await detailImageUrls(row.id, product.detailBlocks), relatedAccessories: row.kind === 'vehicle' ? await relatedAccessories(row.id, lang) : [] };
     },
-    async offers(slug,lang) {return (await pool.query(`SELECT s.code AS sku,s.spec,s.color_code AS color,lp.currency,lp.unit_price::text AS "unitPrice" FROM storefront_listings l JOIN products p ON p.entity_uuid=l.product_uuid JOIN storefront_listing_skus ls ON ls.listing_id=l.id JOIN skus s ON s.entity_uuid=ls.sku_uuid JOIN storefront_listing_prices lp ON lp.listing_id=l.id AND lp.sku_uuid=s.entity_uuid WHERE l.channel='website' AND (l.slug=$1 OR p.id=$1 OR BTRIM(LOWER(p.specs->>'_seoProductId'))=$1) AND l.published IS NOT NULL AND p.status='启用' AND l.published->'languages' ? $2 AND lp.published ORDER BY s.code,lp.currency`,[slug,lang])).rows;},
+    async offers(slug,lang) {return (await pool.query(`SELECT s.code AS sku,s.spec,s.color_code AS color,lp.currency,lp.unit_price::text AS "unitPrice" FROM storefront_listings l JOIN products p ON p.entity_uuid=l.product_uuid JOIN storefront_listing_skus ls ON ls.listing_id=l.id JOIN skus s ON s.entity_uuid=ls.sku_uuid JOIN storefront_listing_prices lp ON lp.listing_id=l.id AND lp.sku_uuid=s.entity_uuid WHERE l.channel='website' AND (l.slug=$1 OR p.id=$1 OR BTRIM(LOWER(p.specs->>'_seoProductId'))=$1) AND l.published IS NOT NULL AND p.status='启用' AND l.published->'languages' ? $2 AND lp.published AND NOT s.disabled ORDER BY s.code,lp.currency`,[slug,lang])).rows;},
     async availability(slug,lang) {
       const product=(await pool.query(`SELECT p.entity_uuid,l.id AS listing_id FROM products p JOIN storefront_listings l ON l.product_uuid=p.entity_uuid AND l.channel='website' AND (l.slug=$1 OR p.id=$1 OR BTRIM(LOWER(p.specs->>'_seoProductId'))=$1) AND l.published IS NOT NULL
         WHERE p.status='启用' AND l.published->'languages' ? $2`,[slug,lang])).rows[0];
@@ -853,7 +853,7 @@ function createCatalogStore(connectionString) {
         WHERE w.country_code='DE' AND w.status='启用' AND w.warehouse_purpose='B2C 仓'
           AND stock.quantity-reserved.quantity>0) AS available
         FROM storefront_listing_skus ls JOIN skus s ON s.entity_uuid=ls.sku_uuid JOIN storefront_listing_prices lp ON lp.listing_id=ls.listing_id AND lp.sku_uuid=s.entity_uuid
-        WHERE ls.listing_id=$1 AND lp.published AND lp.currency='EUR' GROUP BY s.code ORDER BY s.code`,[product.listing_id])).rows;
+        WHERE ls.listing_id=$1 AND lp.published AND NOT s.disabled AND lp.currency='EUR' GROUP BY s.code ORDER BY s.code`,[product.listing_id])).rows;
       return {available:rows.some(row=>row.available),items:rows};
     },
     async sitemapProducts() {return (await pool.query(`SELECT l.slug,array_agg(DISTINCT languages.code ORDER BY languages.code) AS languages FROM products p JOIN storefront_listings l ON l.product_uuid=p.entity_uuid AND l.channel='website' AND l.published IS NOT NULL CROSS JOIN LATERAL jsonb_object_keys(l.published->'languages') AS languages(code) WHERE p.status='启用' AND languages.code=ANY($1::text[]) AND l.slug<>'' GROUP BY p.id,l.slug ORDER BY p.id`,[LANGUAGES])).rows;},

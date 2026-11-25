@@ -28,7 +28,7 @@ export default async function ProductPage({ params }: Props) {
   const { locale, slug } = await params;
   const product = await getProduct(slug, locale);
   if (!product || product.kind !== 'vehicle') notFound();
-  const [allOffers, availability, reviews, template] = await Promise.all([getOffers(product.slug, locale), getAvailability(product.slug, locale), getReviews(product.productId,50), getCmsProductTemplate(locale, product.productId)]);
+  const [allOffers, availability, reviews, template] = await Promise.all([getOffers(product.slug, locale), getAvailability(product.slug, locale), getReviews(product.productId,20), getCmsProductTemplate(locale, product.productId)]);
   const offers = allOffers.filter(offer => offer.currency === 'EUR');
   const productLayout = template?.productLayout || { gallery: 'standard', specifications: 'list', reviews: 'list' };
   const structuredData = {
@@ -94,7 +94,7 @@ export default async function ProductPage({ params }: Props) {
       </section>}
       {templateBlocks.length > 0 && <CmsBlocks blocks={templateBlocks} locale={locale} />}
       {!!product.relatedAccessories?.length && <section className="product-related"><p className="eyebrow">{UI.relatedAccessories[locale]}</p><h2>{UI.fitsThisModel[locale]}</h2><div className="product-related__grid">{product.relatedAccessories.map(item => <a key={item.productId} href={`/${locale}/e-bikes/${encodeURIComponent(item.slug)}`}><div>{item.images[0] ? <img src={publicApiUrl(item.images[0].url)} alt={item.title} loading="lazy"/> : item.title}</div><strong>{item.title}</strong>{item.prices.length>0&&<small>{item.prices.map(price=>`${price.currency} ${price.unitPrice}`).join(' · ')}</small>}</a>)}</div></section>}
-      {reviewsConfig.enabled && <ProductReviews locale={locale} data={reviews} limit={reviewsConfig.limit} style={productLayout.reviews}/>}
+      {reviewsConfig.enabled && <ProductReviews key={product.productId} locale={locale} productId={product.productId} data={reviews} limit={reviewsConfig.limit} style={productLayout.reviews}/>}
       {copyModules.map(({key,row}) => <section className="product-business-module product-standard-module" key={key} data-module={key}><h2>{row.title || (key === "returns" ? UI.returns[locale] : UI.other[locale])}</h2><p>{row.body}</p>{key==='returns'&&<a href={`/${locale}/legal/widerrufsbelehrung`}>{locale==='de'?'Vollständige Rückgabebedingungen':locale==='en'?'Full return policy':'完整退换货政策'} →</a>}</section>)}
     </main>
   );

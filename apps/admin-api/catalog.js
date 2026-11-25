@@ -216,7 +216,7 @@ function createCatalogStore(connectionString) {
     if (!locale) return null;
     const slug = row.slug || doc.seo?.slug;
     if (!slug) return null;
-    return { id: slug, productId: row.id, slug, kind: row.kind, model: doc.model, title: locale.title, description: locale.description, delivery: locale.delivery || '', warranty: locale.warranty || '', specifications: locale.specifications, detailBlocks: locale.detailBlocks || [], design:locale.design||null, languages: Object.keys(doc.languages), images: doc.mediaIds.map(id => ({ id, url: `/api/catalog/products/${encodeURIComponent(row.id)}/images/${encodeURIComponent(id)}` })), prices: row.prices || [] };
+    return { id: slug, productId: row.id, slug, kind: row.kind, model: doc.model, title: locale.title, description: locale.description, delivery: locale.delivery || '', warranty: locale.warranty || '', specifications: locale.specifications, detailBlocks: locale.detailBlocks || [], ...(locale.design?{design:locale.design}:{}), languages: Object.keys(doc.languages), images: doc.mediaIds.map(id => ({ id, url: `/api/catalog/products/${encodeURIComponent(row.id)}/images/${encodeURIComponent(id)}` })), prices: row.prices || [] };
   }
   // 图文详情图片按来源给出可访问 URL：产品图库图片走商品图接口，素材库图片走 cms-media。
   async function detailImageUrls(productId, blocks) {
@@ -869,7 +869,7 @@ function createCatalogStore(connectionString) {
       const product = publicRow({ ...row, published: row.document }, lang);
       const visual=product.design?.visual;
       const visualMedia=visual?(await detailImageUrls(row.id,[{...visual,type:visual.mediaType}]))[0]:null;
-      return { ...product, design:product.design?{...product.design,...(visualMedia?{visual:visualMedia}:{})}:null, detailBlocks: await detailImageUrls(row.id, product.detailBlocks), relatedAccessories: row.kind === 'vehicle' ? await relatedAccessories(row.id, lang) : [] };
+      return { ...product, ...(product.design?{design:{...product.design,...(visualMedia?{visual:visualMedia}:{})}}:{}), detailBlocks: await detailImageUrls(row.id, product.detailBlocks), relatedAccessories: row.kind === 'vehicle' ? await relatedAccessories(row.id, lang) : [] };
     },
     async offers(slug,lang) {return (await pool.query(`SELECT s.code AS sku,s.spec,s.color_code AS color,lp.currency,lp.unit_price::text AS "unitPrice",lp.reference_price::text AS "referencePrice",lp.promotion_ends_at AS "promotionEndsAt",COALESCE(sku_media.images,'[]'::jsonb) AS images FROM storefront_listings l JOIN products p ON p.entity_uuid=l.product_uuid JOIN storefront_listing_skus ls ON ls.listing_id=l.id JOIN skus s ON s.entity_uuid=ls.sku_uuid JOIN storefront_effective_listing_prices lp ON lp.listing_id=l.id AND lp.sku_uuid=s.entity_uuid LEFT JOIN LATERAL (SELECT jsonb_agg(jsonb_build_object('id',ma.id::text,'url','/api/public/sku-media/'||ma.id::text) ORDER BY al.sort_order,ma.id) AS images FROM asset_links al JOIN media_assets ma ON ma.id=al.asset_id WHERE al.target_type='sku' AND al.target_id=s.code AND al.channel IN ('product','storefront') AND al.role IN ('hero','gallery') AND ma.visibility='public' AND ma.status='published' AND ma.content_type IN ('image/jpeg','image/png','image/webp','image/avif')) sku_media ON true WHERE l.channel='website' AND (l.slug=$1 OR p.id=$1 OR BTRIM(LOWER(p.specs->>'_seoProductId'))=$1) AND l.published IS NOT NULL AND p.status='启用' AND l.published->'languages' ? $2 AND lp.published AND NOT s.disabled ORDER BY s.code,lp.currency`,[slug,lang])).rows;},
     async availability(slug,lang) {

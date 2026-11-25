@@ -440,7 +440,7 @@ const MODULE_META = {
   reserved3: { desc: '四项核心参数 · 读取整车主档 · 图片或视频', anchor: () => true },
   reserved4: { desc: '预留位 · 未配置内容时自动隐藏' },
   detail: { desc: '按商品维护，位置固定', anchor: () => true },
-  specifications:{desc:'整车主档参数',anchor:()=>true},warranty:{desc:'当前商品质保资料',anchor:()=>true},delivery:{desc:'当前商品配送资料',anchor:()=>true},
+  specifications:{desc:'整车主档参数',anchor:()=>true},packaging:{desc:'当前车型包装字段'},downloads:{desc:'当前车型公开文件'},faq:{desc:'当前车型独立配置'},warranty:{desc:'当前商品质保资料',anchor:()=>true},delivery:{desc:'当前商品配送资料',anchor:()=>true},
   reviews: { desc: '读取「评价管理」真实评价', anchor: (m) => m?.enabled !== false },
   returns: { desc: '全局文案，所有商品共用', anchor: (m) => Boolean(m?.enabled && (m.title || m.body)) },
   other: { desc: '全局文案，所有商品共用', anchor: (m) => Boolean(m?.enabled && (m.title || m.body)) },
@@ -459,7 +459,8 @@ function moduleAnchor(key, modules) {
 
 function moduleBadge(key, modules) {
   if (key === 'info' || key === 'productNavigation') return '固定';
-  if (key === 'detail') return '按商品';
+  if (['detail','marketing','faq'].includes(key)) return '按商品';
+  if (['specifications','packaging','downloads','warranty','delivery'].includes(key)) return '产品取数';
   if (key === 'reserved3') return modules.performance?.showParameters === false ? '参数关闭' : '四项参数';
   if (key === 'reserved4') {
     const m = modules[key] || {};
@@ -514,18 +515,10 @@ export function GlobalModulesPanel({ cms, row, locale, onEditGraphic, onSelectMo
     if (active === 'info') return <div className="sdp"><section className="sdp__module"><header><strong>P01-01 车型选配</strong></header><p>产品取数：商品主图、SKU、价格、库存。</p><button type="button" className="btn small" onClick={onEditGraphic}>按商品装修</button></section><PerformanceEditor value={modules.performance} fields={availableFields} fieldError={fieldError} assets={assets} onChange={performance=>patchModules({performance})}/></div>;
     if (active === 'specifications') return <div className="sdp">
       <section className="sdp__module">
-        <header><strong>主图 · 型号颜色 · 价格</strong><span className="hint">固定模块</span></header>
-        <p className="sdw__tip">由商品数据自动生成，不可删除或移动；主图顺序在「商品详情页（图文）」按商品调整。</p>
-        <div><button type="button" className="btn small" onClick={onEditGraphic}>去按商品装修 →</button></div>
-        <label className="sdp__check"><input type="checkbox" checked={Boolean(fixedSpec)} onChange={e => e.target.checked ? setSpecBinding([]) : setDoc({ ...doc, blocks: (doc.blocks || []).map(block => block.componentKey === 'specs' ? { ...block, visible: false } : block) })}/> 技术参数读取整车主档</label>
-        <label className="sdp__field">技术参数样式<select value={productLayout.specifications} onChange={e => setDoc({ ...doc, productLayout: { ...productLayout, specifications: e.target.value } })}><option value="list">列表</option><option value="table">表格</option><option value="accordion">折叠</option></select></label>
-        {fixedSpec && <div className="cms-spec-field-picker">
-          <p className="hint">{selectedCodes.length ? '已选择 ' + selectedCodes.length + ' 个字段' : '显示全部公开参数'} · 固定位置，不重复录入</p>
-          {selectedCodes.length > 0 && <button type="button" className="btn small" onClick={() => setSpecBinding([])}>恢复全部公开参数</button>}
-          {fieldError && <p className="error-text">{fieldError}</p>}
-          {!availableFields.length && <p className="hint">请先在字段字典中启用需要展示的整车参数。</p>}
-          <div className="cms-spec-field-list">{availableFields.map(field => <label key={field.code} className="sdp__check"><input type="checkbox" checked={!selectedCodes.length || selectedCodes.includes(field.code)} disabled={selectedCodes.length ? selectedCodes.length === 1 && selectedCodes.includes(field.code) : availableFields.length === 1} onChange={e => toggleSpecField(field.code, e.target.checked)}/>{field.nameZh || field.code}{field.unit ? '（' + field.unit + '）' : ''}</label>)}</div>
-        </div>}
+        <header><strong>P05 完整技术参数</strong><span className="hint">产品取数 · 固定组件</span></header>
+        <p className="sdw__tip">自动读取整车主档全部公开参数并按类别展示；按车型显示开关在按商品装修设置。</p>
+        <label className="sdp__field">技术参数样式<select value={productLayout.specifications} onChange={e=>setDoc({...doc,productLayout:{...productLayout,specifications:e.target.value}})}><option value="list">列表</option><option value="table">表格</option><option value="accordion">折叠</option></select></label>
+        <button type="button" className="btn small" onClick={onEditGraphic}>按商品装修 →</button>
       </section>
     </div>;
     if (['marketing','packaging','downloads','faq','warranty','delivery'].includes(active)) return <section className="sdp__module"><header><strong>{no} {name}</strong></header><p>当前车型独立装修或读取车型资料，不重复录入。</p><button type="button" className="btn small" onClick={onEditGraphic}>去按商品装修 →</button></section>;
@@ -562,7 +555,7 @@ export function GlobalModulesPanel({ cms, row, locale, onEditGraphic, onSelectMo
         <h3 className="sdw__side-title">模块目录</h3>
         <span className="gmp__fixed">固定顺序</span>
       </div>
-      <p className="sdw__tip gmp__hint">商品导航 + 原 8 个模块位置固定，不可拖动、不可调整顺序。</p>
+      <p className="sdw__tip gmp__hint">商品导航与主体模块位置固定，不可拖动、不可调整顺序。</p>
       <div className="gmp__list">
         {GLOBAL_MODULES.map(([key, itemNo, itemName]) => <button type="button" key={key} className={'gmp__item' + (active === key ? ' is-active' : '')} onClick={() => pickModule(key)}>
           <b>{itemNo}</b><span>{itemName}<small style={{display:'block',fontSize:10}}>ALSVID-P{itemNo}</small></span><i className={'gmp__badge' + (moduleBadge(key, modules) === '已启用' || moduleBadge(key, modules) === '已配置' ? ' is-on' : '')}>{moduleBadge(key, modules)}</i>

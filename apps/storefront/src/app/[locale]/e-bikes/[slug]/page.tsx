@@ -67,11 +67,15 @@ export default async function ProductPage({ params, searchParams }: Props) {
   const specsModule = template?.blocks.find(block => block.componentKey === 'specs' && block.visible !== false);
   // 规格仍在原来的固定业务区，优先读取模板主档参数绑定；若未配置或过渡期，平滑回退至商品原规格
   const rawSpecs = template?.masterSpecs ?? ((specsModule?.data?.specifications && specsModule.data.specifications.length > 0) ? specsModule.data.specifications : (product.specifications || []));
-  const specifications: { label: string; value: string }[] = rawSpecs.map((row: { label: string; value: string; unit?: string }) => ({
+  const specifications: { code?:string;label: string; value: string }[] = rawSpecs.map((row: { code?:string;label: string; value: string; unit?: string }) => ({
+    code:row.code,
     label: row.label,
     value: row.value + (row.unit && !String(row.value).trim().endsWith(row.unit.trim()) ? ' ' + row.unit : '')
   }));
-  // 详情页 8 模块（顺序固定）：①主图+SKU（上方数据驱动区）②营销 ③④预留（空则隐藏）⑤图文详情 ⑥评价 ⑦退换货 ⑧其他。
+  // P05 分组只决定展示，不修改主档字段或数值。
+  const specGroups=groupSpecifications(specifications,locale);
+  const coreContent=design?.coreVisible!==false && (!!template?.performanceSpecs?.length||!!template?.performance?.imageId||!!template?.performance?.videoId||!!template?.performance?.headline);
+  // 详情主体定稿：P01、P02、P04—P10；旧评价和政策附加区保留。
   const modules = template?.modules;
   const banners = ([
     { key: 'marketing', banner: modules?.marketing },
@@ -84,8 +88,9 @@ export default async function ProductPage({ params, searchParams }: Props) {
   return (
     <main className="container product-page product-page--with-nav" data-product-id={product.productId} data-product-slug={product.slug}>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData).replace(/</g, '\\u003c') }}></script>
-      <ProductPageNav locale={locale} model={product.model||product.title} hasSpecs={visible('P05')&&specifications.length>0} hasVideo={(visible('P04')&&detailBlocks.some(b=>b.type==='video'))||templateBlocks.some(block=>block.componentKey==='video' && !!block.data?.videoUrl)} purchaseHref={purchaseHref} overviewHref={visible('P02')?'#product-overview':'#product-configurator'} hasDownloads={visible('P07')&&!!template?.downloads?.length} />
-      <section className="product-p01" id="product-configurator" data-module-id="ALSVID-P01" data-module="info" style={{background:design?.background||'#eaeae6'}}>{showPurchase&&<div className="product-layout" data-module-id="ALSVID-P01-01">
+      <ProductPageNav locale={locale} model={product.model||product.title} hasSpecs={visible('P05')&&specifications.length>0} hasVideo={(visible('P04')&&detailBlocks.some(b=>b.type==='video'))||templateBlocks.some(block=>block.componentKey==='video' && !!block.data?.videoUrl)} purchaseHref={purchaseHref} overviewHref={visible('P02')?'#product-overview':showPurchase||coreContent?'#product-configurator':'#product-details'} hasDownloads={visible('P07')&&!!template?.downloads?.length} />
+      {!showPurchase&&<h1 className="sr-only">{product.title}</h1>}
+      {(showPurchase||coreContent)&&<section className="product-p01" id="product-configurator" data-module-id="ALSVID-P01" data-module="info" style={{background:design?.background||'#eaeae6'}}>{showPurchase&&<div className="product-layout" data-module-id="ALSVID-P01-01">
         <ProductGallery key={product.productId} productId={product.productId} images={product.images} title={product.title} locale={locale} style={productLayout.gallery} />
         <section>
           <p className="eyebrow">ALSVID / {product.model}</p>
@@ -97,8 +102,8 @@ export default async function ProductPage({ params, searchParams }: Props) {
           <p className="availability">{availability?.available === null || !availability ? (UI.availabilityUnknown[locale]) : availability.available ? (UI.inStockGermany[locale]) : (UI.outOfStock[locale])}</p>
         </section>
       </div>}
-      {design?.coreVisible!==false&&<PerformanceBlock config={template?.performance} specs={template?.performanceSpecs||[]} alt={product.title} legacyHref=""/>}
-      </section>
+      {coreContent&&<PerformanceBlock config={template?.performance} specs={template?.performanceSpecs||[]} alt={product.title} legacyHref=""/>}
+      </section>}
       {visible('P02')&&<section id="product-overview" className="product-overview-fallback product-visual" data-module-id="ALSVID-P02" data-module="marketing">
       {visual?<><ImmersiveScene scene={{...visual,type:visual.mediaType,title:visual.title||product.title}} index={0} alt={product.title}/>{visual.marketingEnabled&&<div className="product-visual-promo">{visual.marketingText&&<p>{visual.marketingText}</p>}{visual.buttonText&&<a className="product-visual-button" href={purchaseHref}>{visual.buttonText}</a>}</div>}</>:banners.some(x=>x.key==='marketing')?banners.filter(({key})=>key==='marketing').map(({key,banner})=><MarketingBlock key={key} name={key} banner={banner} alt={product.title} href={bannerHref(banner.href)} nested/>):<ImmersiveScene scene={{type:product.images[0]?'image':'text',url:product.images[0]?.url,title:product.title,fit:'contain',animation:'fade'}} index={0} alt={product.title}/>}
       </section>}
@@ -109,7 +114,7 @@ export default async function ProductPage({ params, searchParams }: Props) {
       </section>}
       {visible('P05') && specifications.length > 0 && <section className="product-support-section" id="product-specifications" data-module-id="ALSVID-P05" data-module="specifications">
             <h2>{UI.specifications[locale]}</h2>
-            {productLayout.specifications === 'table' ? <table className="product-spec-table"><tbody>{specifications.map(row => <tr key={row.label}><th>{row.label}</th><td>{row.value}</td></tr>)}</tbody></table> : productLayout.specifications === 'accordion' ? <details className="product-spec-accordion"><summary>{UI.showSpecifications[locale]}</summary><ul className="spec-list">{specifications.map(row => <li key={row.label}><span>{row.label}</span><strong>{row.value}</strong></li>)}</ul></details> : <ul className="spec-list">{specifications.map(row => <li key={row.label}><span>{row.label}</span><strong>{row.value}</strong></li>)}</ul>}
+            {specGroups.map(group=><section key={group.title} className="product-spec-group"><h3>{group.title}</h3>{productLayout.specifications==='table'?<table className="product-spec-table"><tbody>{group.rows.map((row,i)=><tr key={row.code||i}><th>{row.label}</th><td>{row.value}</td></tr>)}</tbody></table>:productLayout.specifications==='accordion'?<details className="product-spec-accordion"><summary>{UI.showSpecifications[locale]}</summary><ul className="spec-list">{group.rows.map((row,i)=><li key={row.code||i}><span>{row.label}</span><strong>{row.value}</strong></li>)}</ul></details>:<ul className="spec-list">{group.rows.map((row,i)=><li key={row.code||i}><span>{row.label}</span><strong>{row.value}</strong></li>)}</ul>}</section>)} 
           </section>}
       {visible('P06')&&!!template?.packageSpecs?.length&&<section className="product-support-section" data-module-id="ALSVID-P06" data-module="packaging"><h2>{{zh:'包装清单',de:'Lieferumfang',en:'In the box'}[locale]}</h2><ul className="spec-list">{template.packageSpecs.map(row=><li key={row.code}><span>{row.label}</span><strong>{row.value}{row.unit&&!row.value.endsWith(row.unit)?' '+row.unit:''}</strong></li>)}</ul></section>}
       {visible('P07')&&!!template?.downloads?.length&&<section className="product-support-section" id="product-downloads" data-module-id="ALSVID-P07" data-module="downloads"><h2>{{zh:'产品下载',de:'Downloads',en:'Downloads'}[locale]}</h2><ul>{template.downloads.map(item=><li key={item.id}><a href={item.downloadUrl} target="_blank" rel="noopener noreferrer">{item.title} · PDF ↗</a></li>)}</ul></section>}
@@ -157,4 +162,12 @@ function PerformanceBlock({config,specs,legacy,alt,legacyHref}:{config?:Performa
       {rows.map(row=><div key={row.code}><dt style={{color:'inherit',fontSize:'0.9rem',marginBottom:8}}>{row.label}</dt><dd style={{fontSize:'clamp(1.2rem,3vw,2.5rem)',fontWeight:600,margin:0,overflowWrap:'anywhere'}}>{row.value}{row.unit&&!String(row.value).trim().endsWith(row.unit.trim())?' '+row.unit:''}</dd></div>)}
     </dl>}
   </section>;
+}
+
+function groupSpecifications(rows:{code?:string;label:string;value:string}[],locale:Locale){
+ const titles={zh:['车架系统','电气系统','骑行性能','机械配置','其他规格'],de:['Rahmen','Elektrik','Fahrleistung','Mechanik','Weitere Daten'],en:['Frame','Electrical system','Riding performance','Mechanical components','Other specifications']}[locale];
+ const groups=titles.map(title=>({title,rows:[] as typeof rows}));
+ for(const row of rows){const key=(row.code||row.label).toLowerCase();
+ const i=/frame|weight|fold|dimension|车架|车重|重量|折叠|尺寸|rahmen|gewicht|falt/.test(key)?0:/motor|battery|controller|display|charger|电机|电池|控制器|仪表|充电|akku|lade/.test(key)?1:/range|speed|torque|续航|速度|扭矩|reichweite|geschwindigkeit|drehmoment/.test(key)?2:/brake|tyre|tire|gear|wheel|chain|刹车|轮胎|变速|链条|车轮|bremse|reifen|schaltung/.test(key)?3:4;groups[i].rows.push(row);}
+ return groups.filter(g=>g.rows.length);
 }

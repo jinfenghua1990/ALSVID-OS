@@ -141,9 +141,9 @@ test('WEB-017: 回滚机制与不可变快照审计', async () => {
 
 test('WEB-017: 本地产物完整性与构建工件核验', () => {
   // Client (Vite)
-  const clientDist = path.join(__dirname, '..', '..', 'client', 'dist');
-  assert.ok(fs.existsSync(clientDist), 'client/dist 构建目录应存在');
-  assert.ok(fs.existsSync(path.join(clientDist, 'index.html')), 'client/dist/index.html 入口文件应存在');
+  const clientDist = path.join(__dirname, '..', '..', 'admin-web', 'dist');
+  assert.ok(fs.existsSync(clientDist), 'admin-web/dist 构建目录应存在');
+  assert.ok(fs.existsSync(path.join(clientDist, 'index.html')), 'admin-web/dist/index.html 入口文件应存在');
 
   // Storefront (Next.js)
   const storefrontNext = path.join(__dirname, '..', '..', 'storefront', '.next');

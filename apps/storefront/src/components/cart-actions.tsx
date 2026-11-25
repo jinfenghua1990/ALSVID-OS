@@ -7,7 +7,6 @@ import { UI } from '@/lib/ui-text';
 import { guestCartKey, notifyCartChanged, readGuestCart } from './cart-storage';
 import { openCartDrawerEvent } from './cart-drawer';
 import { uuidv7 } from '@/lib/uuid';
-import { cartDrawerOpenEvent } from './cart-nav-link';
 
 const copy = {
   de: { add: 'In den Warenkorb', adding: 'Wird hinzugefügt…', view: 'Warenkorb ansehen', error: 'Der Warenkorb konnte nicht aktualisiert werden. Bitte erneut versuchen.', added: 'Zum Warenkorb hinzugefügt', configuration: 'Konfiguration auswählen', quantity: 'Menge', quantityLimit: 'Pro Konfiguration sind höchstens 100 Stück erlaubt.', limit: 'Der Warenkorb kann höchstens 50 verschiedene Artikel enthalten.' },
@@ -110,8 +109,8 @@ export function CartActions({ locale, productId, offers, availability, giftPrevi
         await data(await fetch('/api/portal/storefront/cart',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({revision:cart.revision,items})}));
         notifyCartChanged();
         setMessage(t.added);
-        if(direct)window.location.assign(cartHref);
-        else window.dispatchEvent(new Event(cartDrawerOpenEvent));
+        if(direct)window.location.assign(cartHref+'?step=checkout');
+        else window.dispatchEvent(new Event(openCartDrawerEvent));
         return;
       }
       const base='/api/catalog/products/'+encodeURIComponent(productId), query='?lang='+locale;
@@ -147,7 +146,7 @@ export function CartActions({ locale, productId, offers, availability, giftPrevi
       notifyCartChanged();
       setMessage(t.added);
       if(direct) window.location.assign(cartHref+'?step=checkout');
-      else window.dispatchEvent(new Event(openCartDrawerEvent));
+      // Guest items are locally stored; automatic opening waits for server acceptance.
     } catch (error) { setMessage(error instanceof Error && error.message === 'maximum items' ? t.limit : error instanceof Error && error.message === 'maximum quantity' ? t.quantityLimit : t.error); }
     finally { setBusy(false); }
   };

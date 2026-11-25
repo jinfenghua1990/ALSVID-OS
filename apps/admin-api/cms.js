@@ -587,4 +587,4 @@ function registerCmsRoutes(app, cms) {
   }, true);
 }
 
-module.exports = { createCmsStore, registerCmsRoutes };
+module.exports = { createCmsStore, registerCmsRoutes, publicProductSpecifications };

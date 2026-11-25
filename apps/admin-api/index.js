@@ -28,6 +28,7 @@ const { apiAccessHook } = require('./access-policy');
 const { createCatalogStore, registerCatalogRoutes } = require('./catalog');
 const { createCmsStore, registerCmsRoutes } = require('./cms');
 const { createStorefrontListingStore, registerStorefrontListingRoutes } = require('./storefront-listings');
+const {createShippingRateTemplates,registerShippingRateTemplateRoutes}=require('./shipping-rate-templates');
 const { createStorefrontCart, registerStorefrontCartRoutes } = require('./storefront-cart');
 const { createStorefrontOrders, registerStorefrontOrderRoutes } = require('./storefront-orders');
 const { createStorefrontReviews, registerStorefrontReviewRoutes } = require('./storefront-reviews');
@@ -263,6 +264,7 @@ const cms = process.env.DATABASE_URL ? createCmsStore(process.env.DATABASE_URL) 
 registerCmsRoutes(app, cms);
 registerStorefrontListingRoutes(app, process.env.DATABASE_URL ? createStorefrontListingStore(process.env.DATABASE_URL,{onPublicationChanged:()=>catalog?.clearProductCardCache()}) : null);
 registerStorefrontCartRoutes(app,process.env.DATABASE_URL ? createStorefrontCart(process.env.DATABASE_URL) : null);
+registerShippingRateTemplateRoutes(app,process.env.DATABASE_URL ? createShippingRateTemplates(process.env.DATABASE_URL) : null);
 const orderStore = process.env.DATABASE_URL ? createStorefrontOrders(process.env.DATABASE_URL) : null;
 registerStorefrontOrderRoutes(app, orderStore);
 // 支付回调确认后复用订单收款口径（recordPayment）推进状态并触发 Purchase 事件

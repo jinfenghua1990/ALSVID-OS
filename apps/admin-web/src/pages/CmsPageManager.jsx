@@ -7,7 +7,7 @@ const PAGE_TYPES = [['custom', '自定义页面'], ['product_template', '商品�
 const TYPE_LABELS = { home: '官网首页', custom: '自定义页面', product_template: '商品详情模板' };
 const STATE_LABELS = { active: '启用', disabled: '已停用' };
 const LANG_LABEL = { zh: '中文', en: '英文', de: '德文', '*': '多语言' };
-const PRODUCT_CONTENT_BLOCKS = new Set(['twoColumn', 'video', 'features', 'faq', 'cta']);
+const PRODUCT_CONTENT_BLOCKS = new Set(['twoColumn', 'video', 'specs', 'features', 'faq', 'cta']);
 const DEFAULT_PRODUCT_LAYOUT = { gallery: 'standard', specifications: 'list', reviews: 'list' };
 const emptyDraft = () => ({ blocks: [], seo: { title: '', description: '' }, productLayout: DEFAULT_PRODUCT_LAYOUT });
 

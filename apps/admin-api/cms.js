@@ -6,7 +6,7 @@ const { isUuidv7, uuidv7 } = require('./uuidv7');
 
 const LANGUAGES = ['zh', 'en', 'de'];
 const PAGE_TYPES = ['custom', 'product_template'];
-const COMPONENTS = ['hero', 'twoColumn', 'video', 'productGallery', 'specs', 'features', 'faq', 'cta', 'article'];
+const COMPONENTS = ['hero', 'twoColumn', 'image', 'carousel', 'divider', 'spacer', 'video', 'productGallery', 'specs', 'features', 'faq', 'cta', 'article'];
 const RESERVED_PATHS = ['www', 'catalog', 'api', 'my', 'dealer', 'login'];
 
 function fail(message, statusCode = 400) { throw Object.assign(new Error(message), { statusCode }); }
@@ -68,6 +68,17 @@ function blockOf(input) {
   let cleanProps = {}, cleanBindings = {};
   if (componentKey === 'hero') cleanProps = { eyebrow: text(props.eyebrow, 100), title: text(props.title, 180, true), intro: text(props.intro, 1000), ctaLabel: text(props.ctaLabel, 60), ctaHref: link(props.ctaHref) };
   else if (componentKey === 'twoColumn') cleanProps = { title: text(props.title, 180), body: text(props.body, 4000), imageId: assetId(props.imageId), imageSide: props.imageSide === 'left' ? 'left' : 'right' };
+  else if (componentKey === 'image') cleanProps = { imageId: assetId(props.imageId), alt: text(props.alt, 160), caption: text(props.caption, 400), href: link(props.href) };
+  else if (componentKey === 'carousel') {
+    const slides = Array.isArray(props.items) ? props.items : [];
+    if (slides.length > 8) fail('图片轮播最多 8 张');
+    cleanProps = { heading: text(props.heading, 120), items: slides.map(row => ({ imageId: assetId(row?.imageId), alt: text(row?.alt, 160), caption: text(row?.caption, 240), href: link(row?.href) })).filter(row => row.imageId) };
+  } else if (componentKey === 'divider') cleanProps = { style: props.style === 'soft' ? 'soft' : 'line' };
+  else if (componentKey === 'spacer') {
+    const height = Number(props.height ?? 48);
+    if (![16, 24, 32, 48, 64, 80, 96, 120].includes(height)) fail('留白高度无效');
+    cleanProps = { height };
+  }
   else if (componentKey === 'video') {
     const videoId = assetId(props.videoId);
     if (!videoId) fail('请选择页面视频素材');
@@ -210,6 +221,8 @@ function createCmsStore(connectionString) {
     const images = [], videos = [];
     for (const block of document.blocks) {
       if (block.componentKey === 'twoColumn' && block.props.imageId) images.push(block.props.imageId);
+      if (block.componentKey === 'image' && block.props.imageId) images.push(block.props.imageId);
+      if (block.componentKey === 'carousel') for (const slide of block.props.items || []) if (slide.imageId) images.push(slide.imageId);
       if (block.componentKey === 'article') {
         if (block.props.imageId) images.push(block.props.imageId);
         for (const section of block.props.sections || []) if (section.imageId) images.push(section.imageId);

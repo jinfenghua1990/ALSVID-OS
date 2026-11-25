@@ -41,6 +41,7 @@ const PUBLIC_RULES: Rule[] = [
   { method: 'GET', pattern: /^\/api\/public\/products\/[^/]+$/ },
   { method: 'GET', pattern: /^\/api\/public\/home-media\/[^/]+$/ },
   { method: 'GET', pattern: /^\/api\/public\/cms-media\/[^/]+$/ },
+  { method: 'GET', pattern: /^\/api\/public\/sku-media\/[^/]+$/ },
   { method: 'GET', pattern: /^\/api\/public\/dealer-locations$/ },
   { method: 'GET', pattern: /^\/api\/cms\/pages\/public$/ },
   { method: 'GET', pattern: /^\/api\/cms\/pages\/sitemap$/ },

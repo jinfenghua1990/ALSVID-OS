@@ -371,6 +371,7 @@ export function StandardDetailPanel({ locale, products, publishedMap, productId 
 
 // 公共模块的 8 个固定模块：序号、名称、是否属于全局装修
 const GLOBAL_MODULES = [
+  ['productNavigation', '00', '商品专属导航栏'],
   ['info', '01', '主信息区'],
   ['marketing', '02', '营销模块'],
   ['reserved3', '03', '预留位一'],
@@ -383,6 +384,7 @@ const GLOBAL_MODULES = [
 
 // 每个模块在编辑区顶部的定位说明 + 预览侧是否有对应区块（决定点击能否真的滚过去）
 const MODULE_META = {
+  productNavigation: { desc:'整车详情页专属固定导航；名称和锚点由当前商品自动生成', anchor:()=>false },
   info: { desc: '固定模块，由商品数据自动生成', anchor: () => true },
   marketing: { desc: '促销展现 · 标准模板 3 选 1' },
   reserved3: { desc: '预留位 · 未配置内容时自动隐藏' },
@@ -405,7 +407,7 @@ function moduleAnchor(key, modules) {
 }
 
 function moduleBadge(key, modules) {
-  if (key === 'info') return '固定';
+  if (key === 'info' || key === 'productNavigation') return '固定';
   if (key === 'detail') return '按商品';
   if (key === 'reserved3' || key === 'reserved4') {
     const m = modules[key] || {};
@@ -456,6 +458,7 @@ export function GlobalModulesPanel({ cms, row, locale, onEditGraphic, onSelectMo
   };
 
   const editor = (() => {
+    if (active === 'productNavigation') return <section className="sdp__module"><header><strong>商品专属导航栏</strong><span className="hint">固定模块 · ALSVID-P00</span></header><p>整车详情页自动读取车型名称、概览、图文、技术参数、评价及购买锚点。当前为统一固定样式，预览旧版与正式前台存在差异，样式编辑尚未开放。</p></section>;
     if (active === 'info') return <div className="sdp">
       <section className="sdp__module">
         <header><strong>主图 · 型号颜色 · 价格</strong><span className="hint">固定模块</span></header>
@@ -505,10 +508,10 @@ export function GlobalModulesPanel({ cms, row, locale, onEditGraphic, onSelectMo
         <h3 className="sdw__side-title">模块目录</h3>
         <span className="gmp__fixed">固定顺序</span>
       </div>
-      <p className="sdw__tip gmp__hint">8 个模块位置固定，不可拖动、不可调整顺序。</p>
+      <p className="sdw__tip gmp__hint">商品导航 + 原 8 个模块位置固定，不可拖动、不可调整顺序。</p>
       <div className="gmp__list">
         {GLOBAL_MODULES.map(([key, itemNo, itemName]) => <button type="button" key={key} className={'gmp__item' + (active === key ? ' is-active' : '')} onClick={() => pickModule(key)}>
-          <b>{itemNo}</b><span>{itemName}</span><i className={'gmp__badge' + (moduleBadge(key, modules) === '已启用' || moduleBadge(key, modules) === '已配置' ? ' is-on' : '')}>{moduleBadge(key, modules)}</i>
+          <b>{itemNo}</b><span>{itemName}<small style={{display:'block',fontSize:10}}>ALSVID-P{itemNo}</small></span><i className={'gmp__badge' + (moduleBadge(key, modules) === '已启用' || moduleBadge(key, modules) === '已配置' ? ' is-on' : '')}>{moduleBadge(key, modules)}</i>
         </button>)}
       </div>
       <p className="sdw__tip">保存草稿 / 发布 / 发布记录统一在页面顶部动作条，此处只管选模块。</p>
@@ -517,7 +520,7 @@ export function GlobalModulesPanel({ cms, row, locale, onEditGraphic, onSelectMo
       <div className="sdp__cast">
         <div className="sdp__cast-main">
           <span className="sdp__cast-no">{no}</span>
-          <b>{name}</b>
+          <b>{name}</b><button type="button" className="btn small" onClick={()=>navigator.clipboard.writeText('ALSVID-P'+no).catch(()=>window.alert('复制失败，请手动复制模块编号'))}>复制 ALSVID-P{no}</button>
           {meta.desc && <small>{meta.desc}</small>}
         </div>
         <button type="button" className="btn small" onClick={() => focusModule(active)}

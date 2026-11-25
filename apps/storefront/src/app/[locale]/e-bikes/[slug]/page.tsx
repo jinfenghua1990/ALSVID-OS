@@ -71,6 +71,7 @@ export default async function ProductPage({ params }: Props) {
   const copyModules = ([{key:'returns',row:modules?.returns},{key:'other',row:modules?.other}] as {key:'returns'|'other';row:ProductModuleCopy|undefined}[]).filter((entry):entry is {key:'returns'|'other';row:ProductModuleCopy}=>!!entry.row?.enabled&&!!(entry.row.title||entry.row.body)&&(entry.key!=='returns'||returnPolicyReady));
   const bannerHref = (href: string) => href.replace(/^\/www\/(de|en|zh)\/products(?:\/|$)/, (_, lang: string) => `/${lang}/e-bikes/`);
   return (
+    <>
     <main className="container product-page">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData).replace(/</g, '\\u003c') }}></script>
       <nav className="product-crumb"><a href={`/${locale}/e-bikes`}>E-Bikes</a> / {product.title}</nav>
@@ -99,8 +100,9 @@ export default async function ProductPage({ params }: Props) {
       {!!product.relatedAccessories?.length && <section className="product-related"><p className="eyebrow">{UI.relatedAccessories[locale]}</p><h2>{UI.fitsThisModel[locale]}</h2><div className="product-related__grid">{product.relatedAccessories.map(item => <a key={item.productId} href={`/${locale}/products/${encodeURIComponent(item.slug)}`}><div>{item.images[0] ? <img src={publicApiUrl(item.images[0].url)} alt={item.title} loading="lazy"/> : item.title}</div><strong>{item.title}</strong>{item.prices.length>0&&<small>{item.prices.map(price=>`${price.currency} ${price.unitPrice}`).join(' · ')}</small>}</a>)}</div></section>}
       {reviewsConfig.enabled && <ProductReviews key={product.productId} locale={locale} productId={product.productId} data={reviews} limit={reviewsConfig.limit} style={productLayout.reviews}/>}
       {copyModules.map(({key,row}) => <section className="product-business-module product-standard-module" key={key} data-module={key}><h2>{row.title || (key === "returns" ? UI.returns[locale] : UI.other[locale])}</h2><p>{row.body}</p>{key==='returns'&&<a href={`/${locale}/legal/widerrufsbelehrung`}>{locale==='de'?'Vollständige Rückgabebedingungen':locale==='en'?'Full return policy':'完整退换货政策'} →</a>}</section>)}
-    <StickyPurchaseBar locale={locale} productId={product.productId} initialPrice={offers[0]?new Intl.NumberFormat(locale==='de'?'de-DE':locale==='zh'?'zh-CN':'en-IE',{style:'currency',currency:offers[0].currency}).format(Number(offers[0].unitPrice)):''} disabled={!offers.length||availability?.available===false}/>
     </main>
+    <StickyPurchaseBar locale={locale} productId={product.productId} initialPrice={offers[0]?new Intl.NumberFormat(locale==='de'?'de-DE':locale==='zh'?'zh-CN':'en-IE',{style:'currency',currency:offers[0].currency}).format(Number(offers[0].unitPrice)):''} disabled={!offers.length||availability?.available===false}/>
+    </>
   );
 }
 

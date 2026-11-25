@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation';
 import { CmsBlocks } from '@/components/cms-blocks';
 import { CartActions } from '@/components/cart-actions';
 import { ProductGallery } from '@/components/product-gallery';
+import { ProductPageNav } from '@/components/product-page-nav';
 import { absoluteApiUrl, getAvailability, getCmsProductTemplate, getOffers, getProduct, getReviews, publicApiUrl, publicAssetUrl, type Locale, type ProductModuleBanner, type ProductModuleCopy, siteUrl } from '@/lib/alsvid-api';
 import { UI } from '@/lib/ui-text';
 
@@ -78,16 +79,7 @@ export default async function ProductPage({ params }: Props) {
   return (
     <main className="container product-page product-page--with-nav" data-product-id={product.productId} data-product-slug={product.slug}>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData).replace(/</g, '\\u003c') }}></script>
-      <nav className="product-section-nav" aria-label={locale==='zh'?'商品导航':locale==='de'?'Produktnavigation':'Product navigation'} data-module-id="ALSVID-P00" data-module="productNavigation">
-        <strong>{product.model||product.title}</strong>
-        <div className="product-section-nav__links">
-          <a href="#product-overview">{locale==='zh'?'产品概览':locale==='de'?'Übersicht':'Overview'}</a>
-          {detailBlocks.length>0&&<a href="#product-details">{UI.detailDescription[locale]}</a>}
-          {specifications.length>0&&<a href="#product-specifications">{UI.specifications[locale]}</a>}
-          {reviewsConfig.enabled&&<a href="#product-reviews">{UI.reviews[locale]}</a>}
-        </div>
-        <a className="product-section-nav__buy" href="#product-purchase">{locale==='zh'?'立即购买':locale==='de'?'Jetzt kaufen':'Buy now'}</a>
-      </nav>
+      <ProductPageNav locale={locale} model={product.model||product.title} hasSpecs={specifications.length>0} hasVideo={templateBlocks.some(block=>block.componentKey==='video' && !!block.data?.videoUrl)} hasDownloads={templateBlocks.some(block=>block.componentKey==='manuals' && !!block.data?.manuals?.length)} />
       <div className="product-layout" id="product-overview" data-module-id="ALSVID-P01" data-module="info">
         <ProductGallery key={product.productId} productId={product.productId} images={product.images} title={product.title} locale={locale} style={productLayout.gallery} />
         <section>
@@ -113,7 +105,14 @@ export default async function ProductPage({ params }: Props) {
           ? <img key={index} src={publicApiUrl(block.url!)} alt={block.alt || product.title} loading="lazy" />
           : <p key={index}>{block.text}</p>)}
       </section>}
-      {templateBlocks.length > 0 && <CmsBlocks blocks={templateBlocks} locale={locale} />}
+      {templateBlocks.map((block,index) => {
+        const isVideo=block.componentKey==='video' && !!block.data?.videoUrl;
+        const isDownload=block.componentKey==='manuals' && !!block.data?.manuals?.length;
+        const firstVideo=isVideo && index===templateBlocks.findIndex(item=>item.componentKey==='video' && !!item.data?.videoUrl);
+        const firstDownload=isDownload && index===templateBlocks.findIndex(item=>item.componentKey==='manuals' && !!item.data?.manuals?.length);
+        const anchor=firstVideo?'product-video':firstDownload?'product-downloads':null;
+        return anchor ? <div id={anchor} key={block.id}><CmsBlocks blocks={[block]} locale={locale}/></div> : <CmsBlocks key={block.id} blocks={[block]} locale={locale}/>;
+      })}
       {!!product.relatedAccessories?.length && <section className="product-related"><p className="eyebrow">{UI.relatedAccessories[locale]}</p><h2>{UI.fitsThisModel[locale]}</h2><div className="product-related__grid">{product.relatedAccessories.map(item => <a key={item.productId} href={`/${locale}/e-bikes/${encodeURIComponent(item.slug)}`}><div>{item.images[0] ? <img src={publicApiUrl(item.images[0].url)} alt={item.title} loading="lazy"/> : item.title}</div><strong>{item.title}</strong>{item.prices.length>0&&<small>{item.prices.map(price=>`${price.currency} ${price.unitPrice}`).join(' · ')}</small>}</a>)}</div></section>}
       {reviewsConfig.enabled && <section className={`reviews reviews--${productLayout.reviews}`} id="product-reviews" data-module-id="ALSVID-P06" data-module="reviews">
         <p className="eyebrow">{UI.reviews[locale]}</p>

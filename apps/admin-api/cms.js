@@ -239,7 +239,7 @@ function createCmsStore(connectionString) {
     const specsBlocks = blocks.filter(block => block.componentKey === 'specs');
     const galleryIds = blocks.filter(block => block.componentKey === 'productGallery').flatMap(block => block.bindings.productIds || []);
     // 商品详情模板未绑定固定商品时，使用当前访问的商品 ID/SEO slug，做到一套模板服务所有车型。
-    const specIds = specsBlocks.map(block => block.bindings.productId || contextProductId).filter(Boolean);
+    const specIds = specsBlocks.map(block => contextProductId || block.bindings.productId).filter(Boolean);
     const videoIds = blocks.filter(block => block.componentKey === 'video').map(block => block.props.videoId).filter(Boolean);
     const ids = [...new Set([...galleryIds, ...specIds])];
     if (!ids.length && !videoIds.length) return blocks;
@@ -260,7 +260,7 @@ function createCmsStore(connectionString) {
     return blocks.map(block => {
       if (block.componentKey === 'productGallery') return { ...block, data: { products: (block.bindings.productIds || []).map(id => map.get(id)?.product).filter(Boolean) } };
       if (block.componentKey === 'specs') {
-        const productRef = block.bindings.productId || contextProductId;
+        const productRef = contextProductId || block.bindings.productId;
         const product = map.get(productRef);
         const selectedCodes = new Set(block.bindings.fieldCodes || []);
         const specifications = product ? publicProductSpecifications(product, fieldRows, locale, selectedCodes) : [];

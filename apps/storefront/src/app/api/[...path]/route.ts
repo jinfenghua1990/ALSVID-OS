@@ -59,6 +59,8 @@ const PUBLIC_RULES: Rule[] = [
 const CONSUMER_RULES: Rule[] = [
   { method: 'GET', pattern: /^\/api\/auth\/status$/ },
   { method: 'POST', pattern: /^\/api\/auth\/login$/ },
+  { method: 'GET', pattern: /^\/api\/auth\/registration$/ },
+  { method: 'POST', pattern: /^\/api\/auth\/registration\/(start|verify)$/ },
   { method: 'POST', pattern: /^\/api\/auth\/logout$/ },
   { method: 'GET', pattern: /^\/api\/portal\/storefront\/cart$/ },
   { method: 'PUT', pattern: /^\/api\/portal\/storefront\/cart$/ },

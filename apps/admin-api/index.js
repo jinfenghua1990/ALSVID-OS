@@ -118,6 +118,12 @@ function sessionToken(req) { const match=String(req.headers.cookie||'').match(/(
 app.addHook('onRequest',apiAccessHook(auth,sessionToken));
 app.addHook('onRequest',(req,reply,done)=>runAsActor(req.user?.username||'system',done));
 app.get('/api/auth/status',async req=>({initialized:auth?await auth.hasUsers():false,user:auth?await auth.user(sessionToken(req)):null}));
+app.get('/api/auth/registration',async()=>({enabled:!!auth?.registration.ready()}));
+for(const [suffix,action] of [['start','start'],['verify','verify']])app.post('/api/auth/registration/'+suffix,{bodyLimit:8192},async(req,reply)=>{
+  if(!auth)return reply.code(503).send({error:'账号服务不可用'});
+  if(await auth.user(sessionToken(req)))return reply.code(409).send({error:'请先退出已有账号'});
+  try{return await auth.registration[action](req.body||{})}catch(e){return reply.code(e.statusCode||503).send({error:e.statusCode?e.message:'注册服务暂不可用'})}
+});
 app.post('/api/auth/setup',async(req,reply)=>{if(!auth)return reply.code(503).send({error:'账号服务不可用'});try{await auth.setup(req.body?.username,req.body?.password);return reply.code(201).send({ok:true});}catch(e){const allowed=['管理员已设置','请输入有效邮箱或 3–64 位字母、数字、. _ - 账号','密码须为 8–20 个字符'];return reply.code(400).send({error:allowed.includes(e.message)?e.message:'管理员设置失败'});}});
 app.post('/api/auth/login',async(req,reply)=>{
   if(!auth)return reply.code(503).send({error:'账号服务不可用'});

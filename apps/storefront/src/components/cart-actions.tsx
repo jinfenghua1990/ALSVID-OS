@@ -57,6 +57,8 @@ export function CartActions({ locale, productId, offers, availability }: { local
     } catch (error) { setMessage(error instanceof Error && error.message === 'maximum items' ? t.limit : error instanceof Error && error.message === 'maximum quantity' ? t.quantityLimit : t.error); }
     finally { setBusy(false); }
   };
+  useEffect(()=>{window.dispatchEvent(new CustomEvent('alsvid:purchase-config',{detail:{productId,price:selectedOffer?money(selectedOffer.unitPrice,selectedOffer.currency):'',disabled:!selectedOffer||blocked||busy}}))},[productId,selectedOffer?.sku,selectedOffer?.unitPrice,selectedOffer?.currency,blocked,busy,locale]);
+  useEffect(()=>{const handler=(event:Event)=>{const detail=(event as CustomEvent).detail;if(detail?.productId===productId)void add(true)};window.addEventListener('alsvid:purchase-now',handler);return()=>window.removeEventListener('alsvid:purchase-now',handler)},[productId,selectedOffer,blocked,busy,quantity]);
 
   return <div className="cart-actions purchase-controls" id="purchase-controls">
     <div className="purchase-price" aria-live="polite">{selectedOffer?money(selectedOffer.unitPrice,selectedOffer.currency):UI.priceOnRequest[locale]}</div>

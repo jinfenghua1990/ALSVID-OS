@@ -12,16 +12,17 @@ export function SiteHeader({locale,catalogLayout,config=null}:{locale:Locale;cat
  const t=copy[locale],categories=catalogLayout?.categories||[];
  return <header className="site-header" data-module-id="ALSVID-G02">
   <Link className="brand" href={'/'+locale} aria-label="ALSVID">{config?.brand||'ALSVID'}</Link>
-  <details className="mobile-menu"><summary>{t.menu}</summary><nav className="site-nav" aria-label={t.menu}>
+  <details className="mobile-menu"><summary aria-label={t.menu}><svg width="22" height="22" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.6" fill="none" aria-hidden="true"><path d="M3 6h18M3 12h18M3 18h18"/></svg></summary><nav className="site-nav" aria-label={t.menu}>
    <Link href={'/'+locale}>{t.home}</Link>
    <details className="nav-mega"><summary>{t.catalog}</summary><div className="nav-mega__panel">
     <div className="nav-mega__intro"><span className="eyebrow">{t.categories}</span><strong>{t.all}</strong><p>{locale==='de'?'Entdecken Sie die ALSVID E-Bike Modelle.':locale==='en'?'Explore the ALSVID electric bike range.':'探索 ALSVID 电动自行车系列。'}</p><Link className="nav-mega__all" href={'/'+locale+'/e-bikes'}>{t.all} →</Link></div>
     <div className="nav-mega__links">{categories.length?categories.map((category,index)=><Link key={category.name+'-'+index} href={'/'+locale+'/e-bikes?cat='+index}><strong>{category.name}</strong><span>{category.productIds.length} {locale==='zh'?'款车型':locale==='de'?'Modelle':'models'}</span></Link>):<Link href={'/'+locale+'/e-bikes'}>{t.all} →</Link>}</div>
    </div></details>
    {config?.links?.map((item,i)=><Link key={i} href={item.href}>{item.label}</Link>)}
-   <Link href={'/'+locale+'/test-ride'}>{t.ride}</Link><CartNavLink locale={locale}/><Link href={'/'+locale+'/account'}>{t.owner}</Link>
-  </nav></details>
-  <form className="site-search" action={'/'+locale+'/e-bikes'} method="get" role="search"><label className="sr-only" htmlFor="site-search-input">{t.search}</label><input id="site-search-input" name="q" type="search" placeholder={t.searchPlaceholder}/><button type="submit" aria-label={t.search}>⌕</button></form>
+   <Link href={'/'+locale+'/test-ride'}>{t.ride}</Link>
+  </nav>  <form className="site-search" action={'/'+locale+'/e-bikes'} method="get" role="search"><label className="sr-only" htmlFor="site-search-input">{t.search}</label><input id="site-search-input" name="q" type="search" placeholder={t.searchPlaceholder}/><button type="submit" aria-label={t.search}>⌕</button></form></details>
+
   <details className="locale-switch locale-switch--flags"><summary aria-label={locale==='zh'?'切换语言':locale==='de'?'Sprache wählen':'Choose language'}><LanguageFlag locale={locale}/><span className="sr-only">{languageNames[locale]}</span></summary><nav aria-label="Language">{(['de','en','zh'] as Locale[]).map(lang=><Link key={lang} href={'/'+lang} lang={lang} aria-current={lang===locale?'page':undefined}><LanguageFlag locale={lang}/>{languageNames[lang]}</Link>)}</nav></details>
+ <div className="site-header-actions"><CartNavLink locale={locale}/><Link href={'/'+locale+'/account'} aria-label={t.owner}><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true"><circle cx="12" cy="7" r="4"/><path d="M4 21v-2a8 8 0 0 1 16 0v2"/></svg></Link></div>
  </header>;
 }

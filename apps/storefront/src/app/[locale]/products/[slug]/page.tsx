@@ -1,7 +1,7 @@
 import type {Metadata} from 'next';
 import {notFound} from 'next/navigation';
-import {CartActions} from '@/components/cart-actions';
-import {ProductGallery} from '@/components/product-gallery';
+import {ProductPurchaseSection} from '@/components/product-purchase-section';
+import {ImmersiveScene} from '@/components/immersive-scene';
 import {StickyPurchaseBar} from '@/components/sticky-purchase-bar';
 import {getAvailability,getProduct,getOffers,siteUrl,type Locale} from '@/lib/alsvid-api';
 type Props={params:Promise<{locale:Locale;slug:string}>};
@@ -19,8 +19,9 @@ export default async function AccessoryPage({params}:Props){
  const eur=offers.filter(x=>x.currency==='EUR');
  return <main className="container product-page accessory-page">
   <nav className="product-crumb"><a href={'/'+locale+'/e-bikes'}>{locale==='de'?'E-Bikes':locale==='en'?'E-Bikes':'整车'}</a> / {product.title}</nav>
-  <div className="product-layout purchase-layout"><ProductGallery images={product.images} title={product.title} locale={locale} productId={product.productId}/><section className="purchase-info"><p className="eyebrow">ALSVID / {product.model}</p><h1>{product.title}</h1><p className="lede">{product.description}</p><CartActions locale={locale} productId={product.productId} offers={eur} availability={availability}/><h2>{locale==='de'?'Technische Daten':locale==='en'?'Specifications':'产品参数'}</h2><ul className="spec-list">{product.specifications.map(row=><li key={row.label}><span>{row.label}</span><strong>{row.value}</strong></li>)}</ul></section></div>
-  {!!product.detailBlocks?.length&&<section className="product-detail-blocks"><h2>{locale==='de'?'Produktdetails':locale==='en'?'Product details':'产品详情'}</h2>{product.detailBlocks.map((block,i)=>block.type==='image'&&block.url?<img key={i} src={block.url} alt={block.alt||product.title} loading="lazy"/>:block.text?<p key={i}>{block.text}</p>:null)}</section>}
+  <ProductPurchaseSection product={product} locale={locale} offers={eur} availability={availability}/>
+  {product.detailBlocks?.some(block=>!block.hidden)&&<section className="product-immersive" id="product-details" data-module-id="ALSVID-P04" data-module="detail">{product.detailBlocks.filter(block=>!block.hidden&&((block.type==='text'&&block.text)||(['image','video'].includes(block.type)&&block.url))).map((block,i)=><ImmersiveScene key={i} scene={block} index={i+1} alt={product.title}/>)}</section>}
+  {product.specifications.length>0&&<section className="product-support-section" id="product-specifications" data-module-id="ALSVID-P05" data-module="specifications"><h2>{locale==='de'?'Technische Daten':locale==='en'?'Specifications':'产品参数'}</h2><ul className="spec-list">{product.specifications.map((row,i)=><li key={i}><span>{row.label}</span><strong>{row.value}</strong></li>)}</ul></section>}
   <p className="accessory-note">{locale==='de'?'Kompatibilität bitte vor der Bestellung anhand der Produktangaben prüfen.':locale==='en'?'Please check compatibility against the product specifications before ordering.':'下单前请根据商品参数确认兼容性。'}</p>
   <StickyPurchaseBar locale={locale} productId={product.productId} initialPrice={eur[0]?new Intl.NumberFormat(locale==='de'?'de-DE':locale==='zh'?'zh-CN':'en-IE',{style:'currency',currency:eur[0].currency}).format(Number(eur[0].unitPrice)):''} disabled={!eur.length||availability?.available===false}/>
  </main>;

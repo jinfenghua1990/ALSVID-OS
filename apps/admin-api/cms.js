@@ -79,8 +79,10 @@ function blockOf(input) {
     cleanProps = { heading: text(props.heading, 120) };
     cleanBindings = { productIds: [...new Set(ids.map(value => value.trim()))] };
   } else if (componentKey === 'specs') {
+    const fieldCodes = Array.isArray(bindings.fieldCodes) ? bindings.fieldCodes : [];
+    if (fieldCodes.length > 60 || fieldCodes.some(code => typeof code !== 'string' || !/^[a-z0-9_]{1,80}$/.test(code))) fail('参数字段选择无效');
     cleanProps = { heading: text(props.heading, 120) };
-    cleanBindings = { productId: text(bindings.productId, 80), fieldSet: 'public_specs' };
+    cleanBindings = { productId: text(bindings.productId, 80), fieldSet: 'public_specs', fieldCodes: [...new Set(fieldCodes)] };
   } else if (componentKey === 'features') cleanProps = { heading: text(props.heading, 120), items: items(props.items, 6, [['title', 120, true], ['text', 400]]) };
   else if (componentKey === 'faq') cleanProps = { heading: text(props.heading, 120), items: items(props.items, 12, [['question', 200, true], ['answer', 2000, true]]) };
   else if (componentKey === 'article') cleanProps = { heading: text(props.heading, 180), intro: text(props.intro, 1200), imageId: assetId(props.imageId), imageAlt: text(props.imageAlt, 160), sections: articleSections(props.sections) };
@@ -184,6 +186,23 @@ function seoOf(input) {
   if (typeof input !== 'object' || Array.isArray(input)) fail('SEO 资料格式无效');
   return { title: text(input.title, 180), description: text(input.description, 500) };
 }
+function publicProductSpecifications(product, fields, locale, selectedCodes = new Set()) {
+  if (!product || !product.specs || typeof product.specs !== 'object' || Array.isArray(product.specs)) return [];
+  const labelKey = locale === 'de' ? 'nameDe' : locale === 'en' ? 'nameEn' : 'nameZh';
+  return fields.filter(field => {
+    if (!field.enabled || !field.shopVisible || field.level !== 'product') return false;
+    if (Array.isArray(field.templates) && field.templates.length && !field.templates.includes(product.productType)) return false;
+    if (selectedCodes.size && !selectedCodes.has(field.code)) return false;
+    const value = product.specs[field.code];
+    return value !== undefined && value !== null && String(value).trim() !== '';
+  }).map(field => ({
+    code: field.code,
+    label: field[labelKey] || field.nameZh || field.code,
+    value: String(product.specs[field.code]).trim(),
+    unit: field.unit || '',
+  }));
+}
+
 function createCmsStore(connectionString) {
   const pool = createPool(connectionString, { max: 3, connectionTimeoutMillis: 10000 });
   const columns = `id::text AS id,page_type AS "pageType",locale,path,page_name AS "name",status,draft,published,revision,published_revision AS "publishedRevision",published_version AS "publishedVersion",draft_seo AS "draftSeo",published_seo AS "publishedSeo",published_label AS "publishedLabel",draft_label AS "draftLabel",updated_by AS "updatedBy",updated_at AS "updatedAt"`;
@@ -216,24 +235,37 @@ function createCmsStore(connectionString) {
     if (!data) fail('页面不存在', 404);
     return data;
   }
-  async function enrich(blocks, locale) {
+  async function enrich(blocks, locale, contextProductId = '') {
+    const specsBlocks = blocks.filter(block => block.componentKey === 'specs');
     const galleryIds = blocks.filter(block => block.componentKey === 'productGallery').flatMap(block => block.bindings.productIds || []);
-    const specIds = blocks.filter(block => block.componentKey === 'specs').map(block => block.bindings.productId).filter(Boolean);
+    // 商品详情模板未绑定固定商品时，使用当前访问的商品 ID/SEO slug，做到一套模板服务所有车型。
+    const specIds = specsBlocks.map(block => block.bindings.productId || contextProductId).filter(Boolean);
     const videoIds = blocks.filter(block => block.componentKey === 'video').map(block => block.props.videoId).filter(Boolean);
     const ids = [...new Set([...galleryIds, ...specIds])];
     if (!ids.length && !videoIds.length) return blocks;
-    const rows = ids.length ? (await pool.query(`SELECT p.id,p.kind,l.published,l.slug FROM products p JOIN storefront_listings l ON l.product_uuid=p.entity_uuid AND l.channel='website' AND l.published IS NOT NULL WHERE (p.id=ANY($1::text[]) OR l.slug=ANY($1::text[])) AND p.status='启用' AND l.published->'languages' ? $2`, [ids, locale])).rows : [];
+    const rows = ids.length ? (await pool.query(`SELECT p.id::text AS id,p.kind,p.product_type AS "productType",p.specs,l.published,l.slug
+      FROM products p JOIN storefront_listings l ON l.product_uuid=p.entity_uuid AND l.channel='website' AND l.published IS NOT NULL
+      WHERE (p.id::text=ANY($1::text[]) OR l.slug=ANY($1::text[])) AND p.status='启用' AND l.published->'languages' ? $2`, [ids, locale])).rows : [];
+    const fieldRows = specsBlocks.length ? (await pool.query(`SELECT code,name_zh AS "nameZh",name_en AS "nameEn",name_de AS "nameDe",unit,level,templates,shop_visible AS "shopVisible",enabled
+      FROM fields WHERE enabled=true AND shop_visible=true AND level='product' ORDER BY code`)).rows : [];
     const map = new Map(rows.flatMap(r => {
       const doc = r.published, content = doc.languages[locale];
       const value = {
         product: { id: r.id, slug: r.slug, kind: r.kind, title: content.title, image: doc.mediaIds[0] ? { url: `/api/catalog/products/${encodeURIComponent(r.id)}/images/${encodeURIComponent(doc.mediaIds[0])}` } : null },
-        specifications: content.specifications,
+        specs: r.specs || {},
+        productType: r.productType,
       };
       return [[r.id, value], ...(r.slug ? [[r.slug, value]] : [])];
     }));
     return blocks.map(block => {
       if (block.componentKey === 'productGallery') return { ...block, data: { products: (block.bindings.productIds || []).map(id => map.get(id)?.product).filter(Boolean) } };
-      if (block.componentKey === 'specs') return { ...block, data: { specifications: map.get(block.bindings.productId)?.specifications || [] } };
+      if (block.componentKey === 'specs') {
+        const productRef = block.bindings.productId || contextProductId;
+        const product = map.get(productRef);
+        const selectedCodes = new Set(block.bindings.fieldCodes || []);
+        const specifications = product ? publicProductSpecifications(product, fieldRows, locale, selectedCodes) : [];
+        return { ...block, data: { specifications } };
+      }
       if (block.componentKey === 'video') return { ...block, data: { videoUrl: block.props.videoId ? `/api/public/cms-media/${encodeURIComponent(block.props.videoId)}` : '' } };
       return block;
     });
@@ -487,7 +519,7 @@ function createCmsStore(connectionString) {
         productLayout: document.productLayout || { gallery: 'standard', specifications: 'list', reviews: 'list' },
         modules: document.modules || DEFAULT_PRODUCT_MODULES,
         catalogLayout: document.catalogLayout || null,
-        blocks: await enrich(Array.isArray(document.blocks) ? document.blocks : [], locale),
+        blocks: await enrich(Array.isArray(document.blocks) ? document.blocks : [], locale, productId),
         preview: draft ? 'draft' : version ? `v${version}` : undefined,
       });
       // 草稿预览：仅后台装修工作区使用（路由层已校验管理员身份）

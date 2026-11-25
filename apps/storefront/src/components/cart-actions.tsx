@@ -83,70 +83,47 @@ export function CartActions({ locale, productId, offers, availability, giftPrevi
 
   const add = async (direct=false) => {
     if (!selectedOffer || busy || blocked || !Number.isSafeInteger(quantity)||quantity<1||quantity>100) return;
-    setBusy(true);
-    setMessage('');
+    setBusy(true); setMessage('');
     try {
-      // Authenticated additions use the existing revision-checked cart service.
-      // Guest cart entries remain local until the existing login/merge flow.
-      const authResponse = await fetch('/api/auth/status', {cache:'no-store'});
-      if (!authResponse.ok && authResponse.status !== 401) throw new Error('auth unavailable');
-      const auth = authResponse.ok ? await authResponse.json() : null;
-      if (auth?.user?.role === 'owner') {
-        const cart = await data(await fetch('/api/portal/storefront/cart', {cache:'no-store'}));
-        if (!Array.isArray(cart?.items) || !Number.isSafeInteger(cart.revision)) throw new Error('cart unavailable');
-        const key = (item:{productId:string;sku:string;currency:string}) => JSON.stringify([item.productId,item.sku,item.currency]);
-        const requested = {productId,sku:selectedOffer.sku,currency:selectedOffer.currency,quantity};
-        const combined = new Map<string,number>();
-        for (const row of [...cart.items, ...readGuestCart(), requested]) {
-          const k=key(row); const count=(combined.get(k)||0)+row.quantity;
-          if (count>100) throw new Error('maximum quantity');
-          combined.set(k,count);
-        }
-        if (combined.size>50) throw new Error('maximum items');
-        const items = [...cart.items];
-        const index=items.findIndex((row:{productId:string;sku:string;currency:string})=>key(row)===key(requested));
-        if(index<0)items.push(requested);else items[index]={...items[index],quantity:items[index].quantity+quantity};
-        await data(await fetch('/api/portal/storefront/cart',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({revision:cart.revision,items})}));
-        notifyCartChanged();
-        setMessage(t.added);
-        if(direct)window.location.assign(cartHref+'?step=checkout');
-        else window.dispatchEvent(new Event(openCartDrawerEvent));
-        return;
-      }
       const base='/api/catalog/products/'+encodeURIComponent(productId), query='?lang='+locale;
       const [freshOffers,freshStock,auth]=await Promise.all([
-        data(await fetch(base+'/offers'+query,{cache:'no-store'})),
-        data(await fetch(base+'/availability'+query,{cache:'no-store'})),
+        fetch(base+'/offers'+query,{cache:'no-store'}).then(data),
+        fetch(base+'/availability'+query,{cache:'no-store'}).then(data),
         fetch('/api/auth/status',{cache:'no-store'}),
       ]);
       const fresh=Array.isArray(freshOffers)&&freshOffers.find((offer:Offer)=>offer.sku===selectedOffer.sku&&offer.currency===selectedOffer.currency);
-      if(!fresh || !(Number(amountCents(fresh.unitPrice))>0) || fresh.unitPrice!==selectedOffer.unitPrice)throw new Error('offer changed');
+      if(!fresh||!(Number(amountCents(fresh.unitPrice))>0)||fresh.unitPrice!==selectedOffer.unitPrice)throw new Error('offer changed');
       const freshAvailable=freshStock?.items?.find((item:{sku:string;available:boolean})=>item.sku===selectedOffer.sku)?.available;
       if(freshAvailable===false||(!freshStock?.items?.length&&freshStock?.available===false))throw new Error('unavailable');
       if(!auth.ok&&auth.status!==401&&auth.status!==403)throw new Error('auth unavailable');
       const user=auth.ok?(await auth.json())?.user:null;
       const serverCart=user?.role==='owner'?await data(await fetch('/api/portal/storefront/cart',{cache:'no-store'})):null;
       if(user?.role==='owner'&&(!Array.isArray(serverCart?.items)||!Number.isSafeInteger(serverCart?.revision)))throw new Error('invalid cart');
-      const merged=new Map<string,CartItem>();
-      for(const row of [...(serverCart?.items||[]),...readGuestCart(),{productId,sku:selectedOffer.sku,currency:selectedOffer.currency,quantity}] as CartItem[]){
-        const key=JSON.stringify([row.productId,row.sku,row.currency]);
-        const count=row.quantity+(merged.get(key)?.quantity||0);
-        if(count>100)throw new Error('maximum quantity');
-        merged.set(key,{...row,quantity:count});
-      }
-      const items=[...merged.values()];
-      if(items.length>50)throw new Error('maximum items');
+      const requested:CartItem={productId,sku:selectedOffer.sku,currency:selectedOffer.currency,quantity};
+      const merge=(rows:CartItem[])=>{
+        const merged=new Map<string,CartItem>();
+        for(const row of rows){
+          const key=JSON.stringify([row.productId,row.sku,row.currency]);
+          const count=row.quantity+(merged.get(key)?.quantity||0);
+          if(count>100)throw new Error('maximum quantity');
+          merged.set(key,{...row,quantity:count});
+        }
+        if(merged.size>50)throw new Error('maximum items');
+        return [...merged.values()];
+      };
+      const guest:CartItem[]=readGuestCart();
+      const combined=merge([...(serverCart?.items||[]),...guest,requested]);
       if(serverCart){
+        // Do not clear guest items here; the existing cart-page merge flow handles them.
+        const items=merge([...serverCart.items,requested]);
         await data(await fetch('/api/portal/storefront/cart',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({revision:serverCart.revision,items})}));
-        localStorage.removeItem(guestCartKey);
       }else{
-        // Guest selections are local only; product availability and price were checked against the public API.
-        localStorage.setItem(guestCartKey,JSON.stringify(items));
+        // Guest selections are local; a catalog response is not a server cart acknowledgement.
+        localStorage.setItem(guestCartKey,JSON.stringify(combined));
       }
-      notifyCartChanged();
-      setMessage(t.added);
-      if(direct) window.location.assign(cartHref+'?step=checkout');
-      // Guest items are locally stored; automatic opening waits for server acceptance.
+      notifyCartChanged(); setMessage(t.added);
+      if(direct)window.location.assign(cartHref+'?step=checkout');
+      else if(serverCart)window.dispatchEvent(new Event(openCartDrawerEvent));
     } catch (error) { setMessage(error instanceof Error && error.message === 'maximum items' ? t.limit : error instanceof Error && error.message === 'maximum quantity' ? t.quantityLimit : t.error); }
     finally { setBusy(false); }
   };

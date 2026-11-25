@@ -32,10 +32,13 @@ export type ProductModuleBanner = {
   text: string;
   theme: { background: 'none' | 'soft' | 'dark'; spacing: 'compact' | 'normal' | 'loose'; imageRatio: 'wide' | 'square' | 'auto'; buttonStyle: 'solid' | 'outline' | 'text' };
 };
+export type PerformanceConfig = {showParameters:boolean;fieldCodes:string[];mediaType:'image'|'video';imageId:string;videoId:string;headline:string;alignment:'left'|'center'|'right'};
+export type PerformanceSpec = {code:string;label:string;value:string;unit:string};
 export type ProductModuleCopy = { enabled: boolean; title: string; body: string };
 export type ProductTemplateModules = {
   marketing: ProductModuleBanner;
   reserved3: ProductModuleBanner;
+  performance?: PerformanceConfig;
   reserved4: ProductModuleBanner;
   reviews: { enabled: boolean; limit: number; style: 'list' | 'cards' };
   returns: ProductModuleCopy;
@@ -204,7 +207,7 @@ export async function getPublicLocations(capability: 'sales' | 'service') {
 }
 
 export async function getCmsProductTemplate(locale: Locale, productId = '') {
-  return getJson<{ id: string; name: string; locale: string; isProductSpecific: boolean; seo: { title?: string; description?: string }; productLayout?: { gallery?: 'standard' | 'immersive' | 'mosaic' | 'columns'; specifications?: 'list' | 'table' | 'accordion'; reviews?: 'list' | 'cards' }; modules?: ProductTemplateModules; catalogLayout?: CatalogLayout; blocks: CmsBlock[] }>(`/api/cms/product-template?locale=${locale}&productId=${encodeURIComponent(productId)}`);
+  return getJson<{ id: string; name: string; locale: string; isProductSpecific: boolean; seo: { title?: string; description?: string }; productLayout?: { gallery?: 'standard' | 'immersive' | 'mosaic' | 'columns'; specifications?: 'list' | 'table' | 'accordion'; reviews?: 'list' | 'cards' }; modules?: ProductTemplateModules; performance?: PerformanceConfig; performanceSpecs?: PerformanceSpec[]; catalogLayout?: CatalogLayout; blocks: CmsBlock[] }>(`/api/cms/product-template?locale=${locale}&productId=${encodeURIComponent(productId)}`);
 }
 
 export interface SharedModuleRef {

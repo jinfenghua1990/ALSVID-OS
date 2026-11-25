@@ -231,6 +231,28 @@ function copyModuleOf(value) {
   const row = value && typeof value === 'object' && !Array.isArray(value) ? value : {};
   return { enabled: row.enabled === true, title: text(row.title ?? '', 180), body: text(row.body ?? '', 4000) };
 }
+const PERFORMANCE_DEFAULT_FIELDS = ["@weight","@range","@frame","@folded"];
+const PERFORMANCE_ALIASES = {"@weight":["weight","net_weight","bike_weight","vehicle_weight","total_weight","整车重量","整车净重","净重","车重"],"@range":["range","max_range","range_km","range_max","续航","续航里程","最大续航","最大续航里程","助力续航","助力续航里程"],"@frame":["frame_material","frame_material_type","车架材质","车架材料"],"@folded":["folded_size","folding_size","folded_dimensions","folding_dimensions","折叠尺寸","折叠后尺寸","折叠体积尺寸"]};
+function performanceOf(value) {
+  const row = value && typeof value === 'object' && !Array.isArray(value) ? value : {};
+  const codes = row.fieldCodes ?? PERFORMANCE_DEFAULT_FIELDS;
+  if (!Array.isArray(codes) || codes.length !== 4 || new Set(codes).size !== 4 || codes.some(code => typeof code !== 'string' || (!PERFORMANCE_DEFAULT_FIELDS.includes(code) && !/^[a-z0-9_]{1,80}$/.test(code)))) fail('P03 必须选择四个不重复的参数字段');
+  return { showParameters: row.showParameters !== false, fieldCodes: [...codes], mediaType: row.mediaType === 'video' ? 'video' : 'image', imageId: assetId(row.imageId ?? ''), videoId: assetId(row.videoId ?? ''), headline: text(row.headline, 180), alignment: ['left','center','right'].includes(row.alignment) ? row.alignment : 'center' };
+}
+function performanceSpecifications(product, fields, locale, config) {
+  if (!product || !config.showParameters) return [];
+  const applicable = fields.filter(f => f.enabled && f.shopVisible && f.level === 'product' && (!f.templates?.length || f.templates.includes(product.productType)));
+  const used = new Set();
+  return config.fieldCodes.flatMap(key => {
+    const aliases = PERFORMANCE_ALIASES[key];
+    const matches = aliases ? applicable.filter(f => aliases.includes(f.code) || aliases.includes(f.nameZh)) : applicable.filter(f => f.code === key);
+    const field = matches.length === 1 ? matches[0] : null;
+    if (!field || used.has(field.code)) return [];
+    const rows = publicProductSpecifications(product, [field], locale, [field.code]);
+    if (rows.length) used.add(field.code);
+    return rows;
+  });
+}
 function modulesOf(input) {
   const value = input.modules == null ? {} : input.modules;
   if (typeof value !== 'object' || Array.isArray(value)) fail('商品详情模块配置无效');
@@ -240,6 +262,7 @@ function modulesOf(input) {
   return {
     marketing: bannerModuleOf(value.marketing),
     reserved3: bannerModuleOf(value.reserved3),
+    ...(value.performance == null ? {} : { performance: performanceOf(value.performance) }),
     reserved4: bannerModuleOf(value.reserved4),
     reviews: { enabled: reviews.enabled !== false, limit, style: reviews.style === 'cards' ? 'cards' : 'list' },
     returns: copyModuleOf(value.returns),
@@ -399,6 +422,8 @@ function createCmsStore(connectionString) {
       const imageId = document.modules?.[key]?.imageId;
       if (imageId) images.push(imageId);
     }
+    if (document.modules?.performance?.imageId) images.push(document.modules.performance.imageId);
+    if (document.modules?.performance?.videoId) videos.push(document.modules.performance.videoId);
     if (images.length) {
       const rows = (await client.query("SELECT id::text AS id FROM media_assets WHERE id::text=ANY($1::text[]) AND kind='image'", [images])).rows;
       if (rows.length !== new Set(images).size) fail('所选素材不存在或不是图片，请重新选择');
@@ -413,6 +438,13 @@ function createCmsStore(connectionString) {
     const data = (await pool.query(`SELECT ${columns} FROM site_pages WHERE id=$1`, [id])).rows[0];
     if (!data) fail('页面不存在', 404);
     return data;
+  }
+  async function loadPerformance(productId, locale, config) {
+    if (!productId || !config.showParameters) return [];
+    const product = (await pool.query(`SELECT p.specs,p.product_type AS "productType" FROM products p JOIN storefront_listings l ON l.product_uuid=p.entity_uuid AND l.channel='website' AND l.published IS NOT NULL WHERE (p.id::text=$1 OR l.slug=$1) AND p.kind='vehicle' AND p.status='启用' AND p.deleted_at IS NULL AND l.published->'languages' ? $2 LIMIT 1`, [productId, locale])).rows[0];
+    if (!product) return [];
+    const fields = (await pool.query(`SELECT code,name_zh AS "nameZh",name_en AS "nameEn",name_de AS "nameDe",unit,level,templates,shop_visible AS "shopVisible",enabled FROM fields WHERE enabled=true AND shop_visible=true AND level='product' ORDER BY code`)).rows;
+    return performanceSpecifications(product, fields, locale, config);
   }
   async function enrich(blocks, locale, contextProductId = '') {
     // 共享模块引用解析 (follow, pinned, independent)
@@ -909,6 +941,8 @@ function createCmsStore(connectionString) {
         id: data.id, name: data.name, locale, isProductSpecific: data.isProductSpecific, seo: data.seo || {},
         productLayout: document.productLayout || { gallery: 'standard', specifications: 'list', reviews: 'list' },
         modules: document.modules || DEFAULT_PRODUCT_MODULES,
+        performance: performanceOf(document.modules?.performance),
+        performanceSpecs: await loadPerformance(productId, locale, performanceOf(document.modules?.performance)),
         catalogLayout: document.catalogLayout || null,
         blocks: await enrich(Array.isArray(document.blocks) ? document.blocks : [], locale, productId),
         preview: draft ? 'draft' : version ? `v${version}` : undefined,
@@ -1154,4 +1188,4 @@ function registerCmsRoutes(app, cms) {
   }, true);
 }
 
-module.exports = { createCmsStore, registerCmsRoutes, publicProductSpecifications, siteShellOf, assertShellDocument };
+module.exports = { createCmsStore, registerCmsRoutes, publicProductSpecifications, siteShellOf, assertShellDocument, performanceOf, performanceSpecifications };

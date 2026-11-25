@@ -4,7 +4,7 @@ import { CmsBlocks } from '@/components/cms-blocks';
 import { CartActions } from '@/components/cart-actions';
 import { ProductGallery } from '@/components/product-gallery';
 import { ProductPageNav } from '@/components/product-page-nav';
-import { absoluteApiUrl, getAvailability, getCmsProductTemplate, getOffers, getProduct, getReviews, publicApiUrl, publicAssetUrl, type Locale, type ProductModuleBanner, type ProductModuleCopy, siteUrl } from '@/lib/alsvid-api';
+import { absoluteApiUrl, getAvailability, getCmsProductTemplate, getOffers, getProduct, getReviews, publicApiUrl, publicAssetUrl, type Locale, type ProductModuleBanner, type ProductModuleCopy, type PerformanceConfig, type PerformanceSpec, siteUrl } from '@/lib/alsvid-api';
 import { UI } from '@/lib/ui-text';
 
 type Props = { params: Promise<{ locale: Locale; slug: string }> };
@@ -69,7 +69,6 @@ export default async function ProductPage({ params }: Props) {
   const modules = template?.modules;
   const banners = ([
     { key: 'marketing', banner: modules?.marketing },
-    { key: 'reserved3', banner: modules?.reserved3 },
     { key: 'reserved4', banner: modules?.reserved4 },
   ] as { key: string; banner: ProductModuleBanner | undefined }[]).filter((row): row is { key: string; banner: ProductModuleBanner } => !!row.banner?.enabled && !!(row.banner.imageId || row.banner.title || row.banner.description || row.banner.text || row.banner.href));
   const detailBlocks = (product.detailBlocks || []).filter(block => (block.type === 'image' && block.url) || (block.type === 'text' && block.text));
@@ -98,7 +97,9 @@ export default async function ProductPage({ params }: Props) {
           {product.warranty && <section className="product-business-module"><h2>{UI.warranty[locale]}</h2><p>{product.warranty}</p></section>}
         </section>
       </div>
-      {banners.map(({ key, banner }) => <MarketingBlock key={key} name={key} banner={banner} alt={product.title} href={bannerHref(banner.href)}/>)}
+      {banners.filter(({key})=>key==='marketing').map(({ key, banner }) => <MarketingBlock key={key} name={key} banner={banner} alt={product.title} href={bannerHref(banner.href)}/>)}
+      <PerformanceBlock config={template?.performance} specs={template?.performanceSpecs||[]} legacy={modules?.performance?undefined:modules?.reserved3} alt={product.title} legacyHref={bannerHref(modules?.reserved3?.href||'')} />
+      {banners.filter(({key})=>key!=='marketing').map(({ key, banner }) => <MarketingBlock key={key} name={key} banner={banner} alt={product.title} href={bannerHref(banner.href)}/>)} 
       {detailBlocks.length > 0 && <section className="product-detail-blocks" id="product-details" data-module-id="ALSVID-P05" data-module="detail">
         <h2>{UI.detailDescription[locale]}</h2>
         {detailBlocks.map((block, index) => block.type === 'image'
@@ -125,12 +126,27 @@ export default async function ProductPage({ params }: Props) {
 }
 
 // 公共模块里的营销组件：三种标准样式（横幅广告 / 图片+文案 / 促销信息条），与后台预览同一套规则
-function MarketingBlock({ name, banner, alt, href }: { name: string; banner: ProductModuleBanner; alt: string; href: string }) {
+function MarketingBlock({ name, banner, alt, href, nested=false }: { name: string; banner: ProductModuleBanner; alt: string; href: string; nested?:boolean }) {
   const theme = banner.theme || { background: 'none', spacing: 'normal', imageRatio: 'wide', buttonStyle: 'solid' };
   const cls = `product-mkt is-${banner.style} bg-${theme.background} sp-${theme.spacing} ratio-${theme.imageRatio}`;
   const title = banner.title || banner.text;
   const button = banner.buttonText && href ? <a className={`product-mkt__btn is-${theme.buttonStyle}`} href={href}>{banner.buttonText}</a> : null;
   const media = banner.imageId ? <img className="product-mkt__media" src={publicAssetUrl(banner.imageId)} alt={title || alt} loading="lazy" /> : null;
-  if (banner.style === 'promoBar') return <section className={cls} data-module={name} data-module-id={name==='marketing'?'ALSVID-P02':name==='reserved3'?'ALSVID-P03':'ALSVID-P04'}>{title && <strong>{title}</strong>}{banner.description && <span>{banner.description}</span>}{button}</section>;
-  return <section className={cls} data-module={name} data-module-id={name==='marketing'?'ALSVID-P02':name==='reserved3'?'ALSVID-P03':'ALSVID-P04'}>{media}{(title || banner.description || button) && <div className="product-mkt__copy">{title && <h2>{title}</h2>}{banner.description && <p>{banner.description}</p>}{button}</div>}</section>;
+  if (banner.style === 'promoBar') return <section className={cls} data-module={nested?undefined:name} data-module-id={nested?undefined:name==='marketing'?'ALSVID-P02':name==='reserved3'?'ALSVID-P03':'ALSVID-P04'}>{title && <strong>{title}</strong>}{banner.description && <span>{banner.description}</span>}{button}</section>;
+  return <section className={cls} data-module={nested?undefined:name} data-module-id={nested?undefined:name==='marketing'?'ALSVID-P02':name==='reserved3'?'ALSVID-P03':'ALSVID-P04'}>{media}{(title || banner.description || button) && <div className="product-mkt__copy">{title && <h2>{title}</h2>}{banner.description && <p>{banner.description}</p>}{button}</div>}</section>;
+}
+
+function PerformanceBlock({config,specs,legacy,alt,legacyHref}:{config?:PerformanceConfig;specs:PerformanceSpec[];legacy?:ProductModuleBanner;alt:string;legacyHref:string}) {
+  const old = legacy?.enabled && !!(legacy.imageId||legacy.title||legacy.description||legacy.text||legacy.href);
+  const rows = config?.showParameters === false ? [] : specs.slice(0,4);
+  const media = config?.mediaType==='video'?config.videoId:config?.imageId;
+  if (!old && !rows.length && !media && !config?.headline) return null;
+  return <section data-module="reserved3" data-module-id="ALSVID-P03" style={{width:'100%',background:'#171717',color:'#fff',overflow:'hidden'}}>
+    {old && legacy && <MarketingBlock name="reserved3" banner={legacy} alt={alt} href={legacyHref} nested/>}
+    {media && (config?.mediaType==='video'?<video src={publicAssetUrl(media)} controls playsInline preload="metadata" style={{display:'block',width:'100%',maxHeight:'75vh',objectFit:'cover'}}/>:<img src={publicAssetUrl(media)} alt={alt} loading="lazy" style={{display:'block',width:'100%',maxHeight:'75vh',objectFit:'cover'}}/>)}
+    {config?.headline&&<h2 style={{textAlign:config.alignment,padding:'clamp(20px,4vw,48px)',margin:0,color:'inherit'}}>{config.headline}</h2>}
+    {!!rows.length&&<dl style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(min(100%, 150px),1fr))',gap:'clamp(16px,3vw,40px)',padding:'clamp(24px,5vw,64px)',margin:0,textAlign:'center'}}>
+      {rows.map(row=><div key={row.code}><dt style={{color:'#ddd',fontSize:'0.9rem',marginBottom:8}}>{row.label}</dt><dd style={{fontSize:'clamp(1.2rem,3vw,2.5rem)',fontWeight:600,margin:0,overflowWrap:'anywhere'}}>{row.value}{row.unit&&!String(row.value).trim().endsWith(row.unit.trim())?' '+row.unit:''}</dd></div>)}
+    </dl>}
+  </section>;
 }

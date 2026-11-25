@@ -169,6 +169,24 @@ function MarketingEditor({ title, note, value, assets, locale, onChange, onSwitc
   </section>;
 }
 
+const P03_DEFAULTS = ["@weight","@range","@frame","@folded"];
+const P03_LABELS = {'@weight':'整车重量','@range':'续航里程','@frame':'车架材质','@folded':'折叠尺寸'};
+function PerformanceEditor({value, fields, fieldError, assets, onChange}) {
+  const config = {showParameters:true,fieldCodes:P03_DEFAULTS,mediaType:'image',imageId:'',videoId:'',headline:'',alignment:'center',...(value||{})};
+  const [videos,setVideos] = useState([]);
+  const [videoError,setVideoError] = useState('');
+  useEffect(()=>{let alive=true;api.assetsAll({category:'page',kind:'video'}).then(rows=>{if(alive)setVideos(Array.isArray(rows)?rows:[])}).catch(e=>{if(alive)setVideoError(e.message||'读取视频素材失败')});return()=>{alive=false}},[]);
+  const patch = next => onChange({...config,...next});
+  const options = [...P03_DEFAULTS.map(code=>({code,nameZh:P03_LABELS[code]+'（默认匹配）'})), ...fields];
+  return <section className="sdp__module"><header><strong>P03 核心性能展示</strong><span className="hint">固定四项 · 可替换字段</span></header>
+    <label className="sdp__field">媒体类型<select value={config.mediaType} onChange={e=>patch({mediaType:e.target.value})}><option value="image">图片</option><option value="video">视频</option></select></label>
+    {config.mediaType==='image'?<AssetImageSelect assets={assets} value={config.imageId} onChange={imageId=>patch({imageId})}/>:<label className="sdp__field">视频<select value={config.videoId} onChange={e=>patch({videoId:e.target.value})}><option value="">从素材库选择视频</option>{videos.map(v=><option key={v.id} value={v.id}>{v.label||v.fileName||v.id}</option>)}</select>{videoError&&<span className="error-text">{videoError}</span>}</label>}
+    <label className="sdp__field">主文案<input maxLength={180} value={config.headline} onChange={e=>patch({headline:e.target.value})}/></label>
+    <label className="sdp__field">文字位置<select value={config.alignment} onChange={e=>patch({alignment:e.target.value})}><option value="left">左</option><option value="center">中</option><option value="right">右</option></select></label>
+    <label className="sdp__check"><input type="checkbox" checked={config.showParameters} onChange={e=>patch({showParameters:e.target.checked})}/> 显示核心参数</label>
+    {config.showParameters&&<>{config.fieldCodes.map((code,i)=><label key={i} className="sdp__field">参数 {i+1}<select value={code} onChange={e=>patch({fieldCodes:config.fieldCodes.map((x,j)=>j===i?e.target.value:x)})}>{!options.some(f=>f.code===code)&&<option value={code}>{code}（字段不可用）</option>}{options.map(f=><option key={f.code} value={f.code} disabled={config.fieldCodes.some((x,j)=>j!==i&&x===f.code)}>{f.nameZh||f.code}{f.unit?' · '+f.unit:''}</option>)}</select></label>)}<button type="button" className="btn small" onClick={()=>patch({fieldCodes:P03_DEFAULTS})}>恢复默认四项</button>{fieldError&&<p className="error-text">{fieldError}</p>}<p className="hint">仅引用已公开的整车参数，数值和单位来自主档；默认字段无法唯一匹配或未填写时，官网不显示该项。可以选实际字段明确绑定。</p></>}
+  </section>;
+}
 function CopyEditor({ title, value, onChange, defaultTitle }) {
   const module = { enabled: false, title: '', body: '', ...(value || {}) };
   const patch = next => onChange({ ...module, ...next });
@@ -374,7 +392,7 @@ const GLOBAL_MODULES = [
   ['productNavigation', '00', '商品专属导航栏'],
   ['info', '01', '主信息区'],
   ['marketing', '02', '营销模块'],
-  ['reserved3', '03', '预留位一'],
+  ['reserved3', '03', '核心性能展示'],
   ['reserved4', '04', '预留位二'],
   ['detail', '05', '图文详情'],
   ['reviews', '06', '用户评价'],
@@ -387,7 +405,7 @@ const MODULE_META = {
   productNavigation: { desc:'整车详情页单行吸顶导航；PC 与手机共用', anchor:()=>false },
   info: { desc: '固定模块，由商品数据自动生成', anchor: () => true },
   marketing: { desc: '促销展现 · 标准模板 3 选 1' },
-  reserved3: { desc: '预留位 · 未配置内容时自动隐藏' },
+  reserved3: { desc: '四项核心参数 · 读取整车主档 · 图片或视频', anchor: () => true },
   reserved4: { desc: '预留位 · 未配置内容时自动隐藏' },
   detail: { desc: '按商品维护，位置固定', anchor: () => true },
   reviews: { desc: '读取「评价管理」真实评价', anchor: (m) => m?.enabled !== false },
@@ -409,7 +427,8 @@ function moduleAnchor(key, modules) {
 function moduleBadge(key, modules) {
   if (key === 'info' || key === 'productNavigation') return '固定';
   if (key === 'detail') return '按商品';
-  if (key === 'reserved3' || key === 'reserved4') {
+  if (key === 'reserved3') return modules.performance?.showParameters === false ? '参数关闭' : '四项参数';
+  if (key === 'reserved4') {
     const m = modules[key] || {};
     return m.enabled && (m.imageId || m.text || m.href) ? '已配置' : '自动隐藏';
   }
@@ -475,6 +494,7 @@ export function GlobalModulesPanel({ cms, row, locale, onEditGraphic, onSelectMo
         </div>}
       </section>
     </div>;
+    if (active === 'reserved3') return <PerformanceEditor value={modules.performance} fields={availableFields} fieldError={fieldError} assets={assets} onChange={performance=>patchModules({performance})}/>;
     if (active === 'detail') return <div className="sdp">
       <section className="sdp__module">
         <header><strong>05 图文详情</strong><span className="hint">按商品</span></header>

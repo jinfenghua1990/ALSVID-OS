@@ -468,6 +468,8 @@ export function GlobalModulesPanel({ cms, row, locale, onEditGraphic, onSelectMo
       </section>
     </div>;
     if (active === 'returns') return <div className="sdp">
+      <button type="button" className="btn small" onClick={()=>{if((modules.returns?.body||modules.returns?.title)&&!window.confirm('替换当前语言退换货摘要草稿？线上内容不会立即改变。'))return;const copy={de:{title:'Rückgabe und Widerruf',body:'15 Tage freiwillige Rückgabe gemäß den Rückgabebedingungen. Keine 30-tägige Probefahrt. Bei freiwilliger Rückgabe aus persönlichen Gründen gelten Rücktransportkosten von 300 € für E-Bikes, 50 € für bestimmte große Zubehörteile und 35 € für sonstige Artikel. Gesetzliche Verbraucherrechte bleiben unberührt.'},en:{title:'Returns and withdrawal',body:'15-day voluntary returns under the return policy. No 30-day trial ride. For voluntary returns for personal reasons, transport charges are €300 for e-bikes, €50 for designated large accessories and €35 for other items. Statutory consumer rights remain unaffected.'},zh:{title:'退换货与撤销权',body:'按退换货政策提供15天自愿退货，不提供30天试骑。个人原因自愿退货的运输费：整车300欧元，指定大件配件50欧元，其他配件35欧元。消费者法定权利不受影响。'}};patchModules({returns:{enabled:true,...(copy[locale]||copy.zh)}})}}>载入 ALSVID 标准退换货摘要</button>
+      <p className="hint">仅替换当前语言草稿；完整政策需在法定页面审核发布后才在正式商品页展示。</p>
       <CopyEditor title="07 退换货政策" defaultTitle="退换货政策" value={modules.returns} onChange={returns => patchModules({ returns })}/>
     </div>;
     if (active === 'other') return <div className="sdp">

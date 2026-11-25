@@ -7,14 +7,14 @@
 //   HRB、USt-IdNr.、负责人、电话/邮箱等必须由实际经营主体提供并经法务审核。
 //   德国 Impressum 缺失或错填可被竞争对手直接发 Abmahnung，编造比缺失更危险。
 // - 生成的是「带占位符的草稿」，默认不发布。占位符统一写成 {{TODO_xxx}}，
-//   脚本在 --apply 时会拒绝把仍含占位符的页面发布出去（除非显式 --allow-placeholder）。
+//   脚本在 --apply 时会拒绝把仍含占位符的页面发布出去。
 // - 只建结构、只建草稿：页面级 404 在上线前是正确状态，不能先挂空壳。
 //
 // 用法：
 //   node scripts/seed-legal-pages.mjs                        # 只打印将生成的页面，不写库
 //   ALSVID_ADMIN_USER=... ALSVID_ADMIN_PASS=... \
 //     node scripts/seed-legal-pages.mjs --apply              # 写入 CMS 草稿（不发布）
-//   ... --apply --publish --allow-placeholder                 # 仅用于预发环境看排版
+//   ... --apply --returns-only --update-existing             # 明确导入退换货未发布草稿
 import { writeFile, mkdir } from 'node:fs/promises';
 import path from 'node:path';
 
@@ -23,7 +23,9 @@ const args = process.argv.slice(2);
 const flag = (name) => args.includes(`--${name}`);
 const apply = flag('apply');
 const publish = flag('publish');
-const allowPlaceholder = flag('allow-placeholder');
+const updateExisting = flag('update-existing');
+const returnsOnly=flag('returns-only');
+if(flag('allow-placeholder'))throw Error('不允许发布含占位符的政策');
 const OUT = 'apps/admin-api/migrations/data/legal-pages.json';
 
 // 六页的标准骨架。titles/sections 的德语措辞用法定名称，正文一律留占位。
@@ -284,25 +286,27 @@ if (!apply) {
 
 process.stdout.write('\n开始写入 CMS 草稿…\n');
 let created = 0, updated = 0, failed = 0, published = 0;
-for (const page of all) {
+for (const page of all.filter(page=>!returnsOnly||page.path==='/legal/widerrufsbelehrung')) {
   try {
     const { call } = await admin();
     const list = await call('GET', `/api/cms/pages?locale=${page.locale}&path=${encodeURIComponent(page.path)}&type=custom`);
-    const exists = (Array.isArray(list?.items) ? list.items : []).find((item) => item.path === page.path && item.locale === page.locale);
-    let id = exists?.id;
+    const exists = (Array.isArray(list)?list:Array.isArray(list?.items)?list.items:[]).find((item) => item.path === page.path && item.locale === page.locale);
+    if(exists&&!updateExisting){process.stdout.write(`  保留既有页面 ${page.locale} ${page.path}；如需替换草稿须明确使用 --update-existing\n`);continue;}
+    if(exists?.publishedVersion&&updateExisting){process.stdout.write(`  保留已发布页面 ${page.locale} ${page.path}，请在后台人工导入新草稿以免覆盖运营内容\n`);continue;}
+    let id = exists?.id,revision=exists?.revision;
     if (!id) {
       const result = await call('POST', '/api/cms/pages', { pageType: page.pageType, locale: page.locale, path: page.path, name: page.name, seo: page.seo, draft: { blocks: page.blocks } });
-      id = result?.id; created += 1;
+      id = result?.id;revision=result?.revision; created += 1;
     } else {
-      await call('PUT', `/api/cms/pages/${id}/draft`, { blocks: page.blocks, seo: page.seo });
+      const result=await call('PUT', `/api/cms/pages/${id}/draft`, { draft:{blocks:page.blocks},seo:page.seo,revision });revision=result.revision;
       updated += 1;
     }
     if (publish) {
-      // 带占位符的页面默认拒绝发布：法定页挂占位符比 404 更糟
-      if (unresolved(page) && !allowPlaceholder) {
-        process.stdout.write(`  跳过发布 ${page.locale} ${page.path}：仍有 {{TODO}} 占位符（要强制发布加 --allow-placeholder）\n`);
+      // 带占位符的页面拒绝发布：法定页挂占位符比 404 更糟
+      if (unresolved(page)) {
+        process.stdout.write(`  跳过发布 ${page.locale} ${page.path}：仍有 {{TODO}} 占位符（禁止强制发布）\n`);
       } else {
-        await call('POST', `/api/cms/pages/${id}/publish`, {}); published += 1;
+        await call('POST', `/api/cms/pages/${id}/publish`, {revision}); published += 1;
       }
     }
     process.stdout.write(`  ${exists ? '更新' : '新建'} ${page.locale} ${page.path}${publish && !unresolved(page) ? '（已发布）' : '（草稿）'}\n`);

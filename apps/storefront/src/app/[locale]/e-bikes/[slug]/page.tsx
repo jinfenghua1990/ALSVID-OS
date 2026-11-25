@@ -4,7 +4,7 @@ import { CmsBlocks } from '@/components/cms-blocks';
 import { CartActions } from '@/components/cart-actions';
 import { ProductGallery } from '@/components/product-gallery';
 import { ProductReviews } from '@/components/product-reviews';
-import { absoluteApiUrl, getAvailability, getCmsProductTemplate, getOffers, getProduct, getReviews, publicApiUrl, publicAssetUrl, type Locale, type ProductModuleBanner, type ProductModuleCopy, siteUrl } from '@/lib/alsvid-api';
+import { absoluteApiUrl, getAvailability, getCmsProductTemplate, getCmsPage, getOffers, getProduct, getReviews, publicApiUrl, publicAssetUrl, type Locale, type ProductModuleBanner, type ProductModuleCopy, siteUrl } from '@/lib/alsvid-api';
 import { UI } from '@/lib/ui-text';
 
 type Props = { params: Promise<{ locale: Locale; slug: string }> };
@@ -28,7 +28,9 @@ export default async function ProductPage({ params }: Props) {
   const { locale, slug } = await params;
   const product = await getProduct(slug, locale);
   if (!product || product.kind !== 'vehicle') notFound();
-  const [allOffers, availability, reviews, template] = await Promise.all([getOffers(product.slug, locale), getAvailability(product.slug, locale), getReviews(product.productId,20), getCmsProductTemplate(locale, product.productId)]);
+  const [allOffers,availability,template,returnPolicy]=await Promise.all([getOffers(product.slug,locale),getAvailability(product.slug,locale),getCmsProductTemplate(locale,product.productId),getCmsPage(locale,'/legal/widerrufsbelehrung')]);
+  const reviews=await getReviews(product.productId,template?.modules?.reviews?.limit||20);
+  const returnPolicyReady=!!returnPolicy&&!/\{\{TODO_[A-Z_]+\}\}/i.test(JSON.stringify(returnPolicy));
   const offers = allOffers.filter(offer => offer.currency === 'EUR');
   const productLayout = template?.productLayout || { gallery: 'standard', specifications: 'list', reviews: 'list' };
   const structuredData = {
@@ -65,7 +67,7 @@ export default async function ProductPage({ params }: Props) {
   ] as { key: string; banner: ProductModuleBanner | undefined }[]).filter((row): row is { key: string; banner: ProductModuleBanner } => !!row.banner?.enabled && !!(row.banner.imageId || row.banner.title || row.banner.description || row.banner.text || row.banner.href));
   const detailBlocks = (product.detailBlocks || []).filter(block => (block.type === 'image' && block.url) || (block.type === 'text' && block.text));
   const reviewsConfig = modules?.reviews || { enabled: true, limit: 20, style: 'list' };
-  const copyModules = ([{key:'returns',row:modules?.returns},{key:'other',row:modules?.other}] as {key:'returns'|'other';row:ProductModuleCopy|undefined}[]).filter((entry):entry is {key:'returns'|'other';row:ProductModuleCopy}=>!!entry.row?.enabled&&!!(entry.row.title||entry.row.body));
+  const copyModules = ([{key:'returns',row:modules?.returns},{key:'other',row:modules?.other}] as {key:'returns'|'other';row:ProductModuleCopy|undefined}[]).filter((entry):entry is {key:'returns'|'other';row:ProductModuleCopy}=>!!entry.row?.enabled&&!!(entry.row.title||entry.row.body)&&(entry.key!=='returns'||returnPolicyReady));
   const bannerHref = (href: string) => href.replace(/^\/www\/(de|en|zh)\/products(?:\/|$)/, (_, lang: string) => `/${lang}/e-bikes/`);
   return (
     <main className="container product-page">

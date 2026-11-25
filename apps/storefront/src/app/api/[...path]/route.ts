@@ -65,6 +65,7 @@ const CONSUMER_RULES: Rule[] = [
   { method: 'GET', pattern: /^\/api\/portal\/storefront\/cart$/ },
   { method: 'PUT', pattern: /^\/api\/portal\/storefront\/cart$/ },
   { method: 'GET', pattern: /^\/api\/portal\/storefront\/orders$/ },
+  { method: 'GET', pattern: /^\/api\/portal\/storefront\/orders\/[0-9a-fA-F-]{36}$/ },
   { method: 'POST', pattern: /^\/api\/portal\/storefront\/orders$/ },
   { method: 'POST', pattern: /^\/api\/portal\/storefront\/orders\/[^/]+\/(respond|receive|returns|reviews)$/ },
   { method: 'GET', pattern: /^\/api\/portal\/vehicles$/ },

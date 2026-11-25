@@ -58,7 +58,8 @@ export default function CmsPageManager({ active = true, user, onDirtyChange, onB
   const [loading, setLoading] = useState(false), [error, setError] = useState(''), [message, setMessage] = useState('');
   const [mode, setMode] = useState('list'), [record, setRecord] = useState(null), [draft, setDraft] = useState(emptyDraft());
   const [name, setName] = useState(''), [path, setPath] = useState(''), [dirty, setDirty] = useState(false), [busy, setBusy] = useState(false);
-  const [selectedId, setSelectedId] = useState(''), [device, setDevice] = useState('desktop'), [preview, setPreview] = useState(false);  const [media, setMedia] = useState([]), [videos, setVideos] = useState([]), [products, setProducts] = useState([]), [previewProduct, setPreviewProduct] = useState(null);
+  const [selectedId, setSelectedId] = useState(''), [device, setDevice] = useState('desktop'), [preview, setPreview] = useState(false);
+  const [media, setMedia] = useState([]), [videos, setVideos] = useState([]), [products, setProducts] = useState([]), [fields, setFields] = useState([]), [previewProduct, setPreviewProduct] = useState(null);
   const [versions, setVersions] = useState(null), [createOpen, setCreateOpen] = useState(false);
   const [form, setForm] = useState({ name: '', pageType: 'custom', locale: 'de', path: '' });
   const loadVersion = useRef(0);
@@ -113,6 +114,7 @@ export default function CmsPageManager({ active = true, user, onDirtyChange, onB
     if (!active) return;
     try { setMedia(await api.assetsAll({ category: 'page', kind: 'image' })); } catch (_) {}
     try { const response = await fetch('/api/media-assets?category=page&kind=video', { cache: 'no-store' }); if (response.ok) setVideos(await response.json()); } catch (_) { setVideos([]); }
+    try { setFields(await api.fields()); } catch (_) { setFields([]); }
   }, [active]);
   const loadProducts = useCallback(async locale => { if (!active || !locale) return; try { const data = await api.catalogProducts(locale, 1); setProducts(data.items || []); } catch (_) { setProducts([]); } }, [active]);
   useEffect(() => { if (mode === 'editor') { loadAssets(); loadProducts(record?.locale); } }, [mode, record?.locale, loadAssets, loadProducts]);
@@ -324,7 +326,7 @@ export default function CmsPageManager({ active = true, user, onDirtyChange, onB
         <aside className="cms-props">
           <h4>组件属性</h4>
           {!selected && <p className="hint" />}
-          {selected && <BlockProps block={selected} media={media} videos={videos} products={products} onProps={patch => patchProps(selected.id, patch)} onBindings={patch => patchBindings(selected.id, patch)}/>}
+          {selected && <BlockProps block={selected} media={media} videos={videos} products={products} fields={fields} pageType={record.pageType} locale={record.locale} onProps={patch => patchProps(selected.id, patch)} onBindings={patch => patchBindings(selected.id, patch)}/>} 
         </aside>
       </div>}
       {versions && <div className="cms-modal" role="dialog" aria-label="历史版本"><div className="cms-modal-body"><div className="row" style={{ justifyContent: 'space-between' }}><h3>历史版本</h3><button type="button" className="btn small" onClick={() => setVersions(null)}>关闭</button></div>
@@ -374,7 +376,7 @@ export default function CmsPageManager({ active = true, user, onDirtyChange, onB
   </section>;
 }
 
-function BlockProps({ block, media, videos, products, onProps, onBindings }) {
+function BlockProps({ block, media, videos, products, fields = [], pageType = 'custom', locale = 'zh', onProps, onBindings }) {
   const { props, bindings, componentKey } = block;
   if (componentKey === 'hero') return <div className="cms-fields">
     <label>眉题<input value={props.eyebrow || ''} maxLength={100} onChange={e => onProps({ eyebrow: e.target.value })}/></label>
@@ -401,11 +403,42 @@ function BlockProps({ block, media, videos, products, onProps, onBindings }) {
     <div><strong>关联商品（最多 8 个）</strong>{products.map(product => <label key={product.id} className="row" style={{ justifyContent: 'flex-start', gap: 8 }}><input type="checkbox" checked={(bindings.productIds || []).some(id => id === product.productId || id === product.id)} onChange={e => onBindings({ productIds: [...(bindings.productIds || []).filter(id => id !== product.productId && id !== product.id), ...(e.target.checked ? [product.productId] : [])] })}/><span>{product.title}</span></label>)}</div>
     <p className="hint" />
   </div>;
-  if (componentKey === 'specs') return <div className="cms-fields">
-    <label>标题<input value={props.heading || ''} maxLength={120} onChange={e => onProps({ heading: e.target.value })}/></label>
-    <label>绑定商品<select value={products.find(product => product.productId === bindings.productId || product.id === bindings.productId)?.productId || bindings.productId || ''} onChange={e => onBindings({ productId: e.target.value })}><option value="">选择商品</option>{products.map(product => <option key={product.id} value={product.productId}>{product.title}</option>)}</select></label>
-    <p className="hint" />
-  </div>;
+  if (componentKey === 'specs') {
+    const availableFields = fields.filter(field => field.enabled && field.shopVisible && field.level === 'product' &&
+      (!Array.isArray(field.templates) || !field.templates.length || field.templates.includes('EBI')));
+    const selectedCodes = Array.isArray(bindings.fieldCodes) ? bindings.fieldCodes : [];
+    const allSelected = selectedCodes.length === 0;
+    const fieldLabel = field => (locale === 'de' ? field.nameDe : locale === 'en' ? field.nameEn : field.nameZh) || field.nameZh || field.code;
+    const toggleField = (code, checked) => {
+      const next = allSelected
+        ? (checked ? [] : availableFields.map(field => field.code).filter(value => value !== code))
+        : (checked ? [...selectedCodes, code] : selectedCodes.filter(value => value !== code));
+      onBindings({ fieldCodes: [...new Set(next)] });
+    };
+    return <div className="cms-fields">
+      <label>模块标题<input value={props.heading || ''} maxLength={120} onChange={e => onProps({ heading: e.target.value })}/></label>
+      <label>绑定商品<select value={products.find(product => product.productId === bindings.productId || product.id === bindings.productId)?.productId || bindings.productId || ''} onChange={e => onBindings({ productId: e.target.value })}>
+        <option value="">{pageType === 'product_template' ? '当前商品（自动读取）' : '请选择商品'}</option>
+        {products.map(product => <option key={product.id} value={product.productId}>{product.title}</option>)}
+      </select></label>
+      <div className="cms-spec-field-picker">
+        <strong>展示参数字段</strong>
+        <label className="row" style={{ justifyContent: 'flex-start', gap: 8 }}>
+          <input type="checkbox" checked={allSelected} onChange={() => onBindings({ fieldCodes: [] })}/>
+          <span>自动显示该车型全部公开参数</span>
+        </label>
+        {!allSelected && <p className="hint">已选择 {selectedCodes.length} 个字段</p>}
+        <div className="cms-spec-field-list">
+          {availableFields.map(field => <label key={field.code} className="row" style={{ justifyContent: 'flex-start', gap: 8 }}>
+            <input type="checkbox" checked={allSelected || selectedCodes.includes(field.code)} onChange={e => toggleField(field.code, e.target.checked)}/>
+            <span>{fieldLabel(field)}{field.unit ? \`（\${field.unit}）\` : ''}</span>
+          </label>)}
+        </div>
+        {!availableFields.length && <p className="hint">没有可展示的公开整车参数。请先在整车产品字段字典中启用「商城可见」。</p>}
+      </div>
+      <p className="hint">{pageType === 'product_template' && !bindings.productId ? '此模块会自动读取当前商品的整车产品参数；修改整车产品参数后，所有引用页面同步显示最新值。' : '参数值只来自整车产品主档，装修模块不保存重复参数。'}</p>
+    </div>;
+  }
   if (componentKey === 'features') return <div className="cms-fields">
     <label>标题<input value={props.heading || ''} maxLength={120} onChange={e => onProps({ heading: e.target.value })}/></label>
     {(props.items || []).map((item, index) => <div key={index} className="cms-subitem"><input value={item.title} placeholder="卖点标题" onChange={e => { const items = [...props.items]; items[index] = { ...item, title: e.target.value }; onProps({ items }); }}/><textarea rows={2} value={item.text} placeholder="卖点说明" onChange={e => { const items = [...props.items]; items[index] = { ...item, text: e.target.value }; onProps({ items }); }}/><button type="button" className="btn small" onClick={() => onProps({ items: props.items.filter((_, i) => i !== index) })}>删除</button></div>)}

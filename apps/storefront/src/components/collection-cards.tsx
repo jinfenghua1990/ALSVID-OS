@@ -1,0 +1,15 @@
+'use client';
+import {useState} from 'react';
+import Link from 'next/link';
+import Image from 'next/image';
+import type {CatalogProduct,Locale} from '@/lib/alsvid-api';
+const copy={de:{sort:'Sortieren',original:'Empfohlen',low:'Preis aufsteigend',high:'Preis absteigend',detail:'Mehr erfahren',quick:'Schnellansicht',close:'Schließen',price:'Preis auf Anfrage',from:'Ab',next:'Nächstes Bild'},en:{sort:'Sort',original:'Featured',low:'Price low to high',high:'Price high to low',detail:'Explore details',quick:'Quick view',close:'Close',price:'Price on request',from:'From',next:'Next image'},zh:{sort:'排序',original:'推荐',low:'价格从低到高',high:'价格从高到低',detail:'查看详情',quick:'快速查看',close:'关闭',price:'询价',from:'起',next:'下一张'}};
+const priceOf=(p:CatalogProduct)=>{const value=p.prices.find(x=>x.currency==='EUR')?.unitPrice;return value===undefined?null:Number(value)};
+function CollectionCard({product,locale}:{product:CatalogProduct;locale:Locale}){
+ const t=copy[locale],[image,setImage]=useState(0),[expanded,setExpanded]=useState(false),src=product.images[image]?.url,price=priceOf(product),href='/'+locale+'/e-bikes/'+encodeURIComponent(product.slug);
+ return <article className="collection-card"><div className="collection-image"><Link href={href}>{src?<Image src={src} alt={product.title} width={900} height={760} sizes="(max-width:720px) 90vw, 33vw"/>:<span>{product.title}</span>}</Link>{product.images.length>1&&<button type="button" className="collection-next" aria-label={t.next} onClick={()=>setImage(i=>(i+1)%product.images.length)}>›</button>}</div><div className="collection-copy"><h2><Link href={href}>{product.title}</Link></h2><p className="collection-price">{price===null?t.price:t.from+' '+new Intl.NumberFormat(locale==='de'?'de-DE':locale==='zh'?'zh-CN':'en-IE',{style:'currency',currency:'EUR'}).format(price)}</p><div className="collection-specs">{product.specifications.slice(0,4).map((spec,i)=><div key={i}><strong>{spec.value}</strong><small>{spec.label}</small></div>)}</div><div className="collection-buttons"><Link href={href} className="button">{t.detail}</Link><button type="button" onClick={()=>setExpanded(x=>!x)} aria-expanded={expanded}>{expanded?t.close:t.quick}</button></div>{expanded&&<div><p>{product.description}</p><Link href={href+'#purchase-controls'}>{t.detail} →</Link></div>}</div></article>
+}
+export function CollectionCards({products,locale}:{products:CatalogProduct[];locale:Locale}){
+ const t=copy[locale],[sort,setSort]=useState('original'),shown=[...products];if(sort!=='original')shown.sort((a,b)=>{const x=priceOf(a),y=priceOf(b);if(x===null)return y===null?0:1;if(y===null)return -1;return sort==='low'?x-y:y-x});
+ return <><div className="collection-toolbar"><span>{shown.length} {locale==='de'?'Produkte':locale==='en'?'products':'件商品'}</span><label>{t.sort} <select value={sort} onChange={e=>setSort(e.target.value)}><option value="original">{t.original}</option><option value="low">{t.low}</option><option value="high">{t.high}</option></select></label></div><div className="collection-grid">{shown.map(product=><CollectionCard key={product.productId} product={product} locale={locale}/>)}</div></>
+}

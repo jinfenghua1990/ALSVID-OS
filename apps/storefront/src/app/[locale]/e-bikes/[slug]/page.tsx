@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation';
 import { CmsBlocks } from '@/components/cms-blocks';
 import { CartActions } from '@/components/cart-actions';
 import { ProductGallery } from '@/components/product-gallery';
+import { ProductReviews } from '@/components/product-reviews';
 import { absoluteApiUrl, getAvailability, getCmsProductTemplate, getOffers, getProduct, getReviews, publicApiUrl, publicAssetUrl, type Locale, type ProductModuleBanner, type ProductModuleCopy, siteUrl } from '@/lib/alsvid-api';
 import { UI } from '@/lib/ui-text';
 
@@ -27,7 +28,7 @@ export default async function ProductPage({ params }: Props) {
   const { locale, slug } = await params;
   const product = await getProduct(slug, locale);
   if (!product || product.kind !== 'vehicle') notFound();
-  const [allOffers, availability, reviews, template] = await Promise.all([getOffers(product.slug, locale), getAvailability(product.slug, locale), getReviews(product.productId), getCmsProductTemplate(locale, product.productId)]);
+  const [allOffers, availability, reviews, template] = await Promise.all([getOffers(product.slug, locale), getAvailability(product.slug, locale), getReviews(product.productId,50), getCmsProductTemplate(locale, product.productId)]);
   const offers = allOffers.filter(offer => offer.currency === 'EUR');
   const productLayout = template?.productLayout || { gallery: 'standard', specifications: 'list', reviews: 'list' };
   const structuredData = {
@@ -69,16 +70,15 @@ export default async function ProductPage({ params }: Props) {
   return (
     <main className="container product-page">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData).replace(/</g, '\\u003c') }}></script>
-      <div className="product-layout">
+      <nav className="product-crumb"><a href={`/${locale}/e-bikes`}>E-Bikes</a> / {product.title}</nav>
+      <div className="product-layout purchase-layout" id="overview" data-module="gallery">
         <ProductGallery key={product.productId} images={product.images} title={product.title} locale={locale} style={productLayout.gallery} />
-        <section>
+        <section className="purchase-info">
           <p className="eyebrow">ALSVID / {product.model}</p>
           <h1>{product.title}</h1>
           <p className="lede">{product.description}</p>
-          <p>{UI.availableConfigurations[locale]}</p>
-          {offers.length ? <ul className="spec-list">{offers.map(offer => <li key={`${offer.sku}-${offer.currency}`}><span>{offer.sku}</span><strong>{offer.currency} {offer.unitPrice}</strong></li>)}</ul> : <p>{UI.priceOnRequest[locale]}</p>}
-          <CartActions locale={locale} productId={product.productId} offers={offers} />
-          <p className="availability">{availability?.available === null || !availability ? (UI.availabilityUnknown[locale]) : availability.available ? (UI.inStockGermany[locale]) : (UI.outOfStock[locale])}</p>
+          {reviewsConfig.enabled&&reviews?.counts.total?<a className="purchase-rating" href="#reviews">★ {reviews.counts.average} / 5 ({reviews.counts.total} {UI.reviews[locale]})</a>:null}
+          <CartActions locale={locale} productId={product.productId} offers={offers} availability={availability}/>
           <h2>{UI.specifications[locale]}</h2>
           {productLayout.specifications === 'table' ? <table className="product-spec-table"><tbody>{product.specifications.map(row => <tr key={row.label}><th>{row.label}</th><td>{row.value}</td></tr>)}</tbody></table> : productLayout.specifications === 'accordion' ? <details className="product-spec-accordion"><summary>{UI.showSpecifications[locale]}</summary><ul className="spec-list">{product.specifications.map(row => <li key={row.label}><span>{row.label}</span><strong>{row.value}</strong></li>)}</ul></details> : <ul className="spec-list">{product.specifications.map(row => <li key={row.label}><span>{row.label}</span><strong>{row.value}</strong></li>)}</ul>}
           {product.delivery && <section className="product-business-module"><h2>{UI.delivery[locale]}</h2><p>{product.delivery}</p></section>}
@@ -94,11 +94,7 @@ export default async function ProductPage({ params }: Props) {
       </section>}
       {templateBlocks.length > 0 && <CmsBlocks blocks={templateBlocks} locale={locale} />}
       {!!product.relatedAccessories?.length && <section className="product-related"><p className="eyebrow">{UI.relatedAccessories[locale]}</p><h2>{UI.fitsThisModel[locale]}</h2><div className="product-related__grid">{product.relatedAccessories.map(item => <a key={item.productId} href={`/${locale}/e-bikes/${encodeURIComponent(item.slug)}`}><div>{item.images[0] ? <img src={publicApiUrl(item.images[0].url)} alt={item.title} loading="lazy"/> : item.title}</div><strong>{item.title}</strong>{item.prices.length>0&&<small>{item.prices.map(price=>`${price.currency} ${price.unitPrice}`).join(' · ')}</small>}</a>)}</div></section>}
-      {reviewsConfig.enabled && <section className={`reviews reviews--${productLayout.reviews}`}>
-        <p className="eyebrow">{UI.reviews[locale]}</p>
-        <h2>{reviews?.counts.total ? `${reviews.counts.average} / 5 · ${reviews.counts.total}` : UI.noReviews[locale]}</h2>
-        {(reviews?.items || []).slice(0, reviewsConfig.limit).map(review => <article className="review" key={review.id}><strong>{'★'.repeat(review.rating)}{'☆'.repeat(5-review.rating)}</strong><p>{review.content}</p>{review.reply && <p className="review-reply">{UI.brandReply[locale]} {review.reply}</p>}</article>)}
-      </section>}
+      {reviewsConfig.enabled && <ProductReviews locale={locale} data={reviews} limit={reviewsConfig.limit} style={productLayout.reviews}/>}
       {copyModules.map(({key,row}) => <section className="product-business-module product-standard-module" key={key} data-module={key}><h2>{row.title || (key === "returns" ? UI.returns[locale] : UI.other[locale])}</h2><p>{row.body}</p></section>)}
     </main>
   );

@@ -46,7 +46,7 @@ export type CatalogLayout = { sort: 'sales' | 'default'; categories: { name: str
 
 export type Offer = { sku: string; spec: string; color: string; currency: string; unitPrice: string };
 export type ProductAvailability = { available: boolean | null; items?: { sku: string; available: boolean }[] };
-export type ReviewSummary = { average: string; total: number; goodRate: number };
+export type ReviewSummary = { average: string; total: number; goodRate: number; distribution?: Record<string, number> };
 export type PublicReview = { id: string; rating: number; content: string; reply: string | null; createdAt: string; items: { productId: string; productName: string; sku: string }[] };
 export type PublicLocation = { id: string; name: string; country: string; city: string; address: string; sales: boolean; service: boolean };
 
@@ -198,8 +198,8 @@ export async function getCmsProductTemplate(locale: Locale, productId = '') {
 
 export type CmsBlock = { id: string; componentKey: string; visible?: boolean; props: Record<string, any>; bindings?: Record<string, any>; data?: Record<string, any> };
 
-export async function getReviews(productId?: string) {
-  const query = new URLSearchParams({ limit: '20' });
+export async function getReviews(productId?: string, limit=20) {
+  const query = new URLSearchParams({ limit: String(Math.min(50,Math.max(1,limit))) });
   if (productId) query.set('productId', productId);
   return getJson<{ items: PublicReview[]; counts: ReviewSummary }>(`/api/site/reviews?${query}`);
 }

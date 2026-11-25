@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import Image from 'next/image';
-import { getCmsProductTemplate, getProducts, publicApiUrl, siteUrl, type Locale } from '@/lib/alsvid-api';
+import { CollectionCards } from '@/components/collection-cards';
+import { getCmsProductTemplate, getProducts, siteUrl, type Locale } from '@/lib/alsvid-api';
 import { UI } from '@/lib/ui-text';
 
 export async function generateMetadata({ params }: { params: Promise<{ locale: Locale }> }): Promise<Metadata> {
@@ -34,7 +34,7 @@ export default async function EbikeListing({ params, searchParams }: { params: P
       <Link href={href(-1)} className={active < 0 ? 'is-active' : ''}>{navCopy[locale].all}</Link>
       {categories.map((category, index) => <Link key={`${category.name}-${index}`} href={href(index)} className={active === index ? 'is-active' : ''}>{category.name}</Link>)}
     </nav>}
-    <div className="product-grid">{shown.map(product => <Link className="product-card" key={product.productId} href={`/${locale}/e-bikes/${encodeURIComponent(product.slug)}`}>{product.images[0] && <Image src={publicApiUrl(product.images[0].url)} alt={product.title} width={900} height={760} sizes="(max-width:720px) 90vw, 30vw" /> }<div className="product-copy"><h2>{product.title}</h2><p>{product.description}</p></div></Link>)}</div>
+    <CollectionCards products={shown} locale={locale}/>
     {categories.length > 0 && active >= 0 && !shown.length && <p className="catalog-category-empty">{navCopy[locale].all === '全部产品' ? '该分类下暂无已发布产品。' : 'No published products in this category yet.'}</p>}
   </main>;
 }

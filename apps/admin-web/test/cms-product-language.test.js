@@ -11,6 +11,6 @@ test('CMS product links preserve the public page language', async t => {
   const blocks = [{ id: 'gallery', componentKey: 'productGallery', data: { products: [{ id: 'bike 1', title: 'Bike', kind: 'vehicle' }] } }];
   for (const lang of ['zh', 'en', 'de']) {
     const html = renderToStaticMarkup(React.createElement(BlocksRenderer, { blocks, lang }));
-    assert.match(html, new RegExp(`href="/catalog/${lang}/bike%201"`));
+    assert.match(html, new RegExp(`href="/www/${lang}/products/bike%201"`));
   }
 });

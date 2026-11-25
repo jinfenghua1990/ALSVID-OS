@@ -45,8 +45,20 @@ function createPortalStore(connectionString) {
   }
   return {
     async accounts() {
-      try { return (await pool.query("SELECT u.id,u.username,u.role,u.enabled,r.note AS \"reviewNote\",r.reviewed_by AS \"reviewedBy\",r.reviewed_at AS \"reviewedAt\",p.display_name AS \"partnerName\" FROM app_users u JOIN portal_account_reviews r ON r.user_id=u.id LEFT JOIN supplier_portal_memberships m ON m.user_id=u.id AND m.status='ACTIVE' LEFT JOIN partners p ON p.id=m.partner_id WHERE u.role IN ('owner','dealer','supplier') ORDER BY r.reviewed_at DESC")).rows; }
-      catch (e) { if (e.code !== '42P01') throw e; return (await pool.query("SELECT u.id,u.username,u.role,u.enabled,r.note AS \"reviewNote\",r.reviewed_by AS \"reviewedBy\",r.reviewed_at AS \"reviewedAt\",NULL::text AS \"partnerName\" FROM app_users u JOIN portal_account_reviews r ON r.user_id=u.id WHERE u.role IN ('owner','dealer','supplier') ORDER BY r.reviewed_at DESC")).rows; }
+      // Self-registered consumers have a verified mailbox, not reviewed vehicle ownership.
+      const fields='u.id,u.username,u.role,u.enabled,COALESCE(r.note,CASE WHEN c.user_id IS NOT NULL THEN \'消费者邮箱已验证；车辆权属未审核\' END) AS "reviewNote",r.reviewed_by AS "reviewedBy",r.reviewed_at AS "reviewedAt",c.email_verified_at AS "emailVerifiedAt"';
+      const from=" FROM app_users u LEFT JOIN portal_account_reviews r ON r.user_id=u.id LEFT JOIN consumer_registrations c ON c.user_id=u.id";
+      const where=" WHERE u.role IN ('owner','dealer','supplier') AND (r.user_id IS NOT NULL OR c.user_id IS NOT NULL) ORDER BY COALESCE(r.reviewed_at,c.email_verified_at) DESC";
+      try { return (await pool.query('SELECT '+fields+',p.display_name AS "partnerName"'+from+" LEFT JOIN supplier_portal_memberships m ON m.user_id=u.id AND m.status='ACTIVE' LEFT JOIN partners p ON p.id=m.partner_id"+where)).rows; }
+      catch(e) {
+        if(e.code!=='42P01')throw e;
+        try { return (await pool.query('SELECT '+fields+',NULL::text AS "partnerName"'+from+where)).rows; }
+        catch(error) {
+          if(error.code!=='42P01')throw error;
+          // Preserve the legacy reviewed-account list if migration 185 has not been applied.
+          return (await pool.query("SELECT u.id,u.username,u.role,u.enabled,r.note AS \"reviewNote\",r.reviewed_by AS \"reviewedBy\",r.reviewed_at AS \"reviewedAt\",NULL::text AS \"partnerName\" FROM app_users u JOIN portal_account_reviews r ON r.user_id=u.id WHERE u.role IN ('owner','dealer','supplier') ORDER BY r.reviewed_at DESC")).rows;
+        }
+      }
     },
     async account(id) { return (await pool.query("SELECT id FROM app_users WHERE id=$1 AND role IN ('owner','dealer','supplier')", [id])).rows[0]; },
     async requests(user) {

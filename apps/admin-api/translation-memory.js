@@ -95,18 +95,21 @@ async function lookupMemory(client, texts, targets) {
 async function saveMemory(client, entries) {
   const rows = (Array.isArray(entries) ? entries : []).filter((item) => item && LOCALES.includes(item.locale) && normalize(item.target));
   if (!rows.length) return 0;
-  const payload = rows.map((item) => [hashOf(item.source), normalize(item.source), item.locale, normalize(item.target), item.engine || null]);
+  const unique=new Map();
+  for(const item of rows){const entry=[hashOf(item.source),normalize(item.source),item.locale,normalize(item.target),item.engine||null];const key=entry[0]+':'+entry[2];if(unique.get(key)?.[4]!=='manual'||entry[4]==='manual')unique.set(key,entry);}
+  const payload=[...unique.values()];
   try {
-    await client.query(
+    const result=await client.query(
       `INSERT INTO translation_memory(source_hash, source_text, locale, target_text, engine)
        SELECT * FROM unnest($1::text[], $2::text[], $3::text[], $4::text[], $5::text[])
        ON CONFLICT (source_hash, locale) DO UPDATE SET
          target_text = EXCLUDED.target_text,
          engine = EXCLUDED.engine,
-         updated_at = now()`,
+         updated_at = now()
+       WHERE translation_memory.engine IS DISTINCT FROM 'manual' OR EXCLUDED.engine='manual'`,
       [payload.map((r) => r[0]), payload.map((r) => r[1]), payload.map((r) => r[2]), payload.map((r) => r[3]), payload.map((r) => r[4])]
     );
-    return payload.length;
+    return result.rowCount ?? payload.length;
   } catch (error) {
     // 记忆写失败不影响译文本身已经拿到的结果
     if (error?.code === '42P01') return 0;

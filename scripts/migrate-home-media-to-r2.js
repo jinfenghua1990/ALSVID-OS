@@ -3,9 +3,10 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const { execFileSync } = require('node:child_process');
+if (process.env.ALSVID_APPROVE_PRODUCTION_MAINTENANCE !== '1' || process.env.ALSVID_TEST_MODE === '1') throw new Error('历史生产维护脚本默认禁用');
 
-const SERVER = '/Users/gino/Projects/ALSVID-V2-main/server';
-const ROOT = '/Users/gino/Projects/ALSVID-V2-main';
+const ROOT = path.resolve(__dirname, '..');
+const SERVER = path.join(ROOT, 'apps', 'admin-api');
 
 function loadSecret() {
   const out = execFileSync('/Users/gino/google-cloud-sdk/bin/gcloud',
@@ -24,10 +25,10 @@ const TARGETS = [
   { file: '/tmp/alsvid-fetch/fc1-product.webp', label: '首页 FC1 产品图', oldPath: '/home/original/fc1-product.webp' },
   { file: '/tmp/alsvid-fetch/scene-touring.webp', label: '首页长途骑行场景', oldPath: '/home/original/scene-touring.webp' },
   { file: '/tmp/alsvid-fetch/alsvid-bike-motion.svg', label: '首页动效线条 SVG', oldPath: '/home/alsvid-bike-motion.svg' },
-  { file: path.join(ROOT, 'client/public/products/fc2/side-studio-1536.webp'), label: 'FC2 侧面棚拍', oldPath: '/products/fc2/side-studio-1536.webp' },
-  { file: path.join(ROOT, 'client/public/products/l7/reference-side.jpg'), label: 'L7 侧面参考图', oldPath: '/products/l7/reference-side.jpg' },
-  { file: path.join(ROOT, 'client/public/products/l8/retouched-side.webp'), label: 'L8 精修侧面图', oldPath: '/products/l8/retouched-side.webp' },
-  { file: path.join(ROOT, 'client/public/products/accessories/cup-holder/retouched/cup-holder-black.webp'), label: '杯架配件黑色', oldPath: '/products/accessories/cup-holder/retouched/cup-holder-black.webp' },
+  { file: path.join(ROOT, 'apps/admin-web/public/products/fc2/side-studio-1536.webp'), label: 'FC2 侧面棚拍', oldPath: '/products/fc2/side-studio-1536.webp' },
+  { file: path.join(ROOT, 'apps/admin-web/public/products/l7/reference-side.jpg'), label: 'L7 侧面参考图', oldPath: '/products/l7/reference-side.jpg' },
+  { file: path.join(ROOT, 'apps/admin-web/public/products/l8/retouched-side.webp'), label: 'L8 精修侧面图', oldPath: '/products/l8/retouched-side.webp' },
+  { file: path.join(ROOT, 'apps/admin-web/public/products/accessories/cup-holder/retouched/cup-holder-black.webp'), label: '杯架配件黑色', oldPath: '/products/accessories/cup-holder/retouched/cup-holder-black.webp' },
 ];
 
 (async () => {

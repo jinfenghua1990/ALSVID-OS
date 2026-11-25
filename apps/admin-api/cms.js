@@ -1,6 +1,8 @@
 'use strict';
 
 const { createPool } = require('./db-pool');
+const { revalidateStorefront } = require('./storefront-revalidate');
+const refreshCms = () => revalidateStorefront(['storefront-cms','storefront-products','storefront-layout']);
 const { currentActor } = require('./audit-context');
 const { isUuidv7, uuidv7 } = require('./uuidv7');
 
@@ -10,6 +12,9 @@ const COMPONENTS = ['hero', 'twoColumn', 'image', 'carousel', 'divider', 'spacer
 const RESERVED_PATHS = ['www', 'catalog', 'api', 'my', 'dealer', 'login'];
 
 function fail(message, statusCode = 400) { throw Object.assign(new Error(message), { statusCode }); }
+function assertLegalReady(path, document, seo) {
+  if(String(path||'').startsWith('/legal/')&&/\{\{TODO_[A-Z_]+\}\}/i.test(JSON.stringify({document,seo})))fail('法定页面仍含待填写占位符，禁止发布',422);
+}
 function text(value, max, required = false) {
   if (value == null) { if (required) fail('必填内容不能为空'); return ''; }
   if (typeof value !== 'string' || value.length > max) fail('内容格式或长度无效');
@@ -334,7 +339,7 @@ function createCmsStore(connectionString) {
         const after = (await c.query(`UPDATE site_pages SET page_name=$1,path=$2,draft=$3,draft_seo=$4,revision=revision+1,updated_by=$5,updated_at=now() WHERE id=$6 RETURNING ${columns}`, [name, path, JSON.stringify(document), JSON.stringify(seo), currentActor(), id])).rows[0];
         await c.query('INSERT INTO audit_log(actor,action,target,before_json,after_json) VALUES($1,$2,$3,$4,$5)', [currentActor(), 'cms.page.save', `site-pages/${id}`, JSON.stringify({ revision: old.rev }), JSON.stringify({ revision: after.revision })]);
         await c.query('COMMIT');
-        return after;
+        return {...after,storefrontRevalidate:await refreshCms()};
       } catch (error) {
         await c.query('ROLLBACK').catch(() => {});
         if (error.code === '23505') fail('同语言下该页面路径已存在', 409);
@@ -351,6 +356,7 @@ function createCmsStore(connectionString) {
         if (old.rev !== input.revision) fail('页面草稿已被其他人更新，请重新加载', 409);
         if (!old.draft) fail('请先保存页面草稿');
         const document = documentOf(old.draft);
+        assertLegalReady(old.path,document,old.draftSeo);
         if (old.pageType !== 'product_template' && !document.blocks.some(block => block.visible !== false)) fail('页面至少需要一个可见组件才能发布');
         await validateAssets(c, document);
         const next = (await c.query('SELECT COALESCE(max(version),0)+1 AS version FROM site_page_versions WHERE page_id=$1', [id])).rows[0].version;
@@ -358,7 +364,7 @@ function createCmsStore(connectionString) {
         const after = (await c.query(`UPDATE site_pages SET published=$1,published_seo=$2,published_revision=revision+1,published_version=$3,revision=revision+1,updated_by=$4,updated_at=now() WHERE id=$5 RETURNING ${columns}`, [JSON.stringify(document), JSON.stringify(old.draftSeo || {}), next, currentActor(), id])).rows[0];
         await c.query('INSERT INTO audit_log(actor,action,target,before_json,after_json) VALUES($1,$2,$3,$4,$5)', [currentActor(), 'cms.page.publish', `site-pages/${id}`, JSON.stringify({ publishedVersion: old.publishedVersion, revision: old.rev }), JSON.stringify({ publishedVersion: next, revision: after.revision })]);
         await c.query('COMMIT');
-        return after;
+        return {...after,storefrontRevalidate:await refreshCms()};
       } catch (error) { await c.query('ROLLBACK').catch(() => {}); throw error; } finally { c.release(); }
     },
     async versions(id) {
@@ -382,7 +388,7 @@ function createCmsStore(connectionString) {
         const after = (await c.query(`UPDATE site_pages SET published=$1,published_seo=$2,published_revision=revision+1,published_version=$3,revision=revision+1,updated_by=$4,updated_at=now() WHERE id=$5 RETURNING ${columns}`, [JSON.stringify(snapshot.snapshot), JSON.stringify(snapshot.seo || {}), next, currentActor(), id])).rows[0];
         await c.query('INSERT INTO audit_log(actor,action,target,before_json,after_json) VALUES($1,$2,$3,$4,$5)', [currentActor(), 'cms.page.rollback', `site-pages/${id}`, JSON.stringify({ publishedVersion: old.publishedVersion }), JSON.stringify({ rolledBackFrom: version, publishedVersion: next })]);
         await c.query('COMMIT');
-        return after;
+        return {...after,storefrontRevalidate:await refreshCms()};
       } catch (error) { await c.query('ROLLBACK').catch(() => {}); throw error; } finally { c.release(); }
     },
     // 以指定历史版本为基础重建草稿：只改草稿，不动线上内容，也不覆盖原历史快照
@@ -403,7 +409,7 @@ function createCmsStore(connectionString) {
         const after = (await c.query(`UPDATE site_pages SET draft=$1,draft_seo=$2,revision=revision+1,updated_by=$3,updated_at=now() WHERE id=$4 RETURNING ${columns}`, [JSON.stringify(document), JSON.stringify(snap.seo || {}), currentActor(), id])).rows[0];
         await c.query('INSERT INTO audit_log(actor,action,target,before_json,after_json) VALUES($1,$2,$3,$4,$5)', [currentActor(), 'cms.page.restore_draft', `site-pages/${id}`, JSON.stringify({ revision: old.rev, draftHasContent: Boolean(old.draft) }), JSON.stringify({ revision: after.revision, restoredFrom: version })]);
         await c.query('COMMIT');
-        return after;
+        return {...after,storefrontRevalidate:await refreshCms()};
       } catch (error) { await c.query('ROLLBACK').catch(() => {}); throw error; } finally { c.release(); }
     },
     // 软删除历史版本：保留快照数据可追溯，禁止删当前线上版本与最后一个版本
@@ -438,7 +444,7 @@ function createCmsStore(connectionString) {
         const after = (await c.query(`UPDATE site_pages SET page_name=$1,updated_by=$2,updated_at=now() WHERE id=$3 RETURNING ${columns}`, [name, currentActor(), id])).rows[0];
         await c.query('INSERT INTO audit_log(actor,action,target,before_json,after_json) VALUES($1,$2,$3,$4,$5)', [currentActor(), 'cms.page.rename', `site-pages/${id}`, JSON.stringify({ name: old.name }), JSON.stringify({ name })]);
         await c.query('COMMIT');
-        return after;
+        return {...after,storefrontRevalidate:await refreshCms()};
       } catch (error) { await c.query('ROLLBACK').catch(() => {}); throw error; } finally { c.release(); }
     },
     // 版本别名：线上/草稿存在页面行上，历史版本存在版本行上
@@ -453,7 +459,7 @@ function createCmsStore(connectionString) {
         const after = (await c.query(`UPDATE site_pages SET published_label=$1,draft_label=$2,updated_by=$3 WHERE id=$4 RETURNING ${columns}`, [publishedLabel, draftLabel, currentActor(), id])).rows[0];
         await c.query('INSERT INTO audit_log(actor,action,target,before_json,after_json) VALUES($1,$2,$3,$4,$5)', [currentActor(), 'cms.page.labels', `site-pages/${id}`, JSON.stringify({ publishedLabel: old.publishedLabel, draftLabel: old.draftLabel }), JSON.stringify({ publishedLabel, draftLabel })]);
         await c.query('COMMIT');
-        return after;
+        return {...after,storefrontRevalidate:await refreshCms()};
       } catch (error) { await c.query('ROLLBACK').catch(() => {}); throw error; } finally { c.release(); }
     },
     async setVersionLabel(id, input = {}) {
@@ -470,7 +476,7 @@ function createCmsStore(connectionString) {
         const after = (await c.query('UPDATE site_page_versions SET label=$1 WHERE page_id=$2 AND version=$3 RETURNING version,label', [label, id, version])).rows[0];
         await c.query('INSERT INTO audit_log(actor,action,target,before_json,after_json) VALUES($1,$2,$3,$4,$5)', [currentActor(), 'cms.page.version.label', `site-pages/${id}/versions/${version}`, JSON.stringify({ label: target.label }), JSON.stringify({ label })]);
         await c.query('COMMIT');
-        return after;
+        return {...after,storefrontRevalidate:await refreshCms()};
       } catch (error) { await c.query('ROLLBACK').catch(() => {}); throw error; } finally { c.release(); }
     },
     async setStatus(id, status) {

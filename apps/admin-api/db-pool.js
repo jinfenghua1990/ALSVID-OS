@@ -58,7 +58,8 @@ function assertSharedCloudDatabase(connectionString) {
 
 function assertApplicationDatabase(connectionString) {
   const testUrl = process.env.TEST_DATABASE_URL;
-  if (process.env.ALSVID_TEST_MODE === '1' && testUrl && connectionString === testUrl) {
+  if (process.env.ALSVID_TEST_MODE === '1') {
+    if (!testUrl || connectionString !== testUrl) throw new Error('Test mode requires the explicit isolated TEST_DATABASE_URL; refusing database fallback.');
     let url;
     try { url = new URL(connectionString); } catch { throw new Error('TEST_DATABASE_URL must be a PostgreSQL URL for an isolated Neon test database.'); }
     const hostname = url.hostname.toLowerCase();

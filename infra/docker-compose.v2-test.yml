@@ -1,0 +1,28 @@
+# 隔离测试，不读取生产密钥、不执行迁移。
+name: alsvid-v2-test
+services:
+  admin:
+    build:
+      context: ..
+      dockerfile: infra/docker/Dockerfile.v2-api
+    ports: ["127.0.0.1:18089:8089"]
+    environment:
+      NODE_ENV: test
+      ALSVID_TEST_MODE: "1"
+      DATABASE_URL: ${TEST_DATABASE_URL:?isolated Neon test database required}
+      TEST_DATABASE_URL: ${TEST_DATABASE_URL:?isolated Neon test database required}
+      ALSVID_STOREFRONT_ORIGIN: http://storefront:8091
+      ALSVID_STOREFRONT_PUBLIC_ORIGIN: http://127.0.0.1:18091
+      ALSVID_PREVIEW_SECRET: ${ALSVID_PREVIEW_SECRET:?test preview secret required}
+      ALSVID_REVALIDATE_TOKEN: ${ALSVID_REVALIDATE_TOKEN:?test revalidation token required}
+  storefront:
+    build:
+      context: ..
+      dockerfile: infra/docker/Dockerfile.v2-storefront
+    ports: ["127.0.0.1:18091:8091"]
+    environment:
+      ALSVID_API_ORIGIN: http://admin:8089
+      SITE_ORIGINS: http://127.0.0.1:18091
+      SITE_URL: http://127.0.0.1:18091
+      ALSVID_REVALIDATE_TOKEN: ${ALSVID_REVALIDATE_TOKEN:?test revalidation token required}
+    depends_on: [admin]

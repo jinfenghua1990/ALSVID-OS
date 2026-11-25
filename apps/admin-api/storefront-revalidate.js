@@ -55,7 +55,12 @@ async function revalidateStorefront(tags = ['storefront-layout']) {
     if (!response.ok) {
       return { ok: false, status: response.status, ms: Date.now() - startedAt, reason: `前台返回 ${response.status}：${text.slice(0, 200)}` };
     }
-    return { ok: true, status: response.status, ms: Date.now() - startedAt, tags };
+    let result;
+    try { result = JSON.parse(text); } catch (_) { result = null; }
+    if (result?.revalidated !== true || !Array.isArray(result.tags) || !tags.every(tag => result.tags.includes(tag))) {
+      return { ok: false, status: response.status, ms: Date.now() - startedAt, reason: '前台未确认全部缓存标签失效' };
+    }
+    return { ok: true, status: response.status, ms: Date.now() - startedAt, tags, pageVerified: false };
   } catch (error) {
     const aborted = error?.name === 'AbortError';
     return { ok: false, ms: Date.now() - startedAt, reason: aborted ? `刷新前台超时（>${TIMEOUT_MS / 1000}s）` : `刷新前台失败：${error?.message || error}` };

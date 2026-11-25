@@ -19,9 +19,10 @@ const fs = require('node:fs');
 const path = require('node:path');
 const zlib = require('node:zlib');
 const { execFileSync } = require('node:child_process');
+if (process.env.ALSVID_APPROVE_PRODUCTION_MAINTENANCE !== '1' || process.env.ALSVID_TEST_MODE === '1') throw new Error('历史生产维护脚本默认禁用');
 
 const ROOT = path.resolve(__dirname, '..');
-const SERVER = path.join(ROOT, 'server');
+const SERVER = path.join(ROOT, 'apps', 'admin-api');
 const MAP_FILE = '/tmp/alsvid-media-map.json';
 const DRY_RUN = process.argv.includes('--dry-run');
 

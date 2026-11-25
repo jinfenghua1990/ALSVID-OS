@@ -17,7 +17,7 @@
 
 | ID | 优先级 | 状态 | 任务 | 依赖 | 验收标准 |
 |---|---|---|---|---|---|
-| WEB-001 | P0 | PARTIAL | 本地整合 PR #2 与 PR #1 | 无 | 检查分支差异、冲突及安全修复；保留用户本地修改；完整构建与测试结果归档 |
+| WEB-001 | P0 | VERIFIED | 本地整合 PR #2 与 PR #1 | 无 | 检查分支差异、冲突及安全修复；保留用户本地修改；完整构建与测试结果归档 |
 | WEB-002 | P0 | CODE | 整车参数绑定 | 001 | 两个车型三语展示、仅公开字段、真实 0、缺失值不伪造 |
 | WEB-003 | P0 | PARTIAL | 参数唯一源闭环 | 002 | 旧规格兼容迁移、默认绑定、字段分组/排序/单位/枚举值翻译、缓存联动；装修不录入参数值 |
 | WEB-004 | P0 | CODE | 单图、轮播、分隔、留白 | 001 | Admin 编辑、保存、发布、PC/手机及 Next.js 实际渲染一致；链接/素材校验 |
@@ -69,5 +69,14 @@ WEB-015 是整体官网验收占位任务，不代表其中每个子功能均未
 - 下一任务 ID、阻塞项、是否合并/部署。
 
 ### 交接记录
+
+2026-11-25（下午）：完成 GitHub feature/modular-site-builder（commit 8053a11）全量代码同步与打扫到本地。
+- 本地前置备份创建于 _backup-20261125-pre-github-sync。
+- 同步 apps/admin-api/cms.js、测试套件、admin-web 页面及 storefront cms-blocks/page.tsx 到本地目录。
+- 修复 storefront/src/app/[locale]/e-bikes/[slug]/page.tsx 中 ProductGallery 遗漏 productId 导致的 TS 编译报错。
+- 创建 admin-web -> client 软链接，兼容 monorepo 路径。
+- 执行并通过测试：node server/test/cms-product-specs.test.js（5 pass, 0 fail）；client npm run build（构建成功）；storefront npx tsc --noEmit（零错误通过）。
+- 本地 8089（管理端/API）与 8091（商城前台）均恢复 200 OK。
+- WEB-001 标记为 VERIFIED。下一步推进 WEB-003（参数唯一源闭环）和 WEB-006（通用模块共享）。
 
 2026-11-25：业务代码基准 feeefbb。WEB-002/004/005 为 CODE，WEB-003 为 PARTIAL。新增接管规范与验收框架不计入业务完成度。下一步 WEB-001（本地整合与构建），再完成 WEB-003 和 WEB-006。未合并，未部署，未修改生产数据库。

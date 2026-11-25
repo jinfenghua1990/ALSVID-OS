@@ -11,21 +11,22 @@
 //   ALSVID_TEST_MODE=1 \
 //   TEST_DATABASE_URL='postgres://...@ep-xxx.eu-central-1.aws.neon.tech/neondb' \
 //   DATABASE_URL_UNPOOLED="$TEST_DATABASE_URL" \
-//   ALSVID_ADMIN_BASE=http://127.0.0.1:8089 \
+//   ALSVID_ADMIN_BASE=http://127.0.0.1:18089 \
 //   ALSVID_ADMIN_USER=... ALSVID_ADMIN_PASS=... \
 //   node scripts/acceptance-178.mjs
 //
 // 前置：把 8089 指向该测试库启动（ALSVID_SECRET_JSON 里 DATABASE_URL 换成测试库），
-// 并在该库上执行过一次 `node server/migrate.js`（首次建库需要）。
+// 并在该库上执行过一次 `node apps/admin-api/migrate.js`（首次建库需要）。
 import { createRequire } from 'node:module';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 const require = createRequire(import.meta.url);
-const serverDir = path.join(process.cwd(), 'server');
+const serverDir = fileURLToPath(new URL('../apps/admin-api/', import.meta.url));
 const { assertApplicationDatabase, createPool } = require(path.join(serverDir, 'db-pool.js'));
 
 const TEST_URL = process.env.TEST_DATABASE_URL || '';
-const BASE = (process.env.ALSVID_ADMIN_BASE || 'http://127.0.0.1:8089').replace(/\/+$/, '');
+const BASE = (process.env.ALSVID_ADMIN_BASE || 'http://127.0.0.1:18089').replace(/\/+$/, '');
 const USER = process.env.ALSVID_ADMIN_USER || '';
 const PASS = process.env.ALSVID_ADMIN_PASS || '';
 
@@ -33,6 +34,7 @@ const results = [];
 function record(step, ok, detail) {
   results.push({ step, ok, detail });
   process.stdout.write(`${ok ? 'PASS' : 'FAIL'}  ${step}${detail ? `  —  ${detail}` : ''}\n`);
+  if(!ok)die('验收失败：'+step);
 }
 function die(message) {
   process.stdout.write(`\n中止：${message}\n`);
@@ -44,10 +46,13 @@ function printSummary() {
   process.stdout.write(`\n合计 ${results.length} 项：通过 ${pass}，失败 ${results.length - pass}\n`);
 }
 
+if (process.env.ALSVID_TEST_MODE !== '1') die('必须显式设置 ALSVID_TEST_MODE=1');
 if (!TEST_URL) die('缺少 TEST_DATABASE_URL（必须指向 Neon 隔离测试分支，不能是正式库）');
-if (!process.env.DATABASE_URL_UNPOOLED && !process.env.DIRECT_DATABASE_URL) {
-  process.env.DATABASE_URL_UNPOOLED = TEST_URL;
-}
+if (BASE !== 'http://127.0.0.1:18089') die('仅允许独立测试 API 18089');
+const direct = process.env.DATABASE_URL_UNPOOLED || process.env.DIRECT_DATABASE_URL || TEST_URL;
+if (direct !== TEST_URL) die('迁移连接串与 TEST_DATABASE_URL 不一致');
+process.env.DATABASE_URL_UNPOOLED = TEST_URL;
+delete process.env.DIRECT_DATABASE_URL;
 if (!USER || !PASS) die('缺少 ALSVID_ADMIN_USER / ALSVID_ADMIN_PASS（测试分支的临时管理员）');
 
 // 复用既有护栏做校验：这一步本身就是验收项 —— 确认「测试库不是正式库」
@@ -115,25 +120,43 @@ async function call(method, url, body) {
 const login = await call('POST', '/api/auth/login', { username: USER, password: PASS });
 if (login.status !== 200) die(`登录失败（${login.status}）：${login.payload?.error || ''}`);
 record('管理员登录', true, '会话已建立');
+const connection = await call('GET', '/api/system/connections');
+const expectedDb = new URL(TEST_URL);
+const expectedTarget = `${expectedDb.host} · ${decodeURIComponent(expectedDb.pathname.replace(/^\/+/, ''))}`;
+if (connection.status !== 200 || !connection.payload?.connections?.some(item => item.id === 'database' && item.target === expectedTarget && item.status === 'connected')) die('API 实际数据库与隔离测试库不一致，禁止发布验收');
 
 const draft = await call('GET', '/api/site/layout-draft');
 const version = draft.payload?.data?.version;
 record('读取草稿', draft.status === 200 && Number.isSafeInteger(version), `当前草稿 v${version}`);
 
+const project=draft.payload?.data?.project||{components:[],styles:[]};
+const WEB='http://127.0.0.1:18091';
+async function verifyPage(locale,release,label){
+ const response=await fetch(WEB+'/'+locale,{cache:'no-store',redirect:'error',signal:AbortSignal.timeout(30000)});
+ const body=await response.text();
+ record(`真实前台 ${locale} · ${label}`,response.ok&&body.includes(`data-alsvid-layout-version="${release}"`)&&(release==='unpublished'||body.includes(label)),`HTTP ${response.status} · ${release}`);
+}
 const html = `<section style="padding:48px;text-align:center"><h1>验收版式 A ${Date.now()}</h1></section>`;
-const saved = await call('PUT', '/api/site/layout-draft', { html, css: '', translations: {}, expectedVersion: version });
+const saved = await call('PUT', '/api/site/layout-draft', { project,html, css: '', translations: {}, expectedVersion: version });
 const savedVersion = saved.payload?.data?.version;
 record('保存草稿', saved.status === 200 && savedVersion > version, `v${version} → v${savedVersion}`);
 
 const publishA = await call('POST', '/api/site/layout-draft/publish', { expectedVersion: savedVersion, html, css: '', locales: {} });
 record('发布版本 A', publishA.status === 200, `publishedVersion=${publishA.payload?.data?.publishedVersion}`);
 const versionA = publishA.payload?.data?.publishedVersion;
+record('发布 A 缓存回调',publishA.payload?.data?.storefrontRevalidate?.ok===true);
+await verifyPage('zh',versionA,'验收版式 A');
+const repeat=await call('POST','/api/site/layout-draft/publish',{expectedVersion:savedVersion,html,css:'',locales:{}});
+record('同一草稿再次发布生成独立快照',repeat.status===200&&repeat.payload?.data?.publishedVersion>versionA);
+await verifyPage('zh',repeat.payload.data.publishedVersion,'验收版式 A');
 
 // 再发一版，制造「回滚到上一版」的真实场景
-const saved2 = await call('PUT', '/api/site/layout-draft', { html: html.replace('版式 A', '版式 B'), css: '', translations: {}, expectedVersion: savedVersion });
+const saved2 = await call('PUT', '/api/site/layout-draft', { project,html: html.replace('版式 A', '版式 B'), css: '', translations: {}, expectedVersion: savedVersion });
 const publishB = await call('POST', '/api/site/layout-draft/publish', { expectedVersion: saved2.payload?.data?.version, html: html.replace('版式 A', '版式 B'), css: '', locales: {} });
 record('发布版本 B', publishB.status === 200, `publishedVersion=${publishB.payload?.data?.publishedVersion}`);
 const versionB = publishB.payload?.data?.publishedVersion;
+record('发布 B 缓存回调',publishB.payload?.data?.storefrontRevalidate?.ok===true);
+await verifyPage('zh',versionB,'验收版式 B');
 
 const list = await call('GET', '/api/site/layout-draft/versions?limit=20');
 const items = list.payload?.data?.items || [];
@@ -149,9 +172,14 @@ record('回滚到版本 A', rollback.status === 200, `当前线上版本=${rollb
 const layout = await call('GET', '/api/site/layout?locale=zh');
 record('线上版式已回到 A', String(layout.payload?.data?.html || layout.payload?.html || '').includes('版式 A'), `version=${layout.payload?.data?.version ?? layout.payload?.version ?? '—'}`);
 
+record('回滚缓存回调',rollback.payload?.data?.storefrontRevalidate?.ok===true);
+await verifyPage('zh',rollback.payload.data.publishedVersion,'验收版式 A');
 const rollbackAgain = await call('POST', '/api/site/layout-draft/rollback', { version: versionA });
 record('重复回滚被拒（409）', rollbackAgain.status === 409, rollbackAgain.payload?.error || '');
 
+const withdrawn=await call('POST','/api/site/layout-draft/unpublish',{});
+record('撤回并刷新缓存',withdrawn.status===200&&withdrawn.payload?.storefrontRevalidate?.ok===true);
+await verifyPage('zh','unpublished','撤回');
 printSummary();
 const failed = results.filter((item) => !item.ok).length;
 process.exitCode = failed ? 1 : 0;

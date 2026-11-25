@@ -36,7 +36,7 @@ export function CartNavLink({ locale }: { locale: Locale }) {
   }, []);
 
   return <Link className="cart-nav-link" href={`/${locale}/cart`} aria-haspopup="dialog" onClick={event=>{if(!event.ctrlKey&&!event.metaKey&&!event.shiftKey&&!event.altKey){event.preventDefault();window.dispatchEvent(new Event(openCartDrawerEvent));}}} aria-label={quantity ? `${label}, ${quantity}` : label} onClick={event => { if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return; event.preventDefault(); window.dispatchEvent(new Event(cartDrawerOpenEvent)); }}>
-    {label}{quantity > 0 && <span className="cart-nav-count" aria-hidden="true">{quantity > 99 ? '99+' : quantity}</span>}
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true"><path d="M5 8h14l1 13H4L5 8Z"/><path d="M9 9V6a3 3 0 0 1 6 0v3"/></svg><span className="sr-only">{label}</span>{quantity > 0 && <span className="cart-nav-count" aria-hidden="true">{quantity > 99 ? '99+' : quantity}</span>}
   </Link>;
 }
 

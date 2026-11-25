@@ -22,7 +22,48 @@ async function data(response: Response) {
   return body;
 }
 
-export function CartActions({ locale, productId, offers, availability }: { locale: Locale; productId: string; offers: Offer[]; availability?: ProductAvailability | null }) {
+// Server-authoritative preview only. Never insert gifts as ordinary paid cart items.
+export type PurchaseGiftPreview = {
+  productId: string;
+  sku: string;
+  currency: string;
+  quantity: number;
+  gifts: {
+    ruleId: string;
+    sku: string;
+    name: string;
+    imageUrl?: string;
+    quantity: number;
+    condition: string;
+    status: 'qualified' | 'shortfall' | 'unavailable';
+    remainingAmount?: string;
+  }[];
+};
+
+const giftCopy = {
+  zh: { title: '购车赠品', qualified: '满足赠送条件', shortfall: '尚未满足赠送条件', remaining: '还差', unavailable: '赠品暂不可用', quantity: '数量' },
+  en: { title: 'Gifts with purchase', qualified: 'Gift conditions met', shortfall: 'Gift conditions not yet met', remaining: 'Still needed:', unavailable: 'Gift currently unavailable', quantity: 'Quantity' },
+  de: { title: 'Geschenke zum Kauf', qualified: 'Geschenkbedingungen erfüllt', shortfall: 'Geschenkbedingungen noch nicht erfüllt', remaining: 'Es fehlen noch:', unavailable: 'Geschenk derzeit nicht verfügbar', quantity: 'Menge' },
+} satisfies Record<Locale, Record<string, string>>;
+
+function PurchaseGiftSummary({ locale, preview }: { locale: Locale; preview: PurchaseGiftPreview }) {
+  const t = giftCopy[locale];
+  const format = (value: string) => new Intl.NumberFormat(locale === 'de' ? 'de-DE' : locale === 'zh' ? 'zh-CN' : 'en-IE', { style: 'currency', currency: preview.currency }).format(Number(value));
+  return <section data-purchase-feature="gift-preview" aria-label={t.title} aria-live="polite" style={{display:'grid',gap:8,background:'transparent'}}>
+    <strong>{t.title}</strong>
+    {preview.gifts.map(gift => <div key={gift.ruleId+'|'+gift.sku} style={{display:'flex',alignItems:'center',gap:12}}>
+      {gift.imageUrl && <img src={gift.imageUrl} alt="" width={64} height={64} style={{objectFit:'contain'}} />}
+      <div style={{display:'grid',gap:3}}>
+        <strong>{gift.name}</strong>
+        <small>{t.quantity}: {gift.quantity}</small>
+        <small>{gift.condition}</small>
+        <small>{gift.status === 'qualified' ? t.qualified : gift.status === 'unavailable' ? t.unavailable : t.shortfall}{gift.status === 'shortfall' && gift.remainingAmount && /^\d{1,9}(?:\.\d{1,2})?$/.test(gift.remainingAmount) ? ' · '+t.remaining+' '+format(gift.remainingAmount) : ''}</small>
+      </div>
+    </div>)}
+  </section>;
+}
+
+export function CartActions({ locale, productId, offers, availability, giftPreview }: { locale: Locale; productId: string; offers: Offer[]; availability?: ProductAvailability | null; giftPreview?: PurchaseGiftPreview | null }) {
   const t = copy[locale];
   const [selected, setSelected] = useState('');
   const [quantity, setQuantity] = useState(1);
@@ -68,6 +109,8 @@ export function CartActions({ locale, productId, offers, availability }: { local
     {offers.length>0&&<fieldset className="purchase-variants"><legend>{t.configuration}</legend><div className="variant-options">{offers.map(offer=>{const key=offer.sku+'|'+offer.currency;return <label className={'variant-option'+(selected===key?' selected':'')} key={key}><input type="radio" name={'configuration-'+productId} checked={selected===key} onChange={()=>setSelected(key)}/><span className="variant-option__label"><strong><i className="variant-swatch" aria-hidden="true" style={colorSwatch(offer.color)?{backgroundColor:colorSwatch(offer.color)}:undefined}/>{offer.color||offer.sku}</strong><small>{offer.spec||offer.sku}</small></span></label>})}</div></fieldset>}
     <p className="availability" aria-live="polite">{blocked?UI.outOfStock[locale]:stock===true?UI.inStockGermany[locale]:UI.availabilityUnknown[locale]}</p>
     <div className="purchase-qty"><span>{t.quantity}</span><div><button type="button" aria-label="−" disabled={quantity<=1} onClick={()=>setQuantity(n=>Math.max(1,n-1))}>−</button><input aria-label={t.quantity} type="number" min="1" max="100" step="1" value={quantity} onChange={e=>setQuantity(Number(e.target.value))}/><button type="button" aria-label="+" disabled={quantity>=100} onClick={()=>setQuantity(n=>Math.min(100,n+1))}>+</button></div></div>
+    {/* Only display a current, server-provided quote for this exact selection. */}
+    {giftPreview && giftPreview.productId === productId && giftPreview.sku === selectedOffer?.sku && giftPreview.currency === selectedOffer?.currency && giftPreview.quantity === quantity && giftPreview.gifts.length > 0 && <PurchaseGiftSummary locale={locale} preview={giftPreview}/>}
     <button className="button" type="button" onClick={()=>add()} disabled={busy||!selectedOffer||blocked||!Number.isSafeInteger(quantity)||quantity<1||quantity>100}>{busy?t.adding:t.add}</button>
     <button className="purchase-direct" type="button" onClick={()=>add(true)} disabled={busy||!selectedOffer||blocked||!Number.isSafeInteger(quantity)||quantity<1||quantity>100}>{locale==='de'?'Zur Bestellung':locale==='en'?'Continue to order':'立即订购'}</button>
     <Link className="cart-view-link" href={cartHref}>{t.view} →</Link>

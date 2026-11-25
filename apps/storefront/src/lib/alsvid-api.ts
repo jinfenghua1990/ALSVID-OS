@@ -17,7 +17,8 @@ export type CatalogProduct = {
   images: { id: string; url: string }[];
   prices: { currency: string; unitPrice: string; referencePrice?: string|null }[];
   specifications: { label: string; value: string }[];
-  detailBlocks?: { type: 'image' | 'text'; imageId?: string; alt?: string; text?: string; url?: string }[];
+  detailBlocks?: ProductScene[];
+  design?: ProductDesign | null;
 };
 
 // 商品详情页 8 模块中的全局模块配置（②营销 ③④预留 ⑥评价开关 ⑦退换货 ⑧其他）。
@@ -32,6 +33,8 @@ export type ProductModuleBanner = {
   text: string;
   theme: { background: 'none' | 'soft' | 'dark'; spacing: 'compact' | 'normal' | 'loose'; imageRatio: 'wide' | 'square' | 'auto'; buttonStyle: 'solid' | 'outline' | 'text' };
 };
+export type ProductScene = {type:'image'|'text'|'video';imageId?:string;videoId?:string;url?:string;alt?:string;text?:string;hidden?:boolean;title?:string;subtitle?:string;caption?:string;background?:'inherit'|'solid'|'gradient'|'image';backgroundColor?:string;backgroundEnd?:string;backgroundUrl?:string;backgroundImageId?:string;textColor?:string;fontSize?:number;textPosition?:string;mediaPosition?:string;fit?:'contain'|'cover';scale?:number;animation?:string;trigger?:number;duration?:number;scrollLinked?:boolean;hold?:number};
+export type ProductDesign = {purchaseVisible:boolean;coreVisible:boolean;background:string;visibility:Record<string,boolean>;faq:{question:string;answer:string}[];visual?:ProductScene & {mediaType:'image'|'video';marketingEnabled:boolean;marketingText:string;buttonText:string}};
 export type PerformanceConfig = {showParameters:boolean;fieldCodes:string[];mediaType:'image'|'video';imageId:string;videoId:string;headline:string;alignment:'left'|'center'|'right'};
 export type PerformanceSpec = {code:string;label:string;value:string;unit:string};
 export type ProductModuleCopy = { enabled: boolean; title: string; body: string };

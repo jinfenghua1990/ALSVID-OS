@@ -249,3 +249,13 @@ h1 { max-width:900px; margin:14px 0 20px; font-size:clamp(42px,7vw,92px); font-w
 .preview-banner strong { letter-spacing:.08em; text-transform:uppercase; font-size:11px; padding:3px 8px; border:1px solid rgba(255,255,255,.35); border-radius:999px; }
 .preview-banner span { flex:1; min-width:220px; color:#cfd8d1; }
 .preview-banner a { color:#fff; text-decoration:underline; white-space:nowrap; }
+
+/* CMS reusable content modules */
+.cms-image img,.cms-carousel img{display:block;width:100%;height:auto;border-radius:var(--radius-lg,12px)}
+.cms-image p,.cms-carousel figcaption{margin:10px 0 0;color:var(--muted,#68736d);font-size:13px;line-height:1.6}
+.cms-carousel__track{display:flex;gap:18px;overflow-x:auto;scroll-snap-type:x mandatory;overscroll-behavior-x:contain;padding-bottom:8px}
+.cms-carousel__track figure{flex:0 0 min(78%,760px);min-width:0;margin:0;scroll-snap-align:start}
+.cms-divider{border:0;border-top:1px solid #dfe5df;margin-top:24px;margin-bottom:24px}
+.cms-divider.is-soft{border-top-color:#f0f2ef}
+.cms-spacer{width:100%;pointer-events:none}
+@media(max-width:720px){.cms-carousel__track figure{flex-basis:88%}}

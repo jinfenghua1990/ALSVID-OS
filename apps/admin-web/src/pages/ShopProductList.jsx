@@ -4,6 +4,7 @@ import { productThumbUrl } from './ShopOverview.jsx';
 import PublicationDialog from './PublicationDialog.jsx';
 import ProductPriceDialog from './ProductPriceDialog.jsx';
 import { indexOffers, priceState, formatAmount } from '../shop-price.js';
+import { seoProductIdOf } from '../product-identity.js';
 
 const PAGE_SIZE = 20;
 
@@ -86,7 +87,7 @@ export default function ShopProductList({
       _thumb: productThumbUrl(product),
       _live: publishedIds.has(String(product.id)) || Boolean(product.catalogPublished) || Boolean(product.storefrontPublished),
       _publishedSlug: publishedIds.get(String(product.id)),
-      _seoId: String(product.specs?._seoProductId || '').trim(),
+      _seoId: seoProductIdOf(product),
       _sku: skuCode(product),
       _colors: colorCount(product),
       _price: price,

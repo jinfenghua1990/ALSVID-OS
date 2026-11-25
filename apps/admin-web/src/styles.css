@@ -2908,3 +2908,25 @@ html[data-accent] .app[data-mode='dark'] :is(.shop-status.is-on,.shop-health.is-
 .ledger-row__id { flex:0 0 30px; font-weight:700; color:var(--text-sub); padding-top:2px; }
 .ledger-row__main { flex:1 1 auto; min-width:0; }
 .ledger-row__name { font-size:13px; font-weight:600; margin-bottom:4px; display:flex; flex-wrap:wrap; align-items:center; gap:8px; }
+
+/* CMS 商品参数模块字段选择器 */
+.cms-spec-field-picker{display:flex;flex-direction:column;gap:10px;padding:12px;border:1px solid var(--line,#dfe5df);border-radius:10px;background:var(--panel,#fff)}
+.cms-spec-field-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;max-height:260px;overflow:auto;padding:8px;background:var(--surface,#f7f9f7);border-radius:8px}
+.cms-spec-field-list label{min-width:0;font-size:12px}
+.cms-spec-field-list input{flex:0 0 auto}
+@media(max-width:720px){.cms-spec-field-list{grid-template-columns:1fr}}
+
+/* 三栏编辑器结构树与共享状态标识（WEB-008 / WEB-009） */
+.cms-left-tabs{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px}
+.cms-tree{display:flex;flex-direction:column;gap:6px}
+.cms-tree-fixed{padding:6px 8px;border-radius:6px;background:var(--bg);border:1px dashed var(--line);font-size:11px;color:var(--sub)}
+.cms-tree-item{display:flex;align-items:center;justify-content:space-between;gap:6px;padding:7px 8px;border:1px solid var(--line);border-radius:8px;background:var(--bg);cursor:pointer}
+.cms-tree-item.is-active{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+.cms-tree-item.is-hidden{opacity:.55}
+.cms-tree-item__main{display:flex;flex-direction:column;gap:3px;min-width:0}
+.cms-tree-item__main strong{font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cms-tree-item__ops{display:flex;gap:2px;flex:0 0 auto}
+.cms-ref-badge{display:inline-block;width:fit-content;padding:1px 6px;border-radius:999px;font-size:10px;border:1px solid var(--line);color:var(--sub)}
+.cms-ref-badge.is-follow{border-color:#2f6b3f;color:#2f6b3f;background:#eef7f0}
+.cms-ref-badge.is-pinned{border-color:#8a5a00;color:#8a5a00;background:#fdf6e7}
+.cms-shared-box{display:flex;flex-direction:column;gap:6px;padding:8px;margin-bottom:8px;border:1px solid var(--line);border-radius:8px;background:var(--bg);font-size:12px}

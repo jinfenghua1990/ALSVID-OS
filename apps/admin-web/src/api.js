@@ -214,6 +214,11 @@ export const api = {
   setCmsVersionLabel: (id,version,label) => req('PATCH',`/api/cms/pages/${encodeURIComponent(id)}/versions/${encodeURIComponent(version)}/label`,{label}),
   setCmsPageStatus: (id,status) => req('PATCH',`/api/cms/pages/${encodeURIComponent(id)}/status`,{status}),
   deleteCmsPage: id => req('DELETE',`/api/cms/pages/${encodeURIComponent(id)}`),
+  cmsTemplates: (targetType = '') => req('GET', `/api/cms/templates${targetType ? `?targetType=${encodeURIComponent(targetType)}` : ''}`),
+  saveCmsTemplate: body => req('POST', '/api/cms/templates', body),
+  applyCmsTemplate: (pageId, templateId, revision) => req('POST', `/api/cms/pages/${encodeURIComponent(pageId)}/apply-template`, { templateId, revision }),
+  deleteCmsTemplate: id => req('DELETE', `/api/cms/templates/${encodeURIComponent(id)}`),
+  ensureProductOverride: body => req('POST', '/api/cms/product-override', body),
   publicCmsPage: (locale,path,params = {}) => req('GET',`/api/cms/pages/public?locale=${encodeURIComponent(locale)}&path=${encodeURIComponent(path)}${params.version?`&version=${encodeURIComponent(params.version)}`:''}${params.draft?'&draft=1':''}`),
   // 商品详情页模板（含全局模块与全部产品版式）；draft/version 仅管理员预览可用
   cmsProductTemplate: (locale, productId = '', params = {}) => req('GET',`/api/cms/product-template?locale=${encodeURIComponent(locale)}&productId=${encodeURIComponent(productId)}${params.version?`&version=${encodeURIComponent(params.version)}`:''}${params.draft?'&draft=1':''}`),

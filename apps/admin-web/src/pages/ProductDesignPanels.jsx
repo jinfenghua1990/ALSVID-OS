@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { api } from '../api.js';
+import { createBlock } from './cms-blocks.jsx';
 
 // 产品装修面板：
 // - CatalogLayoutPanel：「全部产品」列表页版式（分类导航 + 按销量自动展示），存 product_template 页草稿，走 CMS 发布流。
@@ -45,21 +46,23 @@ export function useCmsDocument(row, enabled = true) {
   useEffect(load, [load]);
   const dirty = Boolean(doc) && JSON.stringify(doc) !== baseline;
   const save = async () => {
-    if (!row || busy) return null;
-    setBusy(true);
+    if (!row || busy || !doc) return null;
+    setBusy(true); setError('');
     try {
       const seo = page?.draftSeo && (page.draftSeo.title || page.draftSeo.description) ? page.draftSeo : page?.publishedSeo || {};
       const updated = await api.saveCmsDraft(row.id, { draft: doc, seo, revision });
-      setRevision(updated.revision); setPage(p => (p ? { ...p, draft: doc, revision: updated.revision } : p));
-      setBaseline(JSON.stringify(doc));
+      setRevision(updated.revision); setPage(updated);
+      const saved = updated.draft || doc;
+      setDoc(current => JSON.stringify(current) === JSON.stringify(doc) ? saved : current);
+      setBaseline(JSON.stringify(saved));
       return updated;
     } catch (e) { setError(e.message || '保存失败'); } finally { setBusy(false); }
     return null;
   };
   const publish = async () => {
-    if (!row || busy) return null;
-    setBusy(true);
-    try { if(dirty)throw Error('请先保存草稿，再发布'); const updated=await api.publishCmsPage(row.id, revision); setRevision(updated.revision); setPage(updated); return updated; }
+    if (!row || busy || !doc || dirty) { if (dirty) setError('请先保存草稿，再发布'); return null; }
+    setBusy(true); setError('');
+    try { const updated = await api.publishCmsPage(row.id, revision); setPage(updated); setRevision(updated.revision); return updated; }
     catch (e) { setError(e.message || '发布失败'); } finally { setBusy(false); }
     return null;
   };
@@ -70,7 +73,7 @@ function SaveBar({ dirty, busy, error, onSave, onPublish, publishedVersion, hint
   return <div className="sdp__bar">
     <span className="sdp__status">{publishedVersion ? `线上版本 v${publishedVersion}` : '尚未发布'}{dirty ? ' · 有未保存修改' : ''}</span>
     <button type="button" className="btn small" disabled={!dirty || busy} onClick={onSave}>{busy ? '处理中…' : '保存草稿'}</button>
-    <button type="button" className="btn small primary" disabled={busy} onClick={onPublish}>发布</button>
+    <button type="button" className="btn small primary" disabled={busy || dirty} onClick={onPublish}>发布</button>
     {hint && <span className="hint">{hint}</span>}
     {error && <span className="error-text">{error}</span>}
   </div>;
@@ -217,8 +220,6 @@ export function CatalogLayoutPanel({ row, locale, products, publishedMap, onPubl
   </div>;
 }
 
-import ListingVersions from './ListingVersions.jsx';
-
 export function StandardDetailPanel({ locale, products, publishedMap, productId }) {
   const [listing, setListing] = useState(null);
   const [doc, setDoc] = useState(null);
@@ -228,7 +229,6 @@ export function StandardDetailPanel({ locale, products, publishedMap, productId 
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [assets, setAssets] = useState([]);
-  const [notice,setNotice]=useState('');
   const product = products.find(p => p.id === productId);
   useEffect(() => { api.assetsAll({ category: 'page', kind: 'image' }).then(rows => setAssets(Array.isArray(rows) ? rows : [])).catch(() => setAssets([])); }, []);
   useEffect(() => {
@@ -263,10 +263,8 @@ export function StandardDetailPanel({ locale, products, publishedMap, productId 
   const doPublish = async () => {
     setBusy(true); setError('');
     try {
-      let result;
-      if (dirty) { const updated = await api.saveListing(listing.id, { channel: listing.channel, slug: listing.slug, document: doc, skus: listing.skus, revision }); setRevision(updated.revision); setBaseline(JSON.stringify(doc)); result=await api.publishListing(listing.id, updated.revision); }
-      else result=await api.publishListing(listing.id, revision);
-      setNotice(result.storefrontRevalidate?.ok?'商品已发布，缓存回调已确认；真实页面待验收。':'商品已发布，但前台缓存刷新未确认。');
+      if (dirty) { const updated = await api.saveListing(listing.id, { channel: listing.channel, slug: listing.slug, document: doc, skus: listing.skus, revision }); setRevision(updated.revision); setBaseline(JSON.stringify(doc)); await api.publishListing(listing.id, updated.revision); }
+      else await api.publishListing(listing.id, revision);
       const rows = await api.productListings(productId);
       const website = (rows || []).find(row => row.channel === 'website');
       if (website) { setListing(website); setRevision(website.revision); const clone = JSON.parse(JSON.stringify(website.draft || website.published || {})); setDoc(clone); setBaseline(JSON.stringify(clone)); }
@@ -279,7 +277,7 @@ export function StandardDetailPanel({ locale, products, publishedMap, productId 
   const poolImages = productImages.filter(image => !mediaIds.includes(image.id));
   const imageLabel = id => {
     const found = productImages.find(image => image.id === id);
-    return found?.label || assets.find(asset=>asset.id===id)?.label || '未命名图片';
+    return found?.label || '未命名图片';
   };
   const setCover = index => {
     if (index <= 0) return;
@@ -298,8 +296,7 @@ export function StandardDetailPanel({ locale, products, publishedMap, productId 
   const blockImageOptions = [...productImages.map((image, index) => ({ id: image.id, label: `商品图 ${index + 1}${image.label ? ` · ${image.label}` : ''}` })), ...assets.map(asset => ({ id: asset.id, label: `素材库 · ${asset.label || asset.fileName || asset.id}` }))];
   const imagePreview = id => productImages.some(image => image.id === id) ? `/api/products/${encodeURIComponent(productId)}/media/${encodeURIComponent(id)}` : api.assetUrl(id);
   return <div className="sdp">
-    <SaveBar dirty={dirty} busy={busy} error={error} onSave={doSave} onPublish={doPublish} publishedVersion={listing.publishedRevision} hint={notice}/>
-    <ListingVersions key={listing.id} listing={{...listing,revision}} disabled={dirty||busy} onRolledBack={updated=>{setListing(updated);setRevision(updated.revision);const clone=JSON.parse(JSON.stringify(updated.draft||updated.published||{}));setDoc(clone);setBaseline(JSON.stringify(clone));}}/>
+    <SaveBar dirty={dirty} busy={busy} error={error} onSave={doSave} onPublish={doPublish} publishedVersion={listing.published ? 1 : null}/>
     <section className="sdp__module sdp__gallery">
       <header className="sdg__head">
         <div className="sdg__head-main">
@@ -317,7 +314,7 @@ export function StandardDetailPanel({ locale, products, publishedMap, productId 
       {mediaIds.length > 0 && <div className="sdg__grid">
         {mediaIds.map((id, index) => <article className="sdg__card" key={id}>
           <div className="sdg__thumb">
-            <img src={imagePreview(id)} alt={imageLabel(id)} loading="lazy"/>
+            <img src={`/api/products/${encodeURIComponent(productId)}/media/${encodeURIComponent(id)}`} alt={imageLabel(id)} loading="lazy"/>
             {index === 0 && <span className="sdg__cover">商品封面</span>}
             <span className="sdg__no">{String(index + 1).padStart(2, '0')}</span>
           </div>
@@ -421,11 +418,26 @@ export function GlobalModulesPanel({ cms, row, locale, onEditGraphic, onSelectMo
   const { doc, setDoc, dirty } = cms;
   const [assets, setAssets] = useState([]);
   const [active, setActive] = useState('marketing');
+  const [fields, setFields] = useState([]);
+  const [fieldError, setFieldError] = useState('');
+  useEffect(() => { let alive = true; api.fields().then(rows => { if (alive) setFields(Array.isArray(rows) ? rows : []); }).catch(e => { if (alive) setFieldError(e.message || '读取参数字典失败'); }); return () => { alive = false; }; }, []);
   useEffect(() => { api.assetsAll({ category: 'page', kind: 'image' }).then(rows => setAssets(Array.isArray(rows) ? rows : [])).catch(() => setAssets([])); }, []);
   if (!doc) return <p className="sdw__tip">{cms.error || '正在读取公共模块配置…'}</p>;
   const modules = { ...DEFAULT_MODULES, ...(doc.modules || {}) };
   const patchModules = next => setDoc({ ...doc, modules: { ...modules, ...next } });
   const productLayout = { gallery: 'standard', specifications: 'list', reviews: 'list', ...(doc.productLayout || {}) };
+  const fixedSpec = (doc.blocks || []).find(block => block.componentKey === 'specs' && block.visible !== false);
+  const availableFields = fields.filter(field => field.enabled && field.shopVisible && field.level === 'product' && !field.code.startsWith('_') && (!field.templates?.length || field.templates.includes('EBI')));
+  const selectedCodes = fixedSpec?.bindings?.fieldCodes || [];
+  const setSpecBinding = codes => {
+    const block = fixedSpec || createBlock('specs');
+    setDoc({ ...doc, blocks: [...(doc.blocks || []).filter(item => item.componentKey !== 'specs'), { ...block, visible: true, bindings: { ...block.bindings, productId: '', fieldSet: 'public_specs', fieldCodes: codes } }] });
+  };
+  const toggleSpecField = (code, checked) => {
+    const current = selectedCodes.length ? selectedCodes : availableFields.map(field => field.code);
+    const next = checked ? [...new Set([...current, code])] : current.filter(value => value !== code);
+    if (next.length) setSpecBinding(next);
+  };
   const current = GLOBAL_MODULES.find(([key]) => key === active) || GLOBAL_MODULES[1];
   const [no, name] = [current[1], current[2]];
   const meta = MODULE_META[active] || {};
@@ -449,6 +461,15 @@ export function GlobalModulesPanel({ cms, row, locale, onEditGraphic, onSelectMo
         <header><strong>主图 · 型号颜色 · 价格</strong><span className="hint">固定模块</span></header>
         <p className="sdw__tip">由商品数据自动生成，不可删除或移动；主图顺序在「商品详情页（图文）」按商品调整。</p>
         <div><button type="button" className="btn small" onClick={onEditGraphic}>去按商品装修 →</button></div>
+        <label className="sdp__check"><input type="checkbox" checked={Boolean(fixedSpec)} onChange={e => e.target.checked ? setSpecBinding([]) : setDoc({ ...doc, blocks: (doc.blocks || []).map(block => block.componentKey === 'specs' ? { ...block, visible: false } : block) })}/> 技术参数读取整车主档</label>
+        <label className="sdp__field">技术参数样式<select value={productLayout.specifications} onChange={e => setDoc({ ...doc, productLayout: { ...productLayout, specifications: e.target.value } })}><option value="list">列表</option><option value="table">表格</option><option value="accordion">折叠</option></select></label>
+        {fixedSpec && <div className="cms-spec-field-picker">
+          <p className="hint">{selectedCodes.length ? '已选择 ' + selectedCodes.length + ' 个字段' : '显示全部公开参数'} · 固定位置，不重复录入</p>
+          {selectedCodes.length > 0 && <button type="button" className="btn small" onClick={() => setSpecBinding([])}>恢复全部公开参数</button>}
+          {fieldError && <p className="error-text">{fieldError}</p>}
+          {!availableFields.length && <p className="hint">请先在字段字典中启用需要展示的整车参数。</p>}
+          <div className="cms-spec-field-list">{availableFields.map(field => <label key={field.code} className="sdp__check"><input type="checkbox" checked={!selectedCodes.length || selectedCodes.includes(field.code)} disabled={selectedCodes.length ? selectedCodes.length === 1 && selectedCodes.includes(field.code) : availableFields.length === 1} onChange={e => toggleSpecField(field.code, e.target.checked)}/>{field.nameZh || field.code}{field.unit ? '（' + field.unit + '）' : ''}</label>)}</div>
+        </div>}
       </section>
     </div>;
     if (active === 'detail') return <div className="sdp">
@@ -468,8 +489,6 @@ export function GlobalModulesPanel({ cms, row, locale, onEditGraphic, onSelectMo
       </section>
     </div>;
     if (active === 'returns') return <div className="sdp">
-      <button type="button" className="btn small" onClick={()=>{if((modules.returns?.body||modules.returns?.title)&&!window.confirm('替换当前语言退换货摘要草稿？线上内容不会立即改变。'))return;const copy={de:{title:'Rückgabe und Widerruf',body:'15 Tage freiwillige Rückgabe gemäß den Rückgabebedingungen. Keine 30-tägige Probefahrt. Bei freiwilliger Rückgabe aus persönlichen Gründen gelten Rücktransportkosten von 300 € für E-Bikes, 50 € für bestimmte große Zubehörteile und 35 € für sonstige Artikel. Gesetzliche Verbraucherrechte bleiben unberührt.'},en:{title:'Returns and withdrawal',body:'15-day voluntary returns under the return policy. No 30-day trial ride. For voluntary returns for personal reasons, transport charges are €300 for e-bikes, €50 for designated large accessories and €35 for other items. Statutory consumer rights remain unaffected.'},zh:{title:'退换货与撤销权',body:'按退换货政策提供15天自愿退货，不提供30天试骑。个人原因自愿退货的运输费：整车300欧元，指定大件配件50欧元，其他配件35欧元。消费者法定权利不受影响。'}};patchModules({returns:{enabled:true,...(copy[locale]||copy.zh)}})}}>载入 ALSVID 标准退换货摘要</button>
-      <p className="hint">仅替换当前语言草稿；完整政策需在法定页面审核发布后才在正式商品页展示。</p>
       <CopyEditor title="07 退换货政策" defaultTitle="退换货政策" value={modules.returns} onChange={returns => patchModules({ returns })}/>
     </div>;
     if (active === 'other') return <div className="sdp">

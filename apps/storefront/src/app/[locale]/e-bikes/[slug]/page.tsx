@@ -3,9 +3,7 @@ import { notFound } from 'next/navigation';
 import { CmsBlocks } from '@/components/cms-blocks';
 import { CartActions } from '@/components/cart-actions';
 import { ProductGallery } from '@/components/product-gallery';
-import { ProductReviews } from '@/components/product-reviews';
-import { StickyPurchaseBar } from '@/components/sticky-purchase-bar';
-import { absoluteApiUrl, getAvailability, getCmsProductTemplate, getCmsPage, getOffers, getProduct, getReviews, publicApiUrl, publicAssetUrl, type Locale, type ProductModuleBanner, type ProductModuleCopy, siteUrl } from '@/lib/alsvid-api';
+import { absoluteApiUrl, getAvailability, getCmsProductTemplate, getOffers, getProduct, getReviews, publicApiUrl, publicAssetUrl, type Locale, type ProductModuleBanner, type ProductModuleCopy, siteUrl } from '@/lib/alsvid-api';
 import { UI } from '@/lib/ui-text';
 
 type Props = { params: Promise<{ locale: Locale; slug: string }> };
@@ -29,9 +27,7 @@ export default async function ProductPage({ params }: Props) {
   const { locale, slug } = await params;
   const product = await getProduct(slug, locale);
   if (!product || product.kind !== 'vehicle') notFound();
-  const [allOffers,availability,template,returnPolicy]=await Promise.all([getOffers(product.slug,locale),getAvailability(product.slug,locale),getCmsProductTemplate(locale,product.productId),getCmsPage(locale,'/legal/widerrufsbelehrung')]);
-  const reviews=await getReviews(product.productId,template?.modules?.reviews?.limit||20);
-  const returnPolicyReady=!!returnPolicy&&!/\{\{TODO_[A-Z_]+\}\}/i.test(JSON.stringify(returnPolicy));
+  const [allOffers, availability, reviews, template] = await Promise.all([getOffers(product.slug, locale), getAvailability(product.slug, locale), getReviews(product.productId), getCmsProductTemplate(locale, product.productId)]);
   const offers = allOffers.filter(offer => offer.currency === 'EUR');
   const productLayout = template?.productLayout || { gallery: 'standard', specifications: 'list', reviews: 'list' };
   const structuredData = {
@@ -57,8 +53,17 @@ export default async function ProductPage({ params }: Props) {
       ] },
     ],
   };
-  const productContentKeys = new Set(['twoColumn', 'video', 'features', 'faq', 'cta']);
+  const productContentKeys = new Set(['hero', 'twoColumn', 'image', 'carousel', 'divider', 'spacer', 'video', 'features', 'faq', 'cta', 'comparison', 'reviews', 'accessories', 'manuals']);
   const templateBlocks = template?.blocks.filter(block => block.visible !== false && productContentKeys.has(block.componentKey)) || [];
+  const specsModule = template?.blocks.find(block => block.componentKey === 'specs' && block.visible !== false);
+  // 规格仍在原来的固定业务区，优先读取模板主档参数绑定；若未配置或过渡期，平滑回退至商品原规格
+  const rawSpecs = (specsModule?.data?.specifications && specsModule.data.specifications.length > 0)
+    ? specsModule.data.specifications
+    : (product.specifications || []);
+  const specifications: { label: string; value: string }[] = rawSpecs.map((row: { label: string; value: string; unit?: string }) => ({
+    label: row.label,
+    value: row.value + (row.unit && !String(row.value).trim().endsWith(row.unit.trim()) ? ' ' + row.unit : '')
+  }));
   // 详情页 8 模块（顺序固定）：①主图+SKU（上方数据驱动区）②营销 ③④预留（空则隐藏）⑤图文详情 ⑥评价 ⑦退换货 ⑧其他。
   const modules = template?.modules;
   const banners = ([
@@ -68,23 +73,25 @@ export default async function ProductPage({ params }: Props) {
   ] as { key: string; banner: ProductModuleBanner | undefined }[]).filter((row): row is { key: string; banner: ProductModuleBanner } => !!row.banner?.enabled && !!(row.banner.imageId || row.banner.title || row.banner.description || row.banner.text || row.banner.href));
   const detailBlocks = (product.detailBlocks || []).filter(block => (block.type === 'image' && block.url) || (block.type === 'text' && block.text));
   const reviewsConfig = modules?.reviews || { enabled: true, limit: 20, style: 'list' };
-  const copyModules = ([{key:'returns',row:modules?.returns},{key:'other',row:modules?.other}] as {key:'returns'|'other';row:ProductModuleCopy|undefined}[]).filter((entry):entry is {key:'returns'|'other';row:ProductModuleCopy}=>!!entry.row?.enabled&&!!(entry.row.title||entry.row.body)&&(entry.key!=='returns'||returnPolicyReady));
+  const copyModules = [modules?.returns, modules?.other].filter((row): row is ProductModuleCopy => !!row?.enabled && !!(row.title || row.body));
   const bannerHref = (href: string) => href.replace(/^\/www\/(de|en|zh)\/products(?:\/|$)/, (_, lang: string) => `/${lang}/e-bikes/`);
   return (
-    <>
     <main className="container product-page">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData).replace(/</g, '\\u003c') }}></script>
-      <nav className="product-crumb"><a href={`/${locale}/e-bikes`}>E-Bikes</a> / {product.title}</nav>
-      <div className="product-layout purchase-layout" id="overview" data-module="gallery">
-        <ProductGallery key={product.productId} images={product.images} title={product.title} locale={locale} productId={product.productId} style={productLayout.gallery} />
-        <section className="purchase-info">
+      <div className="product-layout">
+        <ProductGallery key={product.productId} productId={product.productId} images={product.images} title={product.title} locale={locale} style={productLayout.gallery} />
+        <section>
           <p className="eyebrow">ALSVID / {product.model}</p>
           <h1>{product.title}</h1>
           <p className="lede">{product.description}</p>
-          {reviewsConfig.enabled&&reviews?.counts.total?<a className="purchase-rating" href="#reviews">★ {reviews.counts.average} / 5 ({reviews.counts.total} {UI.reviews[locale]})</a>:null}
-          <CartActions locale={locale} productId={product.productId} offers={offers} availability={availability}/>
-          <h2>{UI.specifications[locale]}</h2>
-          {productLayout.specifications === 'table' ? <table className="product-spec-table"><tbody>{product.specifications.map(row => <tr key={row.label}><th>{row.label}</th><td>{row.value}</td></tr>)}</tbody></table> : productLayout.specifications === 'accordion' ? <details className="product-spec-accordion"><summary>{UI.showSpecifications[locale]}</summary><ul className="spec-list">{product.specifications.map(row => <li key={row.label}><span>{row.label}</span><strong>{row.value}</strong></li>)}</ul></details> : <ul className="spec-list">{product.specifications.map(row => <li key={row.label}><span>{row.label}</span><strong>{row.value}</strong></li>)}</ul>}
+          <p>{UI.availableConfigurations[locale]}</p>
+          {offers.length ? <ul className="spec-list">{offers.map(offer => <li key={`${offer.sku}-${offer.currency}`}><span>{offer.sku}</span><strong>{offer.currency} {offer.unitPrice}</strong></li>)}</ul> : <p>{UI.priceOnRequest[locale]}</p>}
+          <CartActions locale={locale} productId={product.productId} offers={offers} />
+          <p className="availability">{availability?.available === null || !availability ? (UI.availabilityUnknown[locale]) : availability.available ? (UI.inStockGermany[locale]) : (UI.outOfStock[locale])}</p>
+          {specifications.length > 0 && <>
+            <h2>{UI.specifications[locale]}</h2>
+            {productLayout.specifications === 'table' ? <table className="product-spec-table"><tbody>{specifications.map(row => <tr key={row.label}><th>{row.label}</th><td>{row.value}</td></tr>)}</tbody></table> : productLayout.specifications === 'accordion' ? <details className="product-spec-accordion"><summary>{UI.showSpecifications[locale]}</summary><ul className="spec-list">{specifications.map(row => <li key={row.label}><span>{row.label}</span><strong>{row.value}</strong></li>)}</ul></details> : <ul className="spec-list">{specifications.map(row => <li key={row.label}><span>{row.label}</span><strong>{row.value}</strong></li>)}</ul>}
+          </>}
           {product.delivery && <section className="product-business-module"><h2>{UI.delivery[locale]}</h2><p>{product.delivery}</p></section>}
           {product.warranty && <section className="product-business-module"><h2>{UI.warranty[locale]}</h2><p>{product.warranty}</p></section>}
         </section>
@@ -97,12 +104,14 @@ export default async function ProductPage({ params }: Props) {
           : <p key={index}>{block.text}</p>)}
       </section>}
       {templateBlocks.length > 0 && <CmsBlocks blocks={templateBlocks} locale={locale} />}
-      {!!product.relatedAccessories?.length && <section className="product-related"><p className="eyebrow">{UI.relatedAccessories[locale]}</p><h2>{UI.fitsThisModel[locale]}</h2><div className="product-related__grid">{product.relatedAccessories.map(item => <a key={item.productId} href={`/${locale}/products/${encodeURIComponent(item.slug)}`}><div>{item.images[0] ? <img src={publicApiUrl(item.images[0].url)} alt={item.title} loading="lazy"/> : item.title}</div><strong>{item.title}</strong>{item.prices.length>0&&<small>{item.prices.map(price=>`${price.currency} ${price.unitPrice}`).join(' · ')}</small>}</a>)}</div></section>}
-      {reviewsConfig.enabled && <ProductReviews key={product.productId} locale={locale} productId={product.productId} data={reviews} limit={reviewsConfig.limit} style={productLayout.reviews}/>}
-      {copyModules.map(({key,row}) => <section className="product-business-module product-standard-module" key={key} data-module={key}><h2>{row.title || (key === "returns" ? UI.returns[locale] : UI.other[locale])}</h2><p>{row.body}</p>{key==='returns'&&<a href={`/${locale}/legal/widerrufsbelehrung`}>{locale==='de'?'Vollständige Rückgabebedingungen':locale==='en'?'Full return policy':'完整退换货政策'} →</a>}</section>)}
+      {!!product.relatedAccessories?.length && <section className="product-related"><p className="eyebrow">{UI.relatedAccessories[locale]}</p><h2>{UI.fitsThisModel[locale]}</h2><div className="product-related__grid">{product.relatedAccessories.map(item => <a key={item.productId} href={`/${locale}/e-bikes/${encodeURIComponent(item.slug)}`}><div>{item.images[0] ? <img src={publicApiUrl(item.images[0].url)} alt={item.title} loading="lazy"/> : item.title}</div><strong>{item.title}</strong>{item.prices.length>0&&<small>{item.prices.map(price=>`${price.currency} ${price.unitPrice}`).join(' · ')}</small>}</a>)}</div></section>}
+      {reviewsConfig.enabled && <section className={`reviews reviews--${productLayout.reviews}`}>
+        <p className="eyebrow">{UI.reviews[locale]}</p>
+        <h2>{reviews?.counts.total ? `${reviews.counts.average} / 5 · ${reviews.counts.total}` : UI.noReviews[locale]}</h2>
+        {(reviews?.items || []).slice(0, reviewsConfig.limit).map(review => <article className="review" key={review.id}><strong>{'★'.repeat(review.rating)}{'☆'.repeat(5-review.rating)}</strong><p>{review.content}</p>{review.reply && <p className="review-reply">{UI.brandReply[locale]} {review.reply}</p>}</article>)}
+      </section>}
+      {copyModules.map((row, index) => <section className="product-business-module product-standard-module" key={`standard-${index}`}><h2>{row.title || (index === 0 ? UI.returns[locale] : UI.other[locale])}</h2><p>{row.body}</p></section>)}
     </main>
-    <StickyPurchaseBar locale={locale} productId={product.productId} initialPrice={offers[0]?new Intl.NumberFormat(locale==='de'?'de-DE':locale==='zh'?'zh-CN':'en-IE',{style:'currency',currency:offers[0].currency}).format(Number(offers[0].unitPrice)):''} disabled={!offers.length||availability?.available===false}/>
-    </>
   );
 }
 

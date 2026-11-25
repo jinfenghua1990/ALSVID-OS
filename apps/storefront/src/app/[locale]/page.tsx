@@ -2,8 +2,10 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import Image from 'next/image';
 import { cookies, draftMode } from 'next/headers';
-import { getProducts, getPreviewLayout, getPublishedLayout, localeLabels, publicApiUrl, type Locale, siteUrl } from '@/lib/alsvid-api';
+import { getProducts, getPreviewLayout, getPublishedLayout, getCmsPage, localeLabels, publicApiUrl, type Locale, siteUrl } from '@/lib/alsvid-api';
 import { prepareLayoutSnapshot } from '@/lib/layout-snapshot';
+import { CmsBlocks } from '@/components/cms-blocks';
+import { pageTitle } from '@/lib/seo';
 
 // 预览横幅：必须明确告诉运营「你现在看的不是线上内容」，否则极易误判发布结果。
 const PREVIEW_TEXT: Record<Locale, { label: string; hint: string; sourceMismatch: string; exit: string }> = {
@@ -57,14 +59,17 @@ const HERO: Record<Locale, { title: string; lede: string; cta: string; selected:
 
 export async function generateMetadata({ params }: { params: Promise<{ locale: Locale }> }): Promise<Metadata> {
   const { locale } = await params;
+  const cmsHome = await getCmsPage(locale, '/');
   const text = localeLabels[locale];
+  const title = cmsHome?.seo?.title ? pageTitle(cmsHome.seo.title) : text.tagline;
+  const description = cmsHome?.seo?.description || HOME_DESCRIPTION[locale];
   // 预览态绝不能进搜索引擎：即使运营误把预览链接分享出去，也不会污染索引。
   if ((await draftMode()).isEnabled) {
-    return { title: text.tagline, description: HOME_DESCRIPTION[locale], robots: { index: false, follow: false, nocache: true } };
+    return { title, description, robots: { index: false, follow: false, nocache: true } };
   }
   return {
-    title: text.tagline,
-    description: HOME_DESCRIPTION[locale],
+    title,
+    description,
     alternates: {
       canonical: `${siteUrl}/${locale}`,
       languages: { de: `${siteUrl}/de`, en: `${siteUrl}/en`, zh: `${siteUrl}/zh`, 'x-default': `${siteUrl}/de` },
@@ -97,6 +102,14 @@ export default async function Home({ params }: { params: Promise<{ locale: Local
   // 快照是「整页 HTML」，自带旧站的 header/footer。布局层已经有统一的头部和页脚，
   // 原样注入会出现两条导航、两个页脚，所以注入前先剥掉站点外壳、把线上绝对链接本地化。
   const snapshotHtml = layout?.html ? prepareLayoutSnapshot(layout.html, locale) : '';
+
+  // 优先尝试读取 CMS 统一页面系统配置的首页（支持与内容页统一的模块化编排）
+  const cmsHome = await getCmsPage(locale, '/');
+  if (cmsHome?.blocks && cmsHome.blocks.length > 0) {
+    return <main data-alsvid-layout-source="cms-page">
+      <CmsBlocks blocks={cmsHome.blocks} locale={locale}/>
+    </main>;
+  }
 
   const products = await getProducts(locale);
   return <main data-alsvid-layout-version={layout?.version ?? 'unpublished'} data-alsvid-preview={preview?'draft':'live'}>

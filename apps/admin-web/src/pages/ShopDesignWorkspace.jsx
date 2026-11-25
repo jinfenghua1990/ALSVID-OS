@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '../api.js';
+import { seoProductIdOf } from '../product-identity.js';
 import { CatalogLayoutPanel, StandardDetailPanel, GlobalModulesPanel, useCmsDocument } from './ProductDesignPanels.jsx';
 
 // 店铺装修工作区：页面 TAB + 工具条 + 左侧按版本模块操作 + 右侧全铺开真实预览。
@@ -7,7 +8,7 @@ import { CatalogLayoutPanel, StandardDetailPanel, GlobalModulesPanel, useCmsDocu
 const LOCALES = [['zh', '中文'], ['de', 'Deutsch'], ['en', 'English']];
 const PATH_ORDER = ['/', '/products', '/dealers', '/services', '/brand'];
 // 首页历史版本走 layout-draft 快照，和普通 CMS 页面共用同一套展示，但来源标签不同。
-const LAYOUT_VERSION_ORIGIN = { publish: '发布', rollback: '回滚', manual: '手动保存', locale: '语言发布 / 下线' };
+const LAYOUT_VERSION_ORIGIN = { publish: '发布', rollback: '回滚', manual: '手动保存' };
 
 function fmt(value) {
   if (!value) return '—';
@@ -16,6 +17,10 @@ function fmt(value) {
   const p = n => String(n).padStart(2, '0');
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
 }
+
+// 运营认的商品身份是产品主档里的 SEO 商品 ID（= 商城地址 slug = 各渠道 URL），
+// 内部 UUID（p-bfaf74b1-…）只用于接口调用，不该出现在装修左列当身份展示。
+// 取值规则统一收在 product-identity.js，商城运营各页共用同一套。
 
 export default function ShopDesignWorkspace({ active = true, user, onSectionChange }) {
   const [pages, setPages] = useState([]);
@@ -230,13 +235,13 @@ export default function ShopDesignWorkspace({ active = true, user, onSectionChan
 
   const status = useMemo(() => {
     if (!current) return { text: '—', tone: 'none' };
-    if (current.path === '/') return layout?.publishedVersion ? { text: '已发布 · 待前台验收', tone: 'live' } : { text: '尚未发布', tone: 'draft' };
+    if (current.path === '/') return layout?.publishedVersion ? { text: '线上版本正常', tone: 'live' } : { text: '尚未发布', tone: 'draft' };
     if (current.type === 'product_template') {
       if (subPage === 'list') return row?.publishedVersion ? (row.hasDraft ? { text: '线上版式正常 · 有新草稿', tone: 'live' } : { text: '线上版式正常', tone: 'live' }) : { text: '版式未发布', tone: 'draft' };
       if (subPage === 'global') return row?.publishedVersion ? (row.hasDraft ? { text: '公共模块已发布 · 有新草稿', tone: 'live' } : { text: '公共模块已发布', tone: 'live' }) : { text: '公共模块未发布', tone: 'draft' };
       return { text: '按商品独立发布', tone: 'none' };
     }
-    if (row?.publishedVersion) return row.hasDraft ? { text: '已发布 · 有新草稿', tone: 'live' } : { text: '已发布 · 待前台验收', tone: 'live' };
+    if (row?.publishedVersion) return row.hasDraft ? { text: '线上版本正常 · 有新草稿', tone: 'live' } : { text: '线上版本正常', tone: 'live' };
     if (row?.hasDraft) return { text: '草稿待发布', tone: 'draft' };
     return { text: '未发布', tone: 'none' };
   }, [current, row, layout, subPage]);
@@ -278,7 +283,7 @@ export default function ShopDesignWorkspace({ active = true, user, onSectionChan
   // 顶部动作条：公共模块的保存 / 发布（状态来自提升到本层的 useCmsDocument）
   const doGlobalSave = async () => { if (await globalCms.save()) setNotice('公共模块草稿已保存'); };
   const doGlobalPublish = async () => {
-    const result=await globalCms.publish(); if(result){setNotice(result.storefrontRevalidate?.ok?'公共模块已发布，缓存回调已确认；真实商品页面待验收。':'公共模块已发布，但前台缓存刷新未确认。');await refreshPages();await refreshVersions();}
+    if (await globalCms.publish()) { setNotice('公共模块已发布，请通过正式前台验收'); await refreshPages(); await refreshVersions(); }
   };
   // 发布记录里的「载入为草稿」：换草稿内容，不动线上，也不覆盖原始快照
   const loadVersionAsDraft = async version => {
@@ -286,7 +291,8 @@ export default function ShopDesignWorkspace({ active = true, user, onSectionChan
     if (!window.confirm(`以 v${version.version}（${fmt(version.createdAt)}）为基础生成新草稿？\n线上版本与原始历史快照都不受影响。`)) return;
     setBusy(true);
     try {
-      await api.restoreCmsVersionDraft(row.id, version.version, row.revision);
+      if (globalCms.dirty && !window.confirm('当前未保存的修改将丢失，仍要载入历史版本？')) return;
+      await api.restoreCmsVersionDraft(row.id, version.version, globalCms.page?.revision ?? row.revision);
       await refreshPages();
       await globalCms.reload();
       setHistoryOpen(false);
@@ -431,7 +437,7 @@ export default function ShopDesignWorkspace({ active = true, user, onSectionChan
             </div>)}
           </div>}
         </div>
-        <button type="button" className="btn small primary" disabled={globalCms.busy} onClick={doGlobalPublish}>{globalCms.busy ? '发布中…' : '发布'}</button>
+        <button type="button" className="btn small primary" disabled={globalCms.busy || globalCms.dirty || !globalCms.doc} onClick={doGlobalPublish}>{globalCms.busy ? '发布中…' : '发布'}</button>
       </div>
     </div>}
 
@@ -449,11 +455,20 @@ export default function ShopDesignWorkspace({ active = true, user, onSectionChan
               <div className="sdw__side-head"><h3 className="sdw__side-title">商品列表</h3></div>
               <input className="sdp__search" type="search" placeholder="搜索商品名称 / ID" value={productQuery} onChange={e => setProductQuery(e.target.value)}/>
               <div className="sdp__plist">
-                {products.filter(p => !productQuery.trim() || p.name?.toLowerCase().includes(productQuery.trim().toLowerCase()) || String(p.id).includes(productQuery.trim())).map(p => <button type="button" key={p.id} className={'sdp__prow' + (p.id === designProductId ? ' is-active' : '')} onClick={() => { setDesignProductId(p.id); setSelected('live'); }}>
-                  {p.images?.[0] ? <img src={`/api/products/${encodeURIComponent(p.id)}/media/${encodeURIComponent(p.images[0].id)}`} alt=""/> : <span className="sdp__prow-noimg">无图</span>}
-                  <span className="sdp__prow-main"><b>{p.name}</b><small>ID: {p.id}</small></span>
-                  <i className={'sdp__pstate' + (publishedMap.has(String(p.id)) ? ' is-on' : '')}>{publishedMap.has(String(p.id)) ? '在售' : '未上架'}</i>
-                </button>)}
+                {products.filter(p => {
+                  const q = productQuery.trim().toLowerCase();
+                  if (!q) return true;
+                  return String(p.name || '').toLowerCase().includes(q) || String(p.id).toLowerCase().includes(q) || seoProductIdOf(p).includes(q);
+                }).map(p => {
+                  const seoId = seoProductIdOf(p);
+                  // 已定 SEO 商品 ID 的商品，左列展示的就是那一条（和商城地址同串）；
+                  // 还没定的（配件类）回落到内部 ID，悬停能看到完整内部 ID，不至于失去排查线索。
+                  return <button type="button" key={p.id} className={'sdp__prow' + (p.id === designProductId ? ' is-active' : '')} onClick={() => { setDesignProductId(p.id); setSelected('live'); }}>
+                    {p.images?.[0] ? <img src={`/api/products/${encodeURIComponent(p.id)}/media/${encodeURIComponent(p.images[0].id)}`} alt=""/> : <span className="sdp__prow-noimg">无图</span>}
+                    <span className="sdp__prow-main"><b>{p.name}</b><small title={seoId ? `内部 ID：${p.id}` : `尚未设置 SEO 商品 ID，此处显示内部 ID：${p.id}`}>ID: {seoId || p.id}</small></span>
+                    <i className={'sdp__pstate' + (publishedMap.has(String(p.id)) ? ' is-on' : '')}>{publishedMap.has(String(p.id)) ? '在售' : '未上架'}</i>
+                  </button>;
+                })}
                 {!products.length && <p className="sdw__tip">正在读取商品清单…</p>}
               </div>
             </aside>
@@ -535,10 +550,10 @@ export default function ShopDesignWorkspace({ active = true, user, onSectionChan
         </>
       </aside>}
 
-      {/* 右侧：后台版式预览（非正式站验收）（预览自己的工具条：看哪个商品、哪个版本） */}
+      {/* 右侧：官网实时预览（预览自己的工具条：看哪个商品、哪个版本） */}
       <section className="sdw__preview">
         <div className="sdw__preview-head">
-          <span className="sdw__preview-title">后台版式预览（非正式站验收）</span>
+          <span className="sdw__preview-title">官网实时预览</span>
           <div className="sdw__preview-tools">
             {isProduct && subPage !== 'list' && <select className="sdw__vselect" aria-label="预览商品" value={designProductId || ''} onChange={e => { setDesignProductId(e.target.value); setSelected('live'); }}>
               {products.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}

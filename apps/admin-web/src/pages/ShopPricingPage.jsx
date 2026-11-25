@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { api } from '../api.js';
 import ProductPriceDialog from './ProductPriceDialog.jsx';
 import { productThumbUrl } from './ShopOverview.jsx';
+import { seoProductIdOf } from '../product-identity.js';
 
 // 商城运营 · 价格设置：预售价格测算、优惠券、新人有礼等与价格相关的营销配置集中在这里。
 // 币种口径：录入与展示统一用 EUR（欧洲市场），利润核算按汇率折算成 RMB。
@@ -185,7 +186,7 @@ export default function ShopPricingPage() {
             const max = values.length ? Math.max(...values) : null;
             const display = min == null ? '未设置' : `€${min.toLocaleString('de-DE', { minimumFractionDigits: 2 })}${max > min ? ` – €${max.toLocaleString('de-DE', { minimumFractionDigits: 2 })}` : ''}`;
             const ref = min == null || rate == null ? '—' : `¥${Math.round(min * rate).toLocaleString('zh-CN')}`;
-            return <tr key={product.id}><td><div className="shop-price-product"><span className="shop-price-product__thumb">{productThumbUrl(product) ? <img src={productThumbUrl(product)} alt="" /> : '—'}</span><span>{product.name || product.officialModelName || '未命名商品'}</span></div></td><td>{product.model || product.productType || '—'}</td><td>{skus.length}</td><td className={min == null ? 'muted' : 'mono'}>{display}</td><td className="mono">{ref}</td><td><span className={'tag' + (product.status === '启用' ? '' : ' muted')}>{product.status === '启用' ? '启用' : '停用'}</span></td><td><button type="button" className="btn small" onClick={() => setPriceTarget(product)}>设置价格</button></td></tr>;
+            return <tr key={product.id}><td><div className="shop-price-product"><span className="shop-price-product__thumb">{productThumbUrl(product) ? <img src={productThumbUrl(product)} alt="" /> : '—'}</span><span>{product.name || product.officialModelName || '未命名商品'}<span className="hint" style={{ display: 'block' }}>SEO 商品 ID: {seoProductIdOf(product) || '未设置'}</span></span></div></td><td>{product.model || product.productType || '—'}</td><td>{skus.length}</td><td className={min == null ? 'muted' : 'mono'}>{display}</td><td className="mono">{ref}</td><td><span className={'tag' + (product.status === '启用' ? '' : ' muted')}>{product.status === '启用' ? '启用' : '停用'}</span></td><td><button type="button" className="btn small" onClick={() => setPriceTarget(product)}>设置价格</button></td></tr>;
           })}
         </tbody></table></div>
       </section>

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { api, adminFetch } from '../api.js';
 import { indexOffers, priceState, formatAmount } from '../shop-price.js';
+import { seoProductIdOf } from '../product-identity.js';
 
 // 页面头：只保留右侧主操作区，不再展示面包屑与标题。
 export function ShopPageHead({ actions }) {
@@ -126,7 +127,7 @@ export default function ShopOverview({ active = true, onNavigate }) {
           return <tr key={p.id}>
             <td><div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               {thumb ? <img className="shop-thumb" src={thumb} alt={p.name} loading="lazy" /> : <span className="shop-thumb shop-thumb--empty">无图</span>}
-              <span><b>{p.name}</b><span className="hint" style={{ display: 'block' }} /></span>
+              <span><b>{p.name}</b><span className="hint" style={{ display: 'block' }}>SEO 商品 ID: {seoProductIdOf(p) || '未设置'}</span></span>
             </div></td>
             <td className="mono">{p.model || '—'}</td>
             <td>{p.skuCount ?? (p.skus || []).length}</td>

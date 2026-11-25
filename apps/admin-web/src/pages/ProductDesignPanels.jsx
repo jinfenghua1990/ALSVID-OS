@@ -238,6 +238,33 @@ export function CatalogLayoutPanel({ row, locale, products, publishedMap, onPubl
   </div>;
 }
 
+function SceneFields({row,onChange,images,videos,visual=false}) {
+ const patch=next=>onChange({...row,...next});
+ const select=(key,label,options,fallback)=> <label className="sdp__field">{label}<select value={row[key]??fallback} onChange={e=>patch({[key]:e.target.value})}>{options.map(([k,l])=><option key={k} value={k}>{l}</option>)}</select></label>;
+ const asset=(key,label,rows)=> <label className="sdp__field">{label}<select value={row[key]||''} onChange={e=>patch({[key]:e.target.value})}><option value="">请选择素材</option>{rows.map(x=><option key={x.id} value={x.id}>{x.label||x.fileName||x.id}</option>)}</select></label>;
+ const number=(key,label,min,max,fallback)=> <label className="sdp__field">{label}<input type="number" min={min} max={max} value={row[key]??fallback} onChange={e=>patch({[key]:Number(e.target.value)})}/></label>;
+ return <div className="sdp__grid2">
+ {visual&&select('mediaType','媒体类型',[['image','图片'],['video','视频']],'image')}
+ {(visual?row.mediaType||'image':row.type)==='image'&&asset('imageId','图片素材',images)}
+ {(visual?row.mediaType:row.type)==='video'&&asset('videoId','视频素材',videos)}
+ <label className="sdp__field">标题<input value={row.title||''} onChange={e=>patch({title:e.target.value})}/></label><label className="sdp__field">副标题<input value={row.subtitle||''} onChange={e=>patch({subtitle:e.target.value})}/></label>
+ <label className="sdp__field">介绍文字<textarea value={row.type==='text'?row.text||'':row.caption||''} onChange={e=>patch(row.type==='text'?{text:e.target.value}:{caption:e.target.value})}/></label>
+ {select('background','背景',[['inherit','继承'],['solid','纯色'],['gradient','渐变'],['image','背景图片']],'inherit')}
+ {['solid','gradient'].includes(row.background)&&<label className="sdp__field">背景颜色<input type="color" value={row.backgroundColor||'#171717'} onChange={e=>patch({backgroundColor:e.target.value})}/></label>}
+ {row.background==='gradient'&&<label className="sdp__field">渐变颜色<input type="color" value={row.backgroundEnd||'#303030'} onChange={e=>patch({backgroundEnd:e.target.value})}/></label>}
+ {row.background==='image'&&asset('backgroundImageId','背景图片',images)}
+ <label className="sdp__field">文字颜色<input type="color" value={row.textColor||'#ffffff'} onChange={e=>patch({textColor:e.target.value})}/></label>
+ {number('fontSize','字号',20,100,48)}
+ {select('textPosition','文字位置',[['top-left','左上'],['top-center','中上'],['top-right','右上'],['center-left','左中'],['center','居中'],['center-right','右中'],['bottom-left','左下'],['bottom-center','中下'],['bottom-right','右下']],'bottom-center')}
+ {select('mediaPosition','素材位置',[['left','左'],['center','中'],['right','右'],['top','上'],['bottom','下']],'center')}
+ {select('fit','素材比例',[['cover','全屏铺满'],['contain','完整显示透明图']],'cover')}
+ {number('scale','素材缩放 %',50,150,100)}
+ {select('animation','滚动动画',[['fade','渐入'],['zoom-in','放大'],['zoom-out','缩小'],['slide','平移'],['focus','聚焦'],['sticky','滚动固定'],['none','无']],'fade')}
+ {number('trigger','触发位置 %',0,80,20)}{number('duration','动画时间 ms',100,2000,600)}{number('hold','滚动停留距离 vh',0,200,0)}
+ <label className="sdp__check"><input type="checkbox" checked={!!row.scrollLinked} onChange={e=>patch({scrollLinked:e.target.checked})}/> 与滚动进度联动</label>
+ </div>;
+}
+
 export function StandardDetailPanel({ locale, products, publishedMap, productId }) {
   const [listing, setListing] = useState(null);
   const [doc, setDoc] = useState(null);
@@ -247,6 +274,8 @@ export function StandardDetailPanel({ locale, products, publishedMap, productId 
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [assets, setAssets] = useState([]);
+  const [videos,setVideos]=useState([]);
+  useEffect(()=>{let alive=true;api.assetsAll({category:'page',kind:'video'}).then(rows=>{if(alive)setVideos(Array.isArray(rows)?rows:[])}).catch(()=>{});return()=>{alive=false}},[]);
   const product = products.find(p => p.id === productId);
   useEffect(() => { api.assetsAll({ category: 'page', kind: 'image' }).then(rows => setAssets(Array.isArray(rows) ? rows : [])).catch(() => setAssets([])); }, []);
   useEffect(() => {
@@ -273,6 +302,9 @@ export function StandardDetailPanel({ locale, products, publishedMap, productId 
   const mediaIds = doc.mediaIds || [];
   const patchMedia = next => setDoc({ ...doc, mediaIds: next });
   const patchDetail = next => setDoc({ ...doc, languages: { ...doc.languages, [locale]: { ...localeDoc, detailBlocks: next } } });
+  const design={purchaseVisible:true,coreVisible:true,background:'#eaeae6',visibility:{},faq:[],...(localeDoc?.design||{})};
+  const patchDesign=next=>setDoc({...doc,languages:{...doc.languages,[locale]:{...localeDoc,design:{...design,...next}}}});
+  const toggleVisibility=(id,checked)=>patchDesign({visibility:{...design.visibility,[id]:checked}});
   const doSave = async () => {
     setBusy(true); setError('');
     try { const updated = await api.saveListing(listing.id, { channel: listing.channel, slug: listing.slug, document: doc, skus: listing.skus, revision }); setRevision(updated.revision); setBaseline(JSON.stringify(doc)); }
@@ -362,28 +394,24 @@ export function StandardDetailPanel({ locale, products, publishedMap, productId 
 
       <p className="sdg__tip">只保存素材引用与展示顺序，不会删除原始素材，也不影响 SKU 与库存。</p>
     </section>
-    <section className="sdp__module">
-      <header><strong>P04 图文详情</strong><span className="hint">按商品 · 与主图是两套配置</span></header>
-      <p className="hint">主图管封面与顺序，图文详情管内容段落顺序；两者共用同一份商品素材库，互不影响。</p>
-      {!localeDoc && <p className="hint">该商品尚未提供 {locale} 语言内容，请先在「商品列表」补充该语言后再装修图文详情。</p>}
-      {localeDoc && <>
-        {detailBlocks.map((block, index) => <div className="sdp__block" key={index}>
-          <span className="sdp__block-tag">{block.type === 'image' ? '图片' : '文字'}</span>
-          {block.type === 'image'
-            ? <span className="sdp__block-image"><img src={imagePreview(block.imageId)} alt=""/><select value={block.imageId} onChange={e => patchDetail(detailBlocks.map((row, i) => i === index ? { ...row, imageId: e.target.value } : row))}>{blockImageOptions.map(option => <option key={option.id} value={option.id}>{option.label}</option>)}</select></span>
-            : <textarea rows={3} maxLength={2000} value={block.text} placeholder="详情文字段落" onChange={e => patchDetail(detailBlocks.map((row, i) => i === index ? { ...row, text: e.target.value } : row))}/>}
-          <span className="sdp__block-ops">
-            <button type="button" className="btn small" disabled={index === 0} onClick={() => { const next = [...detailBlocks]; [next[index - 1], next[index]] = [next[index], next[index - 1]]; patchDetail(next); }}>↑</button>
-            <button type="button" className="btn small" disabled={index === detailBlocks.length - 1} onClick={() => { const next = [...detailBlocks]; [next[index + 1], next[index]] = [next[index], next[index + 1]]; patchDetail(next); }}>↓</button>
-            <button type="button" className="btn small" disabled={busy} onClick={() => patchDetail(detailBlocks.filter((_, i) => i !== index))}>删除</button>
-          </span>
-        </div>)}
-        <div className="sdp__block-add">
-          <button type="button" className="btn small" disabled={detailBlocks.length >= 50} onClick={() => patchDetail([...detailBlocks, { type: 'text', text: '' }])}>＋ 文字段</button>
-          <button type="button" className="btn small" disabled={detailBlocks.length >= 50 || !blockImageOptions.length} onClick={() => patchDetail([...detailBlocks, { type: 'image', imageId: blockImageOptions[0]?.id || '', alt: '' }])}>＋ 图片段</button>
-        </div>
-      </>}
-    </section>
+    {localeDoc&&<>
+      <section className="sdp__module"><header><strong>P01-01 车型选配</strong><span className="hint">产品取数</span></header><label className="sdp__check"><input type="checkbox" checked={design.purchaseVisible} onChange={e=>patchDesign({purchaseVisible:e.target.checked})}/>详情页显示车型选配</label><label className="sdp__check"><input type="checkbox" checked={design.coreVisible} onChange={e=>patchDesign({coreVisible:e.target.checked})}/>P01-02 显示四项参数</label><label className="sdp__field">选配与核心参数背景<input type="color" value={design.background} onChange={e=>patchDesign({background:e.target.value})}/></label></section>
+      <section className="sdp__module"><header><strong>P02 商品主视觉与营销</strong><span className="hint">车型独立装修</span></header><label className="sdp__check"><input type="checkbox" checked={design.visibility.P02!==false} onChange={e=>toggleVisibility('P02',e.target.checked)}/> 显示</label><SceneFields visual row={design.visual||{mediaType:'image',imageId:mediaIds[0]||'',title:localeDoc.title}} images={blockImageOptions} videos={videos} onChange={visual=>patchDesign({visual})}/><label className="sdp__check"><input type="checkbox" checked={!!design.visual?.marketingEnabled} onChange={e=>patchDesign({visual:{mediaType:'image',imageId:mediaIds[0]||'',...design.visual,marketingEnabled:e.target.checked}})}/> 启用营销</label>{design.visual?.marketingEnabled&&<><label className="sdp__field">营销文案<input value={design.visual.marketingText||''} onChange={e=>patchDesign({visual:{...design.visual,marketingText:e.target.value}})}/></label><label className="sdp__field">购买按钮<input value={design.visual.buttonText||''} onChange={e=>patchDesign({visual:{...design.visual,buttonText:e.target.value}})}/></label></>}</section>
+      <section className="sdp__module"><header><strong>P04 沉浸式产品详情</strong><span className="hint">车型独立装修</span></header>
+      <p className="hint">首个子模块建议全幅整车图。子模块支持透明素材、文字叠加、滚动交互；最多 200 段。</p>
+      <label className="sdp__check"><input type="checkbox" checked={design.visibility.P04!==false} onChange={e=>toggleVisibility('P04',e.target.checked)}/> 显示</label>
+      {detailBlocks.map((block,index)=><section className="sdp__module" key={index} draggable onDragStart={e=>e.dataTransfer.setData('text/plain',String(index))} onDragOver={e=>e.preventDefault()} onDrop={e=>{e.preventDefault();const raw=e.dataTransfer.getData('text/plain');if(!raw)return;const from=Number(raw);if(!Number.isInteger(from)||from<0||from>=detailBlocks.length||from===index)return;const next=[...detailBlocks];next.splice(index,0,next.splice(from,1)[0]);patchDetail(next)}}>
+        <header><strong>P04-{String(index+1).padStart(2,'0')} · {block.type==='video'?'视频':block.type==='image'?'全幅图':'文字'}</strong><span className="hint">拖拽排序</span></header>
+        <label className="sdp__check"><input type="checkbox" checked={!block.hidden} onChange={e=>patchDetail(detailBlocks.map((x,i)=>i===index?{...x,hidden:!e.target.checked}:x))}/> 显示</label>
+        <SceneFields row={block} images={blockImageOptions} videos={videos} onChange={next=>patchDetail(detailBlocks.map((x,i)=>i===index?next:x))}/>
+        <div className="sdp__block-ops"><button type="button" className="btn small" disabled={index===0} onClick={()=>{const n=[...detailBlocks];[n[index-1],n[index]]=[n[index],n[index-1]];patchDetail(n)}}>↑</button><button type="button" className="btn small" disabled={index===detailBlocks.length-1} onClick={()=>{const n=[...detailBlocks];[n[index],n[index+1]]=[n[index+1],n[index]];patchDetail(n)}}>↓</button><button type="button" className="btn small" disabled={detailBlocks.length>=200} onClick={()=>patchDetail([...detailBlocks.slice(0,index+1),{...block},...detailBlocks.slice(index+1)])}>复制</button><button type="button" className="btn small" onClick={()=>patchDetail(detailBlocks.filter((_,i)=>i!==index))}>删除</button></div>
+      </section>)}
+      <div className="sdp__block-add"><button type="button" className="btn small" disabled={detailBlocks.length>=200||!blockImageOptions.length} onClick={()=>patchDetail([...detailBlocks,{type:'image',imageId:blockImageOptions[0].id,fit:'cover'}])}>＋ 图片</button><button type="button" className="btn small" disabled={detailBlocks.length>=200||!videos.length} onClick={()=>patchDetail([...detailBlocks,{type:'video',videoId:videos[0].id}])}>＋ 视频</button><button type="button" className="btn small" disabled={detailBlocks.length>=200} onClick={()=>patchDetail([...detailBlocks,{type:'text',text:''}])}>＋ 文字</button></div></section>
+      {[['P05','完整技术参数'],['P06','包装清单'],['P07','产品下载'],['P08','常见问题'],['P09','售后保障'],['P10','配送服务']].map(([id,name])=><section className="sdp__module" key={id}><header><strong>{id} {name}</strong><span className="hint">{id==='P08'?'车型独立配置':'产品取数'}</span></header><label className="sdp__check"><input type="checkbox" checked={design.visibility[id]!==false} onChange={e=>toggleVisibility(id,e.target.checked)}/> 显示</label>
+      {id==='P08'?<>{design.faq.map((item,i)=><div key={i}><label className="sdp__field">问题<input value={item.question} onChange={e=>patchDesign({faq:design.faq.map((x,j)=>j===i?{...x,question:e.target.value}:x)})}/></label><label className="sdp__field">回答<textarea value={item.answer} onChange={e=>patchDesign({faq:design.faq.map((x,j)=>j===i?{...x,answer:e.target.value}:x)})}/></label><button className="btn small" type="button" onClick={()=>patchDesign({faq:design.faq.filter((_,j)=>j!==i)})}>删除</button></div>)}<button className="btn small" type="button" disabled={design.faq.length>=50} onClick={()=>patchDesign({faq:[...design.faq,{question:'',answer:''}]})}>＋ 问题</button></>:id==='P09'||id==='P10'?<p className="hint">读取当前商品的{id==='P09'?'质保':'配送'}资料：{(id==='P09'?localeDoc.warranty:localeDoc.delivery)||'尚未填写，请在商品资料维护'}</p>:<p className="hint">{id==='P05'?'读取整车主档公开参数':id==='P06'?'读取整车主档包装字段；未匹配则隐藏':'读取车型关联、已公开发布的 PDF 文件'}</p>}
+      </section>)}
+    </>}
+
   </div>;
 }
 
@@ -394,6 +422,9 @@ const GLOBAL_MODULES = [
   ['marketing', '02', '商品主视觉与营销'],
   ['detail', '04', '沉浸式产品详情'],
   ['specifications', '05', '完整技术参数'],
+  ['packaging', '06', '包装清单'],
+  ['downloads', '07', '产品下载'],
+  ['faq', '08', '常见问题'],
   ['warranty', '09', '售后保障'],
   ['delivery', '10', '配送服务'],
   ['reviews', '11', '用户评价'],
@@ -497,7 +528,7 @@ export function GlobalModulesPanel({ cms, row, locale, onEditGraphic, onSelectMo
         </div>}
       </section>
     </div>;
-    if (['warranty','delivery'].includes(active)) return <section className="sdp__module"><header><strong>{no} {name}</strong></header><p>读取当前商品资料，不重复录入。</p></section>;
+    if (['marketing','packaging','downloads','faq','warranty','delivery'].includes(active)) return <section className="sdp__module"><header><strong>{no} {name}</strong></header><p>当前车型独立装修或读取车型资料，不重复录入。</p><button type="button" className="btn small" onClick={onEditGraphic}>去按商品装修 →</button></section>;
     if (active === 'detail') return <div className="sdp">
       <section className="sdp__module">
         <header><strong>04 沉浸式产品详情</strong><span className="hint">按商品</span></header>

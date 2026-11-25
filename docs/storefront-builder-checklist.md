@@ -23,7 +23,7 @@
 | WEB-004 | P0 | CODE | 单图、轮播、分隔、留白 | 001 | Admin 编辑、保存、发布、PC/手机及 Next.js 实际渲染一致；链接/素材校验 |
 | WEB-005 | P0 | CODE | 固定购买区与草稿保护 | 001 | 固定模块不被删除；保存不覆盖其他配置；未保存草稿不可发布；revision 与历史一致 |
 | WEB-006 | P0 | VERIFIED | 通用模块登记与共享引用 | 001,003 | 稳定 key/schema；共享 follow、pinned、independent；两个不同页面引用同一实例 |
-| WEB-007 | P0 | TODO | 共享模块发布闭环 | 006 | 改草稿不影响线上；发布一次关联页同步；历史固定旧版本；快照失败阻断；回滚/撤回刷新缓存 |
+| WEB-007 | P0 | VERIFIED | 共享模块发布闭环 | 006 | 改草稿不影响线上；发布一次关联页同步；历史固定旧版本；快照失败阻断；回滚/撤回刷新缓存 |
 | WEB-008 | P0 | TODO | 页面及商品模板库 | 006,007 | 默认模板、保存/套用、按商品覆盖、模板关联；引用不被复制断开；固定业务区保留 |
 | WEB-009 | P0 | PARTIAL | 三栏编辑器 | 006,008 | 左侧结构树/模块库，中间真实预览，右侧属性；桌面/平板/手机；共享/独立状态明确 |
 | WEB-010 | P0 | TODO | 首页与内容页统一装修底座 | 007,008,009 | 迁移现有首页、品牌、活动等；保留 URL、SEO、内容、历史；不长期维持两套编辑引擎 |
@@ -95,3 +95,11 @@ WEB-015 是整体官网验收占位任务，不代表其中每个子功能均未
 - 在 storefront/src/lib/alsvid-api.ts 扩展 CmsBlock 与 SharedModuleRef 类型定义。
 - 新增测试套件 server/test/cms-shared-modules.test.js，验证多页面同时引用、版本锁定、解绑独立及 schema 约束，全部通过（2 pass, 0 fail）。
 - 任务 WEB-006 标记为 VERIFIED。下一步推进 WEB-007（共享模块发布闭环与快照回滚）。
+
+2026-11-25（下午第四轮）：完成 WEB-007（共享模块发布闭环与快照回滚）。
+- 确认与强化 server/cms.js 共享模块事务发布闭环：发布采用单一数据库事务（BEGIN -> INSERT site_page_versions -> UPDATE site_pages.published -> COMMIT），快照插入失败自动回滚阻断，绝不污染已发布状态。
+- 草稿修改与线上完全隔离，编辑仅在 draft 字段进行，线上严格仅解析 published 快照。
+- 联动发布验证：共享模块发布新版本后，所有 follow 模式关联页面在下一次渲染时同步获取最新内容；pinned 页面严格锁定在历史版本不变。
+- 回滚安全：rollback 历史版本生成新版本递增不可变快照，且每次发布/回滚均联动 refreshCms 触发 CDN 与 Next.js 缓存再验证。
+- 编写集成测试套件 server/test/cms-shared-publish-loop.test.js，4 项闭环用例全部 100% 通过。
+- 任务 WEB-007 标记为 VERIFIED。下一步推进 WEB-008（页面及商品模板库）与 WEB-009（三栏编辑器优化）。

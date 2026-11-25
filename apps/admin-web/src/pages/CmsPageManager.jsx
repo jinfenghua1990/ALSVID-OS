@@ -417,17 +417,16 @@ function BlockProps({ block, media, videos, products, fields = [], pageType = 'c
     };
     return <div className="cms-fields">
       <label>模块标题<input value={props.heading || ''} maxLength={120} onChange={e => onProps({ heading: e.target.value })}/></label>
-      <label>绑定商品<select value={products.find(product => product.productId === bindings.productId || product.id === bindings.productId)?.productId || bindings.productId || ''} onChange={e => onBindings({ productId: e.target.value })}>
-        <option value="">{pageType === 'product_template' ? '当前商品（自动读取）' : '请选择商品'}</option>
-        {products.map(product => <option key={product.id} value={product.productId}>{product.title}</option>)}
-      </select></label>
+      {pageType === 'product_template'
+        ? <div><strong>数据来源</strong><p className="hint">自动绑定当前商品的整车产品主档，不固定到某一辆车型。</p></div>
+        : <label>绑定商品<select value={products.find(product => product.productId === bindings.productId || product.id === bindings.productId)?.productId || bindings.productId || ''} onChange={e => onBindings({ productId: e.target.value })}>
+          <option value="">请选择商品</option>
+          {products.map(product => <option key={product.id} value={product.productId}>{product.title}</option>)}
+        </select></label>}
       <div className="cms-spec-field-picker">
         <strong>展示参数字段</strong>
-        <label className="row" style={{ justifyContent: 'flex-start', gap: 8 }}>
-          <input type="checkbox" checked={allSelected} onChange={() => onBindings({ fieldCodes: [] })}/>
-          <span>自动显示该车型全部公开参数</span>
-        </label>
-        {!allSelected && <p className="hint">已选择 {selectedCodes.length} 个字段</p>}
+        <p className="hint">{allSelected ? '当前自动显示该车型全部公开参数。' : `已选择 ${selectedCodes.length} 个字段。`}</p>
+        {!allSelected && <button type="button" className="btn small" onClick={() => onBindings({ fieldCodes: [] })}>恢复全部公开参数</button>}
         <div className="cms-spec-field-list">
           {availableFields.map(field => <label key={field.code} className="row" style={{ justifyContent: 'flex-start', gap: 8 }}>
             <input type="checkbox" checked={allSelected || selectedCodes.includes(field.code)} onChange={e => toggleField(field.code, e.target.checked)}/>

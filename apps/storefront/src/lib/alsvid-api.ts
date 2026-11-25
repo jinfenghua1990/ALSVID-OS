@@ -44,7 +44,7 @@ export type ProductTemplateModules = {
 // 「全部产品」列表页版式：分类导航 + 自动展示（按销量）。null = 未装修，维持系统默认渲染。
 export type CatalogLayout = { sort: 'sales' | 'default'; categories: { name: string; productIds: string[] }[] } | null;
 
-export type Offer = { sku: string; spec: string; color: string; currency: string; unitPrice: string };
+export type Offer = { sku: string; spec: string; color: string; currency: string; unitPrice: string; images?: {id:string;url:string}[] };
 export type ProductAvailability = { available: boolean | null; items?: { sku: string; available: boolean }[] };
 export type ReviewSummary = { average: string; total: number; goodRate: number; distribution?: Record<string, number> };
 export type ReviewPage = {items:PublicReview[];counts:ReviewSummary;page:number;hasMore:boolean;filteredTotal:number};

@@ -76,7 +76,7 @@ export default async function ProductPage({ params }: Props) {
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData).replace(/</g, '\\u003c') }}></script>
       <nav className="product-crumb"><a href={`/${locale}/e-bikes`}>E-Bikes</a> / {product.title}</nav>
       <div className="product-layout purchase-layout" id="overview" data-module="gallery">
-        <ProductGallery key={product.productId} images={product.images} title={product.title} locale={locale} style={productLayout.gallery} />
+        <ProductGallery key={product.productId} images={product.images} title={product.title} locale={locale} productId={product.productId} style={productLayout.gallery} />
         <section className="purchase-info">
           <p className="eyebrow">ALSVID / {product.model}</p>
           <h1>{product.title}</h1>

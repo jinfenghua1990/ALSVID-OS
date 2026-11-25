@@ -35,6 +35,7 @@ export type ProductModuleBanner = {
 };
 export type ProductScene = {type:'image'|'text'|'video';imageId?:string;videoId?:string;url?:string;alt?:string;text?:string;hidden?:boolean;title?:string;subtitle?:string;caption?:string;background?:'inherit'|'solid'|'gradient'|'image';backgroundColor?:string;backgroundEnd?:string;backgroundUrl?:string;backgroundImageId?:string;textColor?:string;fontSize?:number;textPosition?:string;mediaPosition?:string;fit?:'contain'|'cover';scale?:number;animation?:string;trigger?:number;duration?:number;scrollLinked?:boolean;hold?:number};
 export type ProductDesign = {purchaseVisible:boolean;coreVisible:boolean;background:string;visibility:Record<string,boolean>;faq:{question:string;answer:string}[];visual?:ProductScene & {mediaType:'image'|'video';marketingEnabled:boolean;marketingText:string;buttonText:string}};
+export type ProductDownload = {id:string;title:string;fileName:string;sizeBytes:number;downloadUrl:string};
 export type PerformanceConfig = {showParameters:boolean;fieldCodes:string[];mediaType:'image'|'video';imageId:string;videoId:string;headline:string;alignment:'left'|'center'|'right'};
 export type PerformanceSpec = {code:string;label:string;value:string;unit:string};
 export type ProductModuleCopy = { enabled: boolean; title: string; body: string };
@@ -210,7 +211,7 @@ export async function getPublicLocations(capability: 'sales' | 'service') {
 }
 
 export async function getCmsProductTemplate(locale: Locale, productId = '') {
-  return getJson<{ id: string; name: string; locale: string; isProductSpecific: boolean; seo: { title?: string; description?: string }; productLayout?: { gallery?: 'standard' | 'immersive' | 'mosaic' | 'columns'; specifications?: 'list' | 'table' | 'accordion'; reviews?: 'list' | 'cards' }; modules?: ProductTemplateModules; performance?: PerformanceConfig; performanceSpecs?: PerformanceSpec[]; catalogLayout?: CatalogLayout; blocks: CmsBlock[] }>(`/api/cms/product-template?locale=${locale}&productId=${encodeURIComponent(productId)}`);
+  return getJson<{ id: string; name: string; locale: string; isProductSpecific: boolean; seo: { title?: string; description?: string }; productLayout?: { gallery?: 'standard' | 'immersive' | 'mosaic' | 'columns'; specifications?: 'list' | 'table' | 'accordion'; reviews?: 'list' | 'cards' }; modules?: ProductTemplateModules; performance?: PerformanceConfig; performanceSpecs?: PerformanceSpec[]; masterSpecs?: PerformanceSpec[]; packageSpecs?: PerformanceSpec[]; downloads?: ProductDownload[]; catalogLayout?: CatalogLayout; blocks: CmsBlock[] }>(`/api/cms/product-template?locale=${locale}&productId=${encodeURIComponent(productId)}`);
 }
 
 export interface SharedModuleRef {

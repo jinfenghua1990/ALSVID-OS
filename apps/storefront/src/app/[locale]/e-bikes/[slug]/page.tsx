@@ -66,9 +66,7 @@ export default async function ProductPage({ params, searchParams }: Props) {
   const templateBlocks = template?.blocks.filter(block => block.visible !== false && productContentKeys.has(block.componentKey)) || [];
   const specsModule = template?.blocks.find(block => block.componentKey === 'specs' && block.visible !== false);
   // 规格仍在原来的固定业务区，优先读取模板主档参数绑定；若未配置或过渡期，平滑回退至商品原规格
-  const rawSpecs = (specsModule?.data?.specifications && specsModule.data.specifications.length > 0)
-    ? specsModule.data.specifications
-    : (product.specifications || []);
+  const rawSpecs = template?.masterSpecs ?? ((specsModule?.data?.specifications && specsModule.data.specifications.length > 0) ? specsModule.data.specifications : (product.specifications || []));
   const specifications: { label: string; value: string }[] = rawSpecs.map((row: { label: string; value: string; unit?: string }) => ({
     label: row.label,
     value: row.value + (row.unit && !String(row.value).trim().endsWith(row.unit.trim()) ? ' ' + row.unit : '')
@@ -86,7 +84,7 @@ export default async function ProductPage({ params, searchParams }: Props) {
   return (
     <main className="container product-page product-page--with-nav" data-product-id={product.productId} data-product-slug={product.slug}>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData).replace(/</g, '\\u003c') }}></script>
-      <ProductPageNav locale={locale} model={product.model||product.title} hasSpecs={visible('P05')&&specifications.length>0} hasVideo={(visible('P04')&&detailBlocks.some(b=>b.type==='video'))||templateBlocks.some(block=>block.componentKey==='video' && !!block.data?.videoUrl)} purchaseHref={purchaseHref} overviewHref={visible('P02')?'#product-overview':'#product-configurator'} hasDownloads={templateBlocks.some(block=>block.componentKey==='manuals' && !!block.data?.manuals?.length)} />
+      <ProductPageNav locale={locale} model={product.model||product.title} hasSpecs={visible('P05')&&specifications.length>0} hasVideo={(visible('P04')&&detailBlocks.some(b=>b.type==='video'))||templateBlocks.some(block=>block.componentKey==='video' && !!block.data?.videoUrl)} purchaseHref={purchaseHref} overviewHref={visible('P02')?'#product-overview':'#product-configurator'} hasDownloads={visible('P07')&&!!template?.downloads?.length} />
       <section className="product-p01" id="product-configurator" data-module-id="ALSVID-P01" data-module="info" style={{background:design?.background||'#eaeae6'}}>{showPurchase&&<div className="product-layout" data-module-id="ALSVID-P01-01">
         <ProductGallery key={product.productId} productId={product.productId} images={product.images} title={product.title} locale={locale} style={productLayout.gallery} />
         <section>
@@ -113,15 +111,15 @@ export default async function ProductPage({ params, searchParams }: Props) {
             <h2>{UI.specifications[locale]}</h2>
             {productLayout.specifications === 'table' ? <table className="product-spec-table"><tbody>{specifications.map(row => <tr key={row.label}><th>{row.label}</th><td>{row.value}</td></tr>)}</tbody></table> : productLayout.specifications === 'accordion' ? <details className="product-spec-accordion"><summary>{UI.showSpecifications[locale]}</summary><ul className="spec-list">{specifications.map(row => <li key={row.label}><span>{row.label}</span><strong>{row.value}</strong></li>)}</ul></details> : <ul className="spec-list">{specifications.map(row => <li key={row.label}><span>{row.label}</span><strong>{row.value}</strong></li>)}</ul>}
           </section>}
+      {visible('P06')&&!!template?.packageSpecs?.length&&<section className="product-support-section" data-module-id="ALSVID-P06" data-module="packaging"><h2>{{zh:'包装清单',de:'Lieferumfang',en:'In the box'}[locale]}</h2><ul className="spec-list">{template.packageSpecs.map(row=><li key={row.code}><span>{row.label}</span><strong>{row.value}{row.unit&&!row.value.endsWith(row.unit)?' '+row.unit:''}</strong></li>)}</ul></section>}
+      {visible('P07')&&!!template?.downloads?.length&&<section className="product-support-section" id="product-downloads" data-module-id="ALSVID-P07" data-module="downloads"><h2>{{zh:'产品下载',de:'Downloads',en:'Downloads'}[locale]}</h2><ul>{template.downloads.map(item=><li key={item.id}><a href={item.downloadUrl} target="_blank" rel="noopener noreferrer">{item.title} · PDF ↗</a></li>)}</ul></section>}
       {visible('P08')&&!!design?.faq?.length&&<section className="product-support-section" data-module-id="ALSVID-P08" data-module="faq"><h2>{faqTitle}</h2>{design.faq.map((item,i)=><details key={i}><summary>{item.question}</summary><p>{item.answer}</p></details>)}</section>}
       {visible('P09')&&product.warranty&&<section className="product-support-section" data-module-id="ALSVID-P09" data-module="warranty"><h2>{UI.warranty[locale]}</h2><p>{product.warranty}</p></section>}
       {visible('P10')&&product.delivery&&<section className="product-support-section" data-module-id="ALSVID-P10" data-module="delivery"><h2>{UI.delivery[locale]}</h2><p>{product.delivery}</p></section>}
-      {templateBlocks.filter(block=>block.componentKey!=='faq').map((block,index) => {
+      {templateBlocks.filter(block=>!['faq','manuals'].includes(block.componentKey)).map((block,index) => {
         const isVideo=block.componentKey==='video' && !!block.data?.videoUrl;
-        const isDownload=block.componentKey==='manuals' && !!block.data?.manuals?.length;
         const firstVideo=isVideo && !(visible('P04')&&detailBlocks.some(b=>b.type==='video')) && block.id===templateBlocks.find(item=>item.componentKey==='video' && !!item.data?.videoUrl)?.id;
-        const firstDownload=isDownload && index===templateBlocks.findIndex(item=>item.componentKey==='manuals' && !!item.data?.manuals?.length);
-        const anchor=firstVideo?'product-video':firstDownload?'product-downloads':null;
+        const anchor=firstVideo?'product-video':null;
         return anchor ? <div id={anchor} key={block.id}><CmsBlocks blocks={[block]} locale={locale}/></div> : <CmsBlocks key={block.id} blocks={[block]} locale={locale}/>;
       })}
       {!!product.relatedAccessories?.length && <section className="product-related"><p className="eyebrow">{UI.relatedAccessories[locale]}</p><h2>{UI.fitsThisModel[locale]}</h2><div className="product-related__grid">{product.relatedAccessories.map(item => <a key={item.productId} href={`/${locale}/e-bikes/${encodeURIComponent(item.slug)}`}><div>{item.images[0] ? <img src={publicApiUrl(item.images[0].url)} alt={item.title} loading="lazy"/> : item.title}</div><strong>{item.title}</strong>{item.prices.length>0&&<small>{item.prices.map(price=>`${price.currency} ${price.unitPrice}`).join(' · ')}</small>}</a>)}</div></section>}

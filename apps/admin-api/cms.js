@@ -439,12 +439,15 @@ function createCmsStore(connectionString) {
     if (!data) fail('页面不存在', 404);
     return data;
   }
-  async function loadPerformance(productId, locale, config) {
-    if (!productId || !config.showParameters) return [];
+  async function loadDesignData(productId, locale, config) {
+    if (!productId) return {performanceSpecs:[],masterSpecs:[],packageSpecs:[],downloads:[]};
     const product = (await pool.query(`SELECT p.specs,p.product_type AS "productType" FROM products p JOIN storefront_listings l ON l.product_uuid=p.entity_uuid AND l.channel='website' AND l.published IS NOT NULL WHERE (p.id::text=$1 OR l.slug=$1) AND p.kind='vehicle' AND p.status='启用' AND p.deleted_at IS NULL AND l.published->'languages' ? $2 LIMIT 1`, [productId, locale])).rows[0];
-    if (!product) return [];
+    if (!product) return {performanceSpecs:[],masterSpecs:[],packageSpecs:[],downloads:[]};
     const fields = (await pool.query(`SELECT code,name_zh AS "nameZh",name_en AS "nameEn",name_de AS "nameDe",unit,level,templates,shop_visible AS "shopVisible",enabled FROM fields WHERE enabled=true AND shop_visible=true AND level='product' ORDER BY code`)).rows;
-    return performanceSpecifications(product, fields, locale, config);
+    const masterSpecs=publicProductSpecifications(product,fields,locale);
+    const packageCodes=new Set(fields.filter(f=>['package_contents','packing_list','package_list','box_contents','packaging_contents','included_accessories'].includes(f.code)||['包装清单','包装内容','随车附件','包装内含','装箱清单'].includes(f.nameZh)).map(f=>f.code));
+    const downloads=(await pool.query(`SELECT DISTINCT ma.id::text AS id,ma.file_name AS "fileName",ma.label,ma.size_bytes AS "sizeBytes" FROM asset_links al JOIN media_assets ma ON ma.id=al.asset_id JOIN products p ON (al.target_id=p.id::text OR al.target_id=p.entity_uuid::text) JOIN storefront_listings l ON l.product_uuid=p.entity_uuid AND l.channel='website' AND l.published IS NOT NULL WHERE (p.id::text=$1 OR l.slug=$1) AND p.kind='vehicle' AND p.status='启用' AND p.deleted_at IS NULL AND l.published->'languages' ? $2 AND al.target_type='product' AND al.role IN ('certificate','drawing','detail','package') AND ma.visibility='public' AND ma.status='published' AND ma.content_type='application/pdf' ORDER BY ma.file_name LIMIT 50`,[productId,locale])).rows.map(m=>({id:m.id,title:m.label||m.fileName,fileName:m.fileName,sizeBytes:Number(m.sizeBytes)||0,downloadUrl:`/api/public/cms-media/${encodeURIComponent(m.id)}`}));
+    return {performanceSpecs:performanceSpecifications(product,fields,locale,config),masterSpecs,packageSpecs:masterSpecs.filter(row=>packageCodes.has(row.code)),downloads};
   }
   async function enrich(blocks, locale, contextProductId = '') {
     // 共享模块引用解析 (follow, pinned, independent)
@@ -942,7 +945,7 @@ function createCmsStore(connectionString) {
         productLayout: document.productLayout || { gallery: 'standard', specifications: 'list', reviews: 'list' },
         modules: document.modules || DEFAULT_PRODUCT_MODULES,
         performance: performanceOf(document.modules?.performance),
-        performanceSpecs: await loadPerformance(productId, locale, performanceOf(document.modules?.performance)),
+        ...(await loadDesignData(productId, locale, performanceOf(document.modules?.performance))),
         catalogLayout: document.catalogLayout || null,
         blocks: await enrich(Array.isArray(document.blocks) ? document.blocks : [], locale, productId),
         preview: draft ? 'draft' : version ? `v${version}` : undefined,

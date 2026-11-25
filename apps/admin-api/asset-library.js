@@ -571,6 +571,19 @@ function createAssetLibraryStore(url, objectStorage) {
       if (!isUuidv7(id)) fail('素材不存在', 404);
       const asset = (await pool.query(`SELECT ma.object_key AS key,ma.content_type AS "contentType" FROM media_assets ma
         WHERE ma.id=$1 AND (
+          (ma.visibility='public' AND ma.status='published' AND ma.content_type='application/pdf' AND EXISTS (
+            SELECT 1 FROM asset_links al JOIN products product ON al.target_type='product' AND (al.target_id=product.id::text OR al.target_id=product.entity_uuid::text)
+            JOIN storefront_listings l ON l.product_uuid=product.entity_uuid AND l.channel='website' AND l.published IS NOT NULL
+            WHERE al.asset_id=ma.id AND product.kind='vehicle' AND product.status='启用' AND product.deleted_at IS NULL AND al.role IN ('certificate','drawing','detail','package')
+          )) OR
+          (ma.visibility='public' AND ma.status='published' AND ma.content_type IN ('image/jpeg','image/png','image/webp','image/avif','video/mp4','video/webm') AND EXISTS (
+            SELECT 1 FROM storefront_listings l JOIN products product ON product.entity_uuid=l.product_uuid
+            CROSS JOIN LATERAL jsonb_each(COALESCE(l.published->'languages','{}'::jsonb)) loc
+            WHERE l.channel='website' AND l.published IS NOT NULL AND product.status='启用' AND product.deleted_at IS NULL AND (
+              (ma.content_type IN ('image/jpeg','image/png','image/webp','image/avif') AND (loc.value->'design'->'visual'->>'imageId'=ma.id::text OR loc.value->'design'->'visual'->>'backgroundImageId'=ma.id::text OR EXISTS (SELECT 1 FROM jsonb_array_elements(COALESCE(loc.value->'detailBlocks','[]'::jsonb)) b WHERE b->>'imageId'=ma.id::text OR b->>'backgroundImageId'=ma.id::text)))
+              OR (ma.content_type IN ('video/mp4','video/webm') AND (loc.value->'design'->'visual'->>'videoId'=ma.id::text OR EXISTS (SELECT 1 FROM jsonb_array_elements(COALESCE(loc.value->'detailBlocks','[]'::jsonb)) b WHERE b->>'videoId'=ma.id::text)))
+            )
+          )) OR
           (ma.content_type IN ('image/jpeg','image/png','image/webp','image/avif','image/svg+xml') AND EXISTS (
             SELECT 1 FROM site_pages p,jsonb_array_elements(p.published->'blocks') b
             WHERE p.status='active' AND p.published IS NOT NULL AND b->'props'->>'imageId'=ma.id::text

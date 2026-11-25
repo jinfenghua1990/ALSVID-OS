@@ -201,11 +201,11 @@ function publicProductSpecifications(product, fields, locale, selectedCodes = ne
   if (!product || !product.specs || typeof product.specs !== 'object' || Array.isArray(product.specs)) return [];
   const labelKey = locale === 'de' ? 'nameDe' : locale === 'en' ? 'nameEn' : 'nameZh';
   return fields.filter(field => {
-    if (!field.enabled || !field.shopVisible || field.level !== 'product') return false;
+    if (!field.enabled || !field.shopVisible || field.level !== 'product' || typeof field.code !== 'string' || field.code.startsWith('_')) return false;
     if (Array.isArray(field.templates) && field.templates.length && !field.templates.includes(product.productType)) return false;
     if (selectedCodes.size && !selectedCodes.has(field.code)) return false;
     const value = product.specs[field.code];
-    return value !== undefined && value !== null && String(value).trim() !== '';
+    return ['string', 'number', 'boolean'].includes(typeof value) && String(value).trim() !== '';
   }).map(field => ({
     code: field.code,
     label: field[labelKey] || field.nameZh || field.code,
@@ -250,32 +250,32 @@ function createCmsStore(connectionString) {
   }
   async function enrich(blocks, locale, contextProductId = '') {
     const specsBlocks = blocks.filter(block => block.componentKey === 'specs');
-    const galleryIds = blocks.filter(block => block.componentKey === 'productGallery').flatMap(block => block.bindings.productIds || []);
+    const galleryIds = blocks.filter(block => block.componentKey === 'productGallery').flatMap(block => block.bindings?.productIds || []);
     // 商品详情模板未绑定固定商品时，使用当前访问的商品 ID/SEO slug，做到一套模板服务所有车型。
-    const specIds = specsBlocks.map(block => contextProductId || block.bindings.productId).filter(Boolean);
+    const specIds = specsBlocks.map(block => contextProductId || block.bindings?.productId).filter(Boolean);
     const videoIds = blocks.filter(block => block.componentKey === 'video').map(block => block.props.videoId).filter(Boolean);
     const ids = [...new Set([...galleryIds, ...specIds])];
     if (!ids.length && !videoIds.length) return blocks;
     const rows = ids.length ? (await pool.query(`SELECT p.id::text AS id,p.kind,p.product_type AS "productType",p.specs,l.published,l.slug
       FROM products p JOIN storefront_listings l ON l.product_uuid=p.entity_uuid AND l.channel='website' AND l.published IS NOT NULL
-      WHERE (p.id::text=ANY($1::text[]) OR l.slug=ANY($1::text[])) AND p.status='启用' AND l.published->'languages' ? $2`, [ids, locale])).rows : [];
+      WHERE (p.id::text=ANY($1::text[]) OR l.slug=ANY($1::text[])) AND p.status='启用' AND p.deleted_at IS NULL AND l.published->'languages' ? $2`, [ids, locale])).rows : [];
     const fieldRows = specsBlocks.length ? (await pool.query(`SELECT code,name_zh AS "nameZh",name_en AS "nameEn",name_de AS "nameDe",unit,level,templates,shop_visible AS "shopVisible",enabled
       FROM fields WHERE enabled=true AND shop_visible=true AND level='product' ORDER BY code`)).rows : [];
     const map = new Map(rows.flatMap(r => {
       const doc = r.published, content = doc.languages[locale];
       const value = {
-        product: { id: r.id, slug: r.slug, kind: r.kind, title: content.title, image: doc.mediaIds[0] ? { url: `/api/catalog/products/${encodeURIComponent(r.id)}/images/${encodeURIComponent(doc.mediaIds[0])}` } : null },
+        product: { id: r.id, slug: r.slug, kind: r.kind, title: content.title, image: doc.mediaIds?.[0] ? { url: `/api/catalog/products/${encodeURIComponent(r.id)}/images/${encodeURIComponent(doc.mediaIds[0])}` } : null },
         specs: r.specs || {},
         productType: r.productType,
       };
       return [[r.id, value], ...(r.slug ? [[r.slug, value]] : [])];
     }));
     return blocks.map(block => {
-      if (block.componentKey === 'productGallery') return { ...block, data: { products: (block.bindings.productIds || []).map(id => map.get(id)?.product).filter(Boolean) } };
+      if (block.componentKey === 'productGallery') return { ...block, data: { products: (block.bindings?.productIds || []).map(id => map.get(id)?.product).filter(Boolean) } };
       if (block.componentKey === 'specs') {
-        const productRef = contextProductId || block.bindings.productId;
+        const productRef = contextProductId || block.bindings?.productId;
         const product = map.get(productRef);
-        const selectedCodes = new Set(block.bindings.fieldCodes || []);
+        const selectedCodes = new Set(block.bindings?.fieldCodes || []);
         const specifications = product ? publicProductSpecifications(product, fieldRows, locale, selectedCodes) : [];
         return { ...block, data: { specifications } };
       }

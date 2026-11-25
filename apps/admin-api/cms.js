@@ -202,19 +202,62 @@ function seoOf(input) {
   if (typeof input !== 'object' || Array.isArray(input)) fail('SEO 资料格式无效');
   return { title: text(input.title, 180), description: text(input.description, 500) };
 }
+function formatSpecValue(val, field, locale) {
+  if (typeof val === 'boolean' && field.type === 'boolean') {
+    return locale === 'de' ? (val ? 'Ja' : 'Nein') : locale === 'en' ? (val ? 'Yes' : 'No') : (val ? '是' : '否');
+  }
+  let strVal = String(val).trim();
+  // 枚举值翻译
+  let options = field.options;
+  if (typeof options === 'string' && options.trim().startsWith('[')) {
+    try { options = JSON.parse(options); } catch (_) { options = null; }
+  }
+  if (Array.isArray(options) && options.length) {
+    const matched = options.find(opt => opt && (String(opt.value) === strVal || String(opt.code) === strVal || String(opt.label) === strVal));
+    if (matched) {
+      if (locale === 'de' && matched.labelDe) return matched.labelDe;
+      if (locale === 'en' && (matched.labelEn || matched.nameEn)) return matched.labelEn || matched.nameEn;
+      if (locale === 'zh' && (matched.labelZh || matched.nameZh || matched.label)) return matched.labelZh || matched.nameZh || matched.label;
+      if (matched.label) return matched.label;
+    }
+  }
+  // 单位防重复：若值末尾已带有 unit，清理多余的单位后缀
+  if (field.unit && typeof field.unit === 'string') {
+    const u = field.unit.trim();
+    if (u && strVal.endsWith(u)) {
+      const stripped = strVal.slice(0, -u.length).trim();
+      if (stripped && !isNaN(Number(stripped))) {
+        strVal = stripped;
+      }
+    }
+  }
+  return strVal;
+}
+
 function publicProductSpecifications(product, fields, locale, selectedCodes = new Set()) {
   if (!product || !product.specs || typeof product.specs !== 'object' || Array.isArray(product.specs)) return [];
   const labelKey = locale === 'de' ? 'nameDe' : locale === 'en' ? 'nameEn' : 'nameZh';
-  return fields.filter(field => {
+  const selectedSet = selectedCodes instanceof Set ? selectedCodes : new Set(selectedCodes || []);
+  const fieldOrder = Array.isArray(selectedCodes) && selectedCodes.length ? selectedCodes : null;
+
+  const validFields = fields.filter(field => {
     if (!field.enabled || !field.shopVisible || field.level !== 'product' || typeof field.code !== 'string' || field.code.startsWith('_')) return false;
     if (Array.isArray(field.templates) && field.templates.length && !field.templates.includes(product.productType)) return false;
-    if (selectedCodes.size && !selectedCodes.has(field.code)) return false;
+    if (selectedSet.size && !selectedSet.has(field.code)) return false;
     const value = product.specs[field.code];
     return ['string', 'number', 'boolean'].includes(typeof value) && String(value).trim() !== '';
-  }).map(field => ({
+  });
+
+  // 如果指定了顺序，按照指定顺序排序
+  if (fieldOrder) {
+    const orderMap = new Map(fieldOrder.map((code, idx) => [code, idx]));
+    validFields.sort((a, b) => (orderMap.get(a.code) ?? 9999) - (orderMap.get(b.code) ?? 9999));
+  }
+
+  return validFields.map(field => ({
     code: field.code,
     label: field[labelKey] || field.nameZh || field.code,
-    value: String(product.specs[field.code]).trim(),
+    value: formatSpecValue(product.specs[field.code], field, locale),
     unit: field.unit || '',
   }));
 }
@@ -281,7 +324,15 @@ function createCmsStore(connectionString) {
         const productRef = contextProductId || block.bindings?.productId;
         const product = map.get(productRef);
         const selectedCodes = new Set(block.bindings?.fieldCodes || []);
-        const specifications = product ? publicProductSpecifications(product, fieldRows, locale, selectedCodes) : [];
+        let specifications = product ? publicProductSpecifications(product, fieldRows, locale, selectedCodes) : [];
+        if (!specifications.length && Array.isArray(block.props?.items) && block.props.items.length) {
+          specifications = block.props.items.filter(item => item && (item.label || item.value)).map(item => ({
+            code: item.code || '',
+            label: item.label || '',
+            value: String(item.value || ''),
+            unit: item.unit || '',
+          }));
+        }
         return { ...block, data: { specifications } };
       }
       if (block.componentKey === 'video') return { ...block, data: { videoUrl: block.props.videoId ? `/api/public/cms-media/${encodeURIComponent(block.props.videoId)}` : '' } };

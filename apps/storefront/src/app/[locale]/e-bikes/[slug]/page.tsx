@@ -56,10 +56,14 @@ export default async function ProductPage({ params }: Props) {
   const productContentKeys = new Set(['twoColumn', 'image', 'carousel', 'divider', 'spacer', 'video', 'features', 'faq', 'cta']);
   const templateBlocks = template?.blocks.filter(block => block.visible !== false && productContentKeys.has(block.componentKey)) || [];
   const specsModule = template?.blocks.find(block => block.componentKey === 'specs' && block.visible !== false);
-  // 规格仍在原来的固定业务区，模板只决定数据绑定与字段范围。
-  const specifications: { label: string; value: string }[] = specsModule
-    ? (specsModule.data?.specifications || []).map((row: { label: string; value: string; unit?: string }) => ({ label: row.label, value: row.value + (row.unit ? ' ' + row.unit : '') }))
-    : product.specifications;
+  // 规格仍在原来的固定业务区，优先读取模板主档参数绑定；若未配置或过渡期，平滑回退至商品原规格
+  const rawSpecs = (specsModule?.data?.specifications && specsModule.data.specifications.length > 0)
+    ? specsModule.data.specifications
+    : (product.specifications || []);
+  const specifications: { label: string; value: string }[] = rawSpecs.map((row: { label: string; value: string; unit?: string }) => ({
+    label: row.label,
+    value: row.value + (row.unit && !String(row.value).trim().endsWith(row.unit.trim()) ? ' ' + row.unit : '')
+  }));
   // 详情页 8 模块（顺序固定）：①主图+SKU（上方数据驱动区）②营销 ③④预留（空则隐藏）⑤图文详情 ⑥评价 ⑦退换货 ⑧其他。
   const modules = template?.modules;
   const banners = ([

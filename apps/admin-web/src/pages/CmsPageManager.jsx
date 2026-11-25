@@ -392,6 +392,35 @@ function BlockProps({ block, media, videos, products, fields = [], pageType = 'c
     <label>图片位置<select value={props.imageSide || 'right'} onChange={e => onProps({ imageSide: e.target.value })}><option value="right">左文右图</option><option value="left">左图右文</option></select></label>
     <p className="hint" />
   </div>;
+  if (componentKey === 'image') return <div className="cms-fields">
+    <label>图片素材<select value={props.imageId || ''} onChange={e => onProps({ imageId: e.target.value })}><option value="">选择图片</option>{media.map(asset => <option key={asset.id} value={asset.id}>{asset.label || asset.fileName || asset.id}</option>)}</select></label>
+    <label>替代文字<input value={props.alt || ''} maxLength={160} onChange={e => onProps({ alt: e.target.value })}/></label>
+    <label>图片说明<input value={props.caption || ''} maxLength={400} onChange={e => onProps({ caption: e.target.value })}/></label>
+    <label>点击链接<input value={props.href || ''} maxLength={500} placeholder="/www/de/products 或 https://" onChange={e => onProps({ href: e.target.value })}/></label>
+  </div>;
+  if (componentKey === 'carousel') {
+    const slides = props.items || [];
+    const patchSlide = (index, patch) => onProps({ items: slides.map((item, i) => i === index ? { ...item, ...patch } : item) });
+    return <div className="cms-fields">
+      <label>模块标题<input value={props.heading || ''} maxLength={120} onChange={e => onProps({ heading: e.target.value })}/></label>
+      {slides.map((slide, index) => <div className="cms-subitem" key={index}>
+        <strong>轮播图片 {index + 1}</strong>
+        <label>图片素材<select value={slide.imageId || ''} onChange={e => patchSlide(index, { imageId: e.target.value })}><option value="">选择图片</option>{media.map(asset => <option key={asset.id} value={asset.id}>{asset.label || asset.fileName || asset.id}</option>)}</select></label>
+        <input value={slide.alt || ''} placeholder="替代文字" onChange={e => patchSlide(index, { alt: e.target.value })}/>
+        <input value={slide.caption || ''} placeholder="图片说明" onChange={e => patchSlide(index, { caption: e.target.value })}/>
+        <input value={slide.href || ''} placeholder="点击链接（可选）" onChange={e => patchSlide(index, { href: e.target.value })}/>
+        <button type="button" className="btn small" onClick={() => onProps({ items: slides.filter((_, i) => i !== index) })}>删除图片</button>
+      </div>)}
+      <button type="button" className="btn small" disabled={slides.length >= 8} onClick={() => onProps({ items: [...slides, { imageId: '', alt: '', caption: '', href: '' }] })}>＋ 添加轮播图片</button>
+      {!media.length && <p className="hint">请先在素材库上传页面图片。</p>}
+    </div>;
+  }
+  if (componentKey === 'divider') return <div className="cms-fields">
+    <label>分隔样式<select value={props.style || 'line'} onChange={e => onProps({ style: e.target.value })}><option value="line">标准细线</option><option value="soft">浅色分隔</option></select></label>
+  </div>;
+  if (componentKey === 'spacer') return <div className="cms-fields">
+    <label>留白高度<select value={Number(props.height) || 48} onChange={e => onProps({ height: Number(e.target.value) })}>{[16,24,32,48,64,80,96,120].map(value => <option key={value} value={value}>{value}px</option>)}</select></label>
+  </div>;
   if (componentKey === 'video') return <div className="cms-fields">
     <label>标题<input value={props.title || ''} maxLength={180} onChange={e => onProps({ title: e.target.value })}/></label>
     <label>页面视频素材<select required value={props.videoId || ''} onChange={e => onProps({ videoId: e.target.value })}><option value="">选择 MP4 / WebM 视频</option>{videos.map(asset => <option key={asset.id} value={asset.id}>{asset.label || asset.fileName || asset.id}</option>)}</select></label>

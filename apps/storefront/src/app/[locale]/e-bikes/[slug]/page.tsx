@@ -73,12 +73,22 @@ export default async function ProductPage({ params }: Props) {
   ] as { key: string; banner: ProductModuleBanner | undefined }[]).filter((row): row is { key: string; banner: ProductModuleBanner } => !!row.banner?.enabled && !!(row.banner.imageId || row.banner.title || row.banner.description || row.banner.text || row.banner.href));
   const detailBlocks = (product.detailBlocks || []).filter(block => (block.type === 'image' && block.url) || (block.type === 'text' && block.text));
   const reviewsConfig = modules?.reviews || { enabled: true, limit: 20, style: 'list' };
-  const copyModules = [modules?.returns, modules?.other].filter((row): row is ProductModuleCopy => !!row?.enabled && !!(row.title || row.body));
+  const copyModules = [{key:'returns',id:'ALSVID-P07',row:modules?.returns},{key:'other',id:'ALSVID-P08',row:modules?.other}].filter((entry):entry is {key:string;id:string;row:ProductModuleCopy}=>!!entry.row?.enabled&&!!(entry.row.title||entry.row.body));
   const bannerHref = (href: string) => href.replace(/^\/www\/(de|en|zh)\/products(?:\/|$)/, (_, lang: string) => `/${lang}/e-bikes/`);
   return (
-    <main className="container product-page">
+    <main className="container product-page product-page--with-nav" data-product-id={product.productId} data-product-slug={product.slug}>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData).replace(/</g, '\\u003c') }}></script>
-      <div className="product-layout">
+      <nav className="product-section-nav" aria-label={locale==='zh'?'商品导航':locale==='de'?'Produktnavigation':'Product navigation'} data-module-id="ALSVID-P00" data-module="productNavigation">
+        <strong>{product.model||product.title}</strong>
+        <div className="product-section-nav__links">
+          <a href="#product-overview">{locale==='zh'?'产品概览':locale==='de'?'Übersicht':'Overview'}</a>
+          {detailBlocks.length>0&&<a href="#product-details">{UI.detailDescription[locale]}</a>}
+          {specifications.length>0&&<a href="#product-specifications">{UI.specifications[locale]}</a>}
+          {reviewsConfig.enabled&&<a href="#product-reviews">{UI.reviews[locale]}</a>}
+        </div>
+        <a className="product-section-nav__buy" href="#product-purchase">{locale==='zh'?'立即购买':locale==='de'?'Jetzt kaufen':'Buy now'}</a>
+      </nav>
+      <div className="product-layout" id="product-overview" data-module-id="ALSVID-P01" data-module="info">
         <ProductGallery key={product.productId} productId={product.productId} images={product.images} title={product.title} locale={locale} style={productLayout.gallery} />
         <section>
           <p className="eyebrow">ALSVID / {product.model}</p>
@@ -86,18 +96,18 @@ export default async function ProductPage({ params }: Props) {
           <p className="lede">{product.description}</p>
           <p>{UI.availableConfigurations[locale]}</p>
           {offers.length ? <ul className="spec-list">{offers.map(offer => <li key={`${offer.sku}-${offer.currency}`}><span>{offer.sku}</span><strong>{offer.currency} {offer.unitPrice}</strong></li>)}</ul> : <p>{UI.priceOnRequest[locale]}</p>}
-          <CartActions locale={locale} productId={product.productId} offers={offers} />
+          <div id="product-purchase"><CartActions locale={locale} productId={product.productId} offers={offers} /></div>
           <p className="availability">{availability?.available === null || !availability ? (UI.availabilityUnknown[locale]) : availability.available ? (UI.inStockGermany[locale]) : (UI.outOfStock[locale])}</p>
-          {specifications.length > 0 && <>
+          {specifications.length > 0 && <div id="product-specifications">
             <h2>{UI.specifications[locale]}</h2>
             {productLayout.specifications === 'table' ? <table className="product-spec-table"><tbody>{specifications.map(row => <tr key={row.label}><th>{row.label}</th><td>{row.value}</td></tr>)}</tbody></table> : productLayout.specifications === 'accordion' ? <details className="product-spec-accordion"><summary>{UI.showSpecifications[locale]}</summary><ul className="spec-list">{specifications.map(row => <li key={row.label}><span>{row.label}</span><strong>{row.value}</strong></li>)}</ul></details> : <ul className="spec-list">{specifications.map(row => <li key={row.label}><span>{row.label}</span><strong>{row.value}</strong></li>)}</ul>}
-          </>}
+          </div>}
           {product.delivery && <section className="product-business-module"><h2>{UI.delivery[locale]}</h2><p>{product.delivery}</p></section>}
           {product.warranty && <section className="product-business-module"><h2>{UI.warranty[locale]}</h2><p>{product.warranty}</p></section>}
         </section>
       </div>
       {banners.map(({ key, banner }) => <MarketingBlock key={key} name={key} banner={banner} alt={product.title} href={bannerHref(banner.href)}/>)}
-      {detailBlocks.length > 0 && <section className="product-detail-blocks">
+      {detailBlocks.length > 0 && <section className="product-detail-blocks" id="product-details" data-module-id="ALSVID-P05" data-module="detail">
         <h2>{UI.detailDescription[locale]}</h2>
         {detailBlocks.map((block, index) => block.type === 'image'
           ? <img key={index} src={publicApiUrl(block.url!)} alt={block.alt || product.title} loading="lazy" />
@@ -105,12 +115,12 @@ export default async function ProductPage({ params }: Props) {
       </section>}
       {templateBlocks.length > 0 && <CmsBlocks blocks={templateBlocks} locale={locale} />}
       {!!product.relatedAccessories?.length && <section className="product-related"><p className="eyebrow">{UI.relatedAccessories[locale]}</p><h2>{UI.fitsThisModel[locale]}</h2><div className="product-related__grid">{product.relatedAccessories.map(item => <a key={item.productId} href={`/${locale}/e-bikes/${encodeURIComponent(item.slug)}`}><div>{item.images[0] ? <img src={publicApiUrl(item.images[0].url)} alt={item.title} loading="lazy"/> : item.title}</div><strong>{item.title}</strong>{item.prices.length>0&&<small>{item.prices.map(price=>`${price.currency} ${price.unitPrice}`).join(' · ')}</small>}</a>)}</div></section>}
-      {reviewsConfig.enabled && <section className={`reviews reviews--${productLayout.reviews}`}>
+      {reviewsConfig.enabled && <section className={`reviews reviews--${productLayout.reviews}`} id="product-reviews" data-module-id="ALSVID-P06" data-module="reviews">
         <p className="eyebrow">{UI.reviews[locale]}</p>
         <h2>{reviews?.counts.total ? `${reviews.counts.average} / 5 · ${reviews.counts.total}` : UI.noReviews[locale]}</h2>
         {(reviews?.items || []).slice(0, reviewsConfig.limit).map(review => <article className="review" key={review.id}><strong>{'★'.repeat(review.rating)}{'☆'.repeat(5-review.rating)}</strong><p>{review.content}</p>{review.reply && <p className="review-reply">{UI.brandReply[locale]} {review.reply}</p>}</article>)}
       </section>}
-      {copyModules.map((row, index) => <section className="product-business-module product-standard-module" key={`standard-${index}`}><h2>{row.title || (index === 0 ? UI.returns[locale] : UI.other[locale])}</h2><p>{row.body}</p></section>)}
+      {copyModules.map(({key,id,row}) => <section className="product-business-module product-standard-module" key={key} data-module-id={id} data-module={key}><h2>{row.title || (key==='returns'?UI.returns[locale]:UI.other[locale])}</h2><p>{row.body}</p></section>)}
     </main>
   );
 }
@@ -122,6 +132,6 @@ function MarketingBlock({ name, banner, alt, href }: { name: string; banner: Pro
   const title = banner.title || banner.text;
   const button = banner.buttonText && href ? <a className={`product-mkt__btn is-${theme.buttonStyle}`} href={href}>{banner.buttonText}</a> : null;
   const media = banner.imageId ? <img className="product-mkt__media" src={publicAssetUrl(banner.imageId)} alt={title || alt} loading="lazy" /> : null;
-  if (banner.style === 'promoBar') return <section className={cls} data-module={name}>{title && <strong>{title}</strong>}{banner.description && <span>{banner.description}</span>}{button}</section>;
-  return <section className={cls} data-module={name}>{media}{(title || banner.description || button) && <div className="product-mkt__copy">{title && <h2>{title}</h2>}{banner.description && <p>{banner.description}</p>}{button}</div>}</section>;
+  if (banner.style === 'promoBar') return <section className={cls} data-module={name} data-module-id={name==='marketing'?'ALSVID-P02':name==='reserved3'?'ALSVID-P03':'ALSVID-P04'}>{title && <strong>{title}</strong>}{banner.description && <span>{banner.description}</span>}{button}</section>;
+  return <section className={cls} data-module={name} data-module-id={name==='marketing'?'ALSVID-P02':name==='reserved3'?'ALSVID-P03':'ALSVID-P04'}>{media}{(title || banner.description || button) && <div className="product-mkt__copy">{title && <h2>{title}</h2>}{banner.description && <p>{banner.description}</p>}{button}</div>}</section>;
 }

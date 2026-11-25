@@ -261,6 +261,32 @@ function catalogLayoutOf(input) {
   });
   return { sort: value.sort === 'default' ? 'default' : 'sales', categories: cleanCategories };
 }
+const SITE_SHELL_PATHS = ['/site-shell/announcement','/site-shell/header','/site-shell/footer'];
+function siteShellOf(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) fail('全局装修配置无效');
+  const safeLink = raw => {
+    const v=link(raw);
+    if (v && (v.includes('\\') || /\s/.test(v))) fail('链接不能含空格或反斜线');
+    return v;
+  };
+  const links = rows => items(rows ?? [], 12, [['label',80,true],['href',500,true]]).map(row=>({label:row.label,href:safeLink(row.href)}));
+  if(value.kind==='announcement') return {kind:value.kind,enabled:value.enabled===true,text:text(value.text,300),href:safeLink(value.href ?? '')};
+  if(value.kind==='header') return {kind:value.kind,brand:text(value.brand,40),links:links(value.links)};
+  if(value.kind==='footer'){
+    const groups=value.groups??[];
+    if(!Array.isArray(groups)||groups.length>6)fail('页脚最多六组导航');
+    return {kind:value.kind,brand:text(value.brand,120),groups:groups.map(group=>{
+      if(!group||typeof group!=='object'||Array.isArray(group))fail('页脚分组无效');
+      return {title:text(group.title,80,true),links:links(group.links)};
+    })};
+  }
+  fail('全局装修区域无效');
+}
+function assertShellDocument(path,pageType,document){
+  if(SITE_SHELL_PATHS.includes(path)){
+    if(pageType!=='shared_module'||document.siteShell?.kind!==path.split('/').pop()||document.blocks.length)fail('全局区域必须使用对应的独立共享配置');
+  }else if(document.siteShell)fail('全局配置不能写入普通页面');
+}
 function documentOf(input) {
   if (!input || typeof input !== 'object' || Array.isArray(input) || !Array.isArray(input.blocks)) fail('页面草稿格式无效');
   if (input.blocks.length > 40) fail('单页最多 40 个组件');
@@ -287,7 +313,7 @@ function documentOf(input) {
         appliedAt: text(input.templateMeta.appliedAt, 40),
       }
     : undefined;
-  return { blocks, productLayout, modules: modulesOf(input), catalogLayout: catalogLayoutOf(input), ...(templateMeta ? { templateMeta } : {}) };
+  return { blocks, productLayout, modules: modulesOf(input), catalogLayout: catalogLayoutOf(input), ...(templateMeta ? { templateMeta } : {}), ...(input.siteShell ? {siteShell:siteShellOf(input.siteShell)} : {}) };
 }
 function seoOf(input) {
   if (input == null) return { title: '', description: '' };
@@ -626,7 +652,7 @@ function createCmsStore(connectionString) {
   }
   return {
     async list(query = {}) {
-      const filters = ["page_type IN ('home','product_template','custom')"], values = [];
+      const filters = [query.type === 'shared_module' || query.type === 'page_template' ? "page_type IN ('shared_module','page_template')" : "page_type IN ('home','product_template','custom')"], values = [];
       if (query.type) { if (!['home', ...PAGE_TYPES].includes(query.type)) fail('页面类型无效'); values.push(query.type); filters.push(`page_type=$${values.length}`); }
       if (query.locale) { if (!LANGUAGES.includes(query.locale)) fail('语言无效'); values.push(query.locale); filters.push(`locale=$${values.length}`); }
       if (query.path) { values.push(normalizePath(query.path)); filters.push(`path=$${values.length}`); }
@@ -643,6 +669,7 @@ function createCmsStore(connectionString) {
       const locale = input.locale;
       if (!LANGUAGES.includes(locale)) fail('语言无效');
       const path = normalizePath(input.path), name = text(input.name, 120, true), document = documentOf(input.draft || { blocks: [] }), seo = seoOf(input.seo);
+      assertShellDocument(path,input.pageType,document);
       const c = await pool.connect();
       try {
         await c.query('BEGIN');
@@ -671,7 +698,8 @@ function createCmsStore(connectionString) {
         if (old.rev !== input.revision) fail('页面草稿已被其他人更新，请重新加载', 409);
         await validateAssets(c, document);
         const name = input.name === undefined ? old.name : text(input.name, 120, true);
-        const path = old.pageType === 'home' || old.pageType === 'product_template' && old.path.startsWith('/products/') ? old.path : normalizePath(input.path === undefined ? old.path : input.path);
+        const path = old.pageType === 'home' || SITE_SHELL_PATHS.includes(old.path) || old.pageType === 'product_template' && old.path.startsWith('/products/') ? old.path : normalizePath(input.path === undefined ? old.path : input.path);
+        assertShellDocument(path,old.pageType,document);
         const after = (await c.query(`UPDATE site_pages SET page_name=$1,path=$2,draft=$3,draft_seo=$4,revision=revision+1,updated_by=$5,updated_at=now() WHERE id=$6 RETURNING ${columns}`, [name, path, JSON.stringify(document), JSON.stringify(seo), currentActor(), id])).rows[0];
         await c.query('INSERT INTO audit_log(actor,action,target,before_json,after_json) VALUES($1,$2,$3,$4,$5)', [currentActor(), 'cms.page.save', `site-pages/${id}`, JSON.stringify({ revision: old.rev }), JSON.stringify({ revision: after.revision })]);
         await c.query('COMMIT');
@@ -693,7 +721,8 @@ function createCmsStore(connectionString) {
         if (!old.draft) fail('请先保存页面草稿');
         const document = documentOf(old.draft);
         assertLegalReady(old.path,document,old.draftSeo);
-        if (old.pageType !== 'product_template' && !document.blocks.some(block => block.visible !== false)) fail('页面至少需要一个可见组件才能发布');
+        assertShellDocument(old.path,old.pageType,document);
+        if (old.pageType !== 'product_template' && !document.siteShell && !document.blocks.some(block => block.visible !== false)) fail('页面至少需要一个可见组件才能发布');
         await validateAssets(c, document);
         const next = (await c.query('SELECT COALESCE(max(version),0)+1 AS version FROM site_page_versions WHERE page_id=$1', [id])).rows[0].version;
         await c.query('INSERT INTO site_page_versions(page_id,version,snapshot,seo,label,created_by) VALUES($1,$2,$3,$4,$5,$6)', [id, next, JSON.stringify(document), JSON.stringify(old.draftSeo || {}), old.draftLabel || null, currentActor()]);
@@ -741,6 +770,7 @@ function createCmsStore(connectionString) {
         const snap = (await c.query('SELECT snapshot,seo FROM site_page_versions WHERE page_id=$1 AND version=$2 AND deleted_at IS NULL', [id, version])).rows[0];
         if (!snap) fail('历史版本不存在或已删除', 404);
         const document = documentOf(snap.snapshot);
+        assertShellDocument(old.path,old.pageType,document);
         await validateAssets(c, document);
         const after = (await c.query(`UPDATE site_pages SET draft=$1,draft_seo=$2,revision=revision+1,updated_by=$3,updated_at=now() WHERE id=$4 RETURNING ${columns}`, [JSON.stringify(document), JSON.stringify(snap.seo || {}), currentActor(), id])).rows[0];
         await c.query('INSERT INTO audit_log(actor,action,target,before_json,after_json) VALUES($1,$2,$3,$4,$5)', [currentActor(), 'cms.page.restore_draft', `site-pages/${id}`, JSON.stringify({ revision: old.rev, draftHasContent: Boolean(old.draft) }), JSON.stringify({ revision: after.revision, restoredFrom: version })]);
@@ -844,7 +874,8 @@ function createCmsStore(connectionString) {
       const { version = null, draft = false } = options;
       const isHome = normalized === '/';
       // 首页可能为 home 类型且 locale='*' 或对应语言
-      const typeFilter = isHome ? "page_type IN ('home','custom')" : "page_type='custom'";
+      const isShell=SITE_SHELL_PATHS.includes(normalized);
+      const typeFilter = isShell ? "page_type='shared_module'" : isHome ? "page_type IN ('home','custom')" : "page_type='custom'";
       const localeFilter = isHome ? "(locale=$1 OR locale='*')" : "locale=$1";
 
       // 草稿预览：仅后台装修工作区使用（路由层已校验管理员身份）
@@ -852,7 +883,7 @@ function createCmsStore(connectionString) {
         const d = (await pool.query(`SELECT id::text AS id,page_name AS "name",draft,draft_seo AS seo FROM site_pages WHERE ${typeFilter} AND ${localeFilter} AND path=$2 AND status='active' ORDER BY (locale=$1) DESC, updated_at DESC LIMIT 1`, [locale, normalized])).rows[0];
         if (!d) return null;
         const blocks = Array.isArray(d.draft?.blocks) ? d.draft.blocks : [];
-        return { id: d.id, name: d.name, locale, path: normalized, seo: d.seo || {}, blocks: await enrich(blocks, locale), preview: 'draft' };
+        return { id: d.id, name: d.name, locale, path: normalized, seo: d.seo || {}, blocks: await enrich(blocks, locale), ...(isShell?{siteShell:d.draft?.siteShell||null}:{}), preview: 'draft' };
       }
       // 历史版本预览：读取该版本快照，不动当前线上内容
       if (version) {
@@ -860,11 +891,11 @@ function createCmsStore(connectionString) {
         if (!v) return null;
         const snapshot = v.snapshot || {};
         const blocks = Array.isArray(snapshot.blocks) ? snapshot.blocks : [];
-        return { id: v.id, name: v.name, locale, path: normalized, seo: v.seo || {}, blocks: await enrich(blocks, locale), preview: `v${v.version}` };
+        return { id: v.id, name: v.name, locale, path: normalized, seo: v.seo || {}, blocks: await enrich(blocks, locale), ...(isShell?{siteShell:snapshot.siteShell||null}:{}), preview: `v${v.version}` };
       }
       const data = (await pool.query(`SELECT id::text AS id,page_name AS "name",published,published_seo AS seo FROM site_pages WHERE ${typeFilter} AND ${localeFilter} AND path=$2 AND status='active' AND published IS NOT NULL ORDER BY (locale=$1) DESC, updated_at DESC LIMIT 1`, [locale, normalized])).rows[0];
       if (!data) return null;
-      return { id: data.id, name: data.name, locale, path: normalized, seo: data.seo || {}, blocks: await enrich(Array.isArray(data.published?.blocks) ? data.published.blocks : [], locale) };
+      return { id: data.id, name: data.name, locale, path: normalized, seo: data.seo || {}, blocks: await enrich(Array.isArray(data.published?.blocks) ? data.published.blocks : [], locale), ...(isShell?{siteShell:data.published?.siteShell||null}:{}) };
     },
     async publicSitemap() {
       return (await pool.query("SELECT locale,path FROM site_pages WHERE page_type='custom' AND status='active' AND published IS NOT NULL AND path IS NOT NULL ORDER BY locale,path")).rows;
@@ -1123,4 +1154,4 @@ function registerCmsRoutes(app, cms) {
   }, true);
 }
 
-module.exports = { createCmsStore, registerCmsRoutes, publicProductSpecifications };
+module.exports = { createCmsStore, registerCmsRoutes, publicProductSpecifications, siteShellOf, assertShellDocument };

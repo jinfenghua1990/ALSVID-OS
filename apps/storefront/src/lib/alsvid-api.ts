@@ -180,6 +180,16 @@ export async function getPreviewLayout(locale: Locale, token: string) {
   }
 }
 
+export type ShellLink={label:string;href:string};
+export type SiteAnnouncementConfig={kind:'announcement';enabled:boolean;text:string;href:string};
+export type SiteHeaderConfig={kind:'header';brand:string;links:ShellLink[]};
+export type SiteFooterConfig={kind:'footer';brand:string;groups:{title:string;links:ShellLink[]}[]};
+type SiteShellConfig=SiteAnnouncementConfig|SiteHeaderConfig|SiteFooterConfig;
+export async function getSiteShell(locale:Locale){
+  const get=(kind:string)=>getJson<{siteShell?:SiteShellConfig}>(`/api/cms/pages/public?locale=${locale}&path=${encodeURIComponent('/site-shell/'+kind)}`);
+  const [a,h,f]=await Promise.all([get('announcement'),get('header'),get('footer')]);
+  return {announcement:a?.siteShell?.kind==='announcement'?a.siteShell:null,header:h?.siteShell?.kind==='header'?h.siteShell:null,footer:f?.siteShell?.kind==='footer'?f.siteShell:null};
+}
 export async function getCmsPage(locale: Locale, path: string) {
   return getJson<{ id: string; name: string; locale: string; path: string; seo: { title?: string; description?: string }; blocks: CmsBlock[] }>(`/api/cms/pages/public?locale=${locale}&path=${encodeURIComponent(path)}`);
 }

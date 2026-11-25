@@ -301,3 +301,18 @@ h1 { max-width:900px; margin:14px 0 20px; font-size:clamp(42px,7vw,92px); font-w
 .cms-manual-card__info { display:flex; flex-direction:column; gap:4px; }
 .cms-manual-card__badge { display:inline-block; font-size:11px; font-weight:700; color:#68736d; text-transform:uppercase; }
 .cms-manual-card__btn { font-size:13px; font-weight:600; color:#1f2b27; text-decoration:underline; }
+
+/* Storefront region IDs are stable across all locales and products. */
+.site-announcement{background:#202020;color:white;text-align:center;font-size:13px;padding:9px 16px;line-height:1.5;overflow-wrap:anywhere}
+.site-announcement a{color:inherit;text-decoration:underline;text-underline-offset:3px}
+.site-footer.site-footer--global{display:flex;flex-direction:column;align-items:stretch;gap:32px}
+.site-footer-groups{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:24px}
+.site-footer-groups nav{display:flex;flex-direction:column;gap:10px}
+.site-footer-groups strong{font-size:14px}
+.site-footer-bottom{display:flex;align-items:center;justify-content:space-between;gap:20px;flex-wrap:wrap}
+.product-page--with-nav{padding-top:0}
+.product-section-nav{position:sticky;top:0;z-index:10;background:#fbfbf9;display:flex;align-items:center;justify-content:space-between;gap:16px;padding:12px 0;margin-bottom:36px;border-bottom:1px solid var(--color-border)}
+.product-section-nav__links{display:flex;flex-wrap:wrap;justify-content:center;gap:8px 18px;font-size:13px}
+.product-section-nav__buy{display:inline-block;background:#202020;color:#fff;padding:10px 18px;border-radius:4px;white-space:nowrap;font-size:13px}
+.product-page [id^="product-"]{scroll-margin-top:110px}
+@media(max-width:720px){.product-section-nav{flex-wrap:wrap;gap:8px;margin-bottom:20px}.product-section-nav__links{order:3;width:100%;justify-content:flex-start}.product-page [id^="product-"]{scroll-margin-top:155px}}

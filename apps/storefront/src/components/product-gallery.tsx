@@ -34,8 +34,8 @@ export function ProductGallery({ images, title, locale, productId, style = 'stan
         <button className="product-gallery__arrow is-next" type="button" aria-label={t.next} onClick={() => setActive(index => (index + 1) % displayImages.length)}>›</button>
       </>}
     </div>
-    {images.length > 1 && <div className="product-gallery__thumbs" aria-label={t.gallery}>
-      {images.map((image, index) => <button key={image.id} type="button" className={index === active ? 'is-active' : ''} aria-label={`${title} ${index + 1}`} aria-pressed={index === active} onClick={() => setActive(index)}>
+    {displayImages.length > 1 && <div className="product-gallery__thumbs" aria-label={t.gallery}>
+      {displayImages.map((image, index) => <button key={image.id} type="button" className={index === active ? 'is-active' : ''} aria-label={`${title} ${index + 1}`} aria-pressed={index === active} onClick={() => setActive(index)}>
         <Image src={src(image.url)} alt="" width={160} height={140} sizes="96px" />
       </button>)}
     </div>}

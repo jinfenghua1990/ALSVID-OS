@@ -46,21 +46,23 @@ export function useCmsDocument(row, enabled = true) {
   useEffect(load, [load]);
   const dirty = Boolean(doc) && JSON.stringify(doc) !== baseline;
   const save = async () => {
-    if (!row || busy) return null;
-    setBusy(true);
+    if (!row || busy || !doc) return null;
+    setBusy(true); setError('');
     try {
       const seo = page?.draftSeo && (page.draftSeo.title || page.draftSeo.description) ? page.draftSeo : page?.publishedSeo || {};
       const updated = await api.saveCmsDraft(row.id, { draft: doc, seo, revision });
-      setRevision(updated.revision); setPage(p => (p ? { ...p, draft: doc, revision: updated.revision } : p));
-      setBaseline(JSON.stringify(doc));
+      setRevision(updated.revision); setPage(updated);
+      const saved = updated.draft || doc;
+      setDoc(current => JSON.stringify(current) === JSON.stringify(doc) ? saved : current);
+      setBaseline(JSON.stringify(saved));
       return updated;
     } catch (e) { setError(e.message || '保存失败'); } finally { setBusy(false); }
     return null;
   };
   const publish = async () => {
-    if (!row || busy) return null;
-    setBusy(true);
-    try { return await api.publishCmsPage(row.id, revision); }
+    if (!row || busy || !doc || dirty) { if (dirty) setError('请先保存草稿，再发布'); return null; }
+    setBusy(true); setError('');
+    try { const updated = await api.publishCmsPage(row.id, revision); setPage(updated); setRevision(updated.revision); return updated; }
     catch (e) { setError(e.message || '发布失败'); } finally { setBusy(false); }
     return null;
   };
@@ -71,7 +73,7 @@ function SaveBar({ dirty, busy, error, onSave, onPublish, publishedVersion, hint
   return <div className="sdp__bar">
     <span className="sdp__status">{publishedVersion ? `线上版本 v${publishedVersion}` : '尚未发布'}{dirty ? ' · 有未保存修改' : ''}</span>
     <button type="button" className="btn small" disabled={!dirty || busy} onClick={onSave}>{busy ? '处理中…' : '保存草稿'}</button>
-    <button type="button" className="btn small primary" disabled={busy} onClick={onPublish}>发布</button>
+    <button type="button" className="btn small primary" disabled={busy || dirty} onClick={onPublish}>发布</button>
     {hint && <span className="hint">{hint}</span>}
     {error && <span className="error-text">{error}</span>}
   </div>;

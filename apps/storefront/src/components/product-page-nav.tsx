@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { Locale } from '@/lib/alsvid-api';
 import { CartNavLink } from './cart-nav-link';
 
@@ -20,6 +20,7 @@ function Icon({ name }: { name: 'menu' | 'cart' | 'account' }) {
 export function ProductPageNav({ locale, model, hasSpecs, hasVideo, hasDownloads }: { locale: Locale; model: string; hasSpecs: boolean; hasVideo: boolean; hasDownloads: boolean }) {
   const t = copy[locale];
   const ref = useRef<HTMLElement>(null);
+  const [active,setActive]=useState('#product-overview');
   useEffect(() => {
     const nav = ref.current;
     const shell = nav?.closest<HTMLElement>('[lang]');
@@ -53,6 +54,7 @@ export function ProductPageNav({ locale, model, hasSpecs, hasVideo, hasDownloads
     { label: t.video, href: '#product-video', enabled: hasVideo },
     { label: t.downloads, href: '#product-downloads', enabled: hasDownloads },
   ];
+  useEffect(()=>{const update=()=>{const offset=(ref.current?.getBoundingClientRect().bottom||0)+40;const anchors=['#product-overview','#product-specifications','#product-video','#product-downloads'];const found=anchors.map(href=>({href,el:document.getElementById(href.slice(1))})).filter(x=>x.el&&x.el.getBoundingClientRect().top<=offset).sort((a,b)=>(b.el?.getBoundingClientRect().top||0)-(a.el?.getBoundingClientRect().top||0))[0];setActive(found?.href||'#product-overview')};update();window.addEventListener('scroll',update,{passive:true});return()=>window.removeEventListener('scroll',update)},[hasSpecs,hasVideo,hasDownloads]);
   return <nav ref={ref} className="product-section-nav product-section-nav--single" aria-label={t.nav} data-module-id="ALSVID-P00" data-module="productNavigation" onKeyDown={event => {
     if (event.key === 'Escape') {
       const open = ref.current?.querySelector<HTMLDetailsElement>('details[open]');
@@ -68,7 +70,7 @@ export function ProductPageNav({ locale, model, hasSpecs, hasVideo, hasDownloads
       <strong className="product-nav-model" title={model}>{model}</strong>
     </div>
     <div className="product-section-nav__links" tabIndex={0}>
-      {links.map(link => link.enabled ? <a key={link.href} href={link.href} onClick={closeMenus}>{link.label}</a> : <span key={link.href} aria-disabled="true" title={t.unavailable}>{link.label}</span>)}
+      {links.map(link => link.enabled ? <a key={link.href} href={link.href} aria-current={active===link.href?'location':undefined} onClick={event=>{const el=document.getElementById(link.href.slice(1));if(el){event.preventDefault();el.scrollIntoView({behavior:window.matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth',block:'start'});setActive(link.href)}closeMenus()}}>{link.label}</a> : <span key={link.href} aria-disabled="true" title={t.unavailable}>{link.label}</span>)}
     </div>
     <div className="product-nav-trailing">
       <details className="product-nav-purchase">

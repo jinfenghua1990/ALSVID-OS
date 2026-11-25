@@ -73,13 +73,13 @@ export default async function ProductPage({ params }: Props) {
   ] as { key: string; banner: ProductModuleBanner | undefined }[]).filter((row): row is { key: string; banner: ProductModuleBanner } => !!row.banner?.enabled && !!(row.banner.imageId || row.banner.title || row.banner.description || row.banner.text || row.banner.href));
   const detailBlocks = (product.detailBlocks || []).filter(block => (block.type === 'image' && block.url) || (block.type === 'text' && block.text));
   const reviewsConfig = modules?.reviews || { enabled: true, limit: 20, style: 'list' };
-  const copyModules = [{key:'returns',id:'ALSVID-P07',row:modules?.returns},{key:'other',id:'ALSVID-P08',row:modules?.other}].filter((entry):entry is {key:string;id:string;row:ProductModuleCopy}=>!!entry.row?.enabled&&!!(entry.row.title||entry.row.body));
+  const copyModules = [{key:'returns',id:'ALSVID-P12',row:modules?.returns},{key:'other',id:'ALSVID-P13',row:modules?.other}].filter((entry):entry is {key:string;id:string;row:ProductModuleCopy}=>!!entry.row?.enabled&&!!(entry.row.title||entry.row.body));
   const bannerHref = (href: string) => href.replace(/^\/www\/(de|en|zh)\/products(?:\/|$)/, (_, lang: string) => `/${lang}/e-bikes/`);
   return (
     <main className="container product-page product-page--with-nav" data-product-id={product.productId} data-product-slug={product.slug}>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData).replace(/</g, '\\u003c') }}></script>
       <ProductPageNav locale={locale} model={product.model||product.title} hasSpecs={specifications.length>0} hasVideo={templateBlocks.some(block=>block.componentKey==='video' && !!block.data?.videoUrl)} hasDownloads={templateBlocks.some(block=>block.componentKey==='manuals' && !!block.data?.manuals?.length)} />
-      <div className="product-layout" id="product-overview" data-module-id="ALSVID-P01" data-module="info">
+      <section className="product-p01" id="product-configurator" data-module-id="ALSVID-P01" data-module="info"><div className="product-layout" data-module-id="ALSVID-P01-01">
         <ProductGallery key={product.productId} productId={product.productId} images={product.images} title={product.title} locale={locale} style={productLayout.gallery} />
         <section>
           <p className="eyebrow">ALSVID / {product.model}</p>
@@ -87,25 +87,27 @@ export default async function ProductPage({ params }: Props) {
           <p className="lede">{product.description}</p>
           <p>{UI.availableConfigurations[locale]}</p>
           {offers.length ? <ul className="spec-list">{offers.map(offer => <li key={`${offer.sku}-${offer.currency}`}><span>{offer.sku}</span><strong>{offer.currency} {offer.unitPrice}</strong></li>)}</ul> : <p>{UI.priceOnRequest[locale]}</p>}
-          <div id="product-purchase"><CartActions locale={locale} productId={product.productId} offers={offers} /></div>
+          <div id="product-purchase"><CartActions locale={locale} productId={product.productId} offers={offers} availability={availability} /></div>
           <p className="availability">{availability?.available === null || !availability ? (UI.availabilityUnknown[locale]) : availability.available ? (UI.inStockGermany[locale]) : (UI.outOfStock[locale])}</p>
-          {specifications.length > 0 && <div id="product-specifications">
-            <h2>{UI.specifications[locale]}</h2>
-            {productLayout.specifications === 'table' ? <table className="product-spec-table"><tbody>{specifications.map(row => <tr key={row.label}><th>{row.label}</th><td>{row.value}</td></tr>)}</tbody></table> : productLayout.specifications === 'accordion' ? <details className="product-spec-accordion"><summary>{UI.showSpecifications[locale]}</summary><ul className="spec-list">{specifications.map(row => <li key={row.label}><span>{row.label}</span><strong>{row.value}</strong></li>)}</ul></details> : <ul className="spec-list">{specifications.map(row => <li key={row.label}><span>{row.label}</span><strong>{row.value}</strong></li>)}</ul>}
-          </div>}
-          {product.delivery && <section className="product-business-module"><h2>{UI.delivery[locale]}</h2><p>{product.delivery}</p></section>}
-          {product.warranty && <section className="product-business-module"><h2>{UI.warranty[locale]}</h2><p>{product.warranty}</p></section>}
         </section>
       </div>
-      {banners.filter(({key})=>key==='marketing').map(({ key, banner }) => <MarketingBlock key={key} name={key} banner={banner} alt={product.title} href={bannerHref(banner.href)}/>)}
-      <PerformanceBlock config={template?.performance} specs={template?.performanceSpecs||[]} legacy={modules?.performance?undefined:modules?.reserved3} alt={product.title} legacyHref={bannerHref(modules?.reserved3?.href||'')} />
-      {banners.filter(({key})=>key!=='marketing').map(({ key, banner }) => <MarketingBlock key={key} name={key} banner={banner} alt={product.title} href={bannerHref(banner.href)}/>)} 
-      {detailBlocks.length > 0 && <section className="product-detail-blocks" id="product-details" data-module-id="ALSVID-P05" data-module="detail">
-        <h2>{UI.detailDescription[locale]}</h2>
-        {detailBlocks.map((block, index) => block.type === 'image'
-          ? <img key={index} src={publicApiUrl(block.url!)} alt={block.alt || product.title} loading="lazy" />
-          : <p key={index}>{block.text}</p>)}
+      <PerformanceBlock config={template?.performance} specs={template?.performanceSpecs||[]} alt={product.title} legacyHref=""/>
+      </section>
+      <section id="product-overview" data-module-id="ALSVID-P02" data-module="marketing">
+      {banners.filter(({key})=>key==='marketing').map(({key,banner})=><MarketingBlock key={key} name={key} banner={banner} alt={product.title} href={bannerHref(banner.href)} nested/>)}
+      {!banners.some(({key})=>key==='marketing')&&<div className="product-overview-fallback">{product.images[0]&&<img src={publicApiUrl(product.images[0].url)} alt={product.title}/>}<h2>{product.title}</h2></div>}
+      </section>
+      {(detailBlocks.length>0||banners.some(x=>x.key==='reserved4')||(!modules?.performance&&modules?.reserved3?.enabled))&&<section className="product-immersive" id="product-details" data-module-id="ALSVID-P04" data-module="detail">
+        {!modules?.performance&&modules?.reserved3?.enabled&&<MarketingBlock name="reserved3" banner={modules.reserved3} alt={product.title} href={bannerHref(modules.reserved3.href)} nested/>}
+        {banners.filter(({key})=>key==='reserved4').map(({key,banner})=><MarketingBlock key={key} name={key} banner={banner} alt={product.title} href={bannerHref(banner.href)} nested/>)}
+        {detailBlocks.map((block,index)=><section key={index} data-module-id={'ALSVID-P04-'+String(index+1).padStart(2,'0')} className="product-immersive__scene">{block.type==='image'?<img src={publicApiUrl(block.url!)} alt={block.alt||product.title} loading="lazy"/>:<p>{block.text}</p>}</section>)}
       </section>}
+      {specifications.length > 0 && <section className="product-support-section" id="product-specifications" data-module-id="ALSVID-P05" data-module="specifications">
+            <h2>{UI.specifications[locale]}</h2>
+            {productLayout.specifications === 'table' ? <table className="product-spec-table"><tbody>{specifications.map(row => <tr key={row.label}><th>{row.label}</th><td>{row.value}</td></tr>)}</tbody></table> : productLayout.specifications === 'accordion' ? <details className="product-spec-accordion"><summary>{UI.showSpecifications[locale]}</summary><ul className="spec-list">{specifications.map(row => <li key={row.label}><span>{row.label}</span><strong>{row.value}</strong></li>)}</ul></details> : <ul className="spec-list">{specifications.map(row => <li key={row.label}><span>{row.label}</span><strong>{row.value}</strong></li>)}</ul>}
+          </section>}
+      {product.warranty&&<section className="product-support-section" data-module-id="ALSVID-P09" data-module="warranty"><h2>{UI.warranty[locale]}</h2><p>{product.warranty}</p></section>}
+      {product.delivery&&<section className="product-support-section" data-module-id="ALSVID-P10" data-module="delivery"><h2>{UI.delivery[locale]}</h2><p>{product.delivery}</p></section>}
       {templateBlocks.map((block,index) => {
         const isVideo=block.componentKey==='video' && !!block.data?.videoUrl;
         const isDownload=block.componentKey==='manuals' && !!block.data?.manuals?.length;
@@ -115,7 +117,7 @@ export default async function ProductPage({ params }: Props) {
         return anchor ? <div id={anchor} key={block.id}><CmsBlocks blocks={[block]} locale={locale}/></div> : <CmsBlocks key={block.id} blocks={[block]} locale={locale}/>;
       })}
       {!!product.relatedAccessories?.length && <section className="product-related"><p className="eyebrow">{UI.relatedAccessories[locale]}</p><h2>{UI.fitsThisModel[locale]}</h2><div className="product-related__grid">{product.relatedAccessories.map(item => <a key={item.productId} href={`/${locale}/e-bikes/${encodeURIComponent(item.slug)}`}><div>{item.images[0] ? <img src={publicApiUrl(item.images[0].url)} alt={item.title} loading="lazy"/> : item.title}</div><strong>{item.title}</strong>{item.prices.length>0&&<small>{item.prices.map(price=>`${price.currency} ${price.unitPrice}`).join(' · ')}</small>}</a>)}</div></section>}
-      {reviewsConfig.enabled && <section className={`reviews reviews--${productLayout.reviews}`} id="product-reviews" data-module-id="ALSVID-P06" data-module="reviews">
+      {reviewsConfig.enabled && <section className={`reviews reviews--${productLayout.reviews}`} id="product-reviews" data-module-id="ALSVID-P11" data-module="reviews">
         <p className="eyebrow">{UI.reviews[locale]}</p>
         <h2>{reviews?.counts.total ? `${reviews.counts.average} / 5 · ${reviews.counts.total}` : UI.noReviews[locale]}</h2>
         {(reviews?.items || []).slice(0, reviewsConfig.limit).map(review => <article className="review" key={review.id}><strong>{'★'.repeat(review.rating)}{'☆'.repeat(5-review.rating)}</strong><p>{review.content}</p>{review.reply && <p className="review-reply">{UI.brandReply[locale]} {review.reply}</p>}</article>)}
@@ -141,12 +143,12 @@ function PerformanceBlock({config,specs,legacy,alt,legacyHref}:{config?:Performa
   const rows = config?.showParameters === false ? [] : specs.slice(0,4);
   const media = config?.mediaType==='video'?config.videoId:config?.imageId;
   if (!old && !rows.length && !media && !config?.headline) return null;
-  return <section data-module="reserved3" data-module-id="ALSVID-P03" style={{width:'100%',background:'#171717',color:'#fff',overflow:'hidden'}}>
+  return <section data-module="reserved3" data-module-id="ALSVID-P01-02" style={{width:'100%',background:'transparent',color:'#171717',overflow:'hidden'}}>
     {old && legacy && <MarketingBlock name="reserved3" banner={legacy} alt={alt} href={legacyHref} nested/>}
     {media && (config?.mediaType==='video'?<video src={publicAssetUrl(media)} controls playsInline preload="metadata" style={{display:'block',width:'100%',maxHeight:'75vh',objectFit:'cover'}}/>:<img src={publicAssetUrl(media)} alt={alt} loading="lazy" style={{display:'block',width:'100%',maxHeight:'75vh',objectFit:'cover'}}/>)}
     {config?.headline&&<h2 style={{textAlign:config.alignment,padding:'clamp(20px,4vw,48px)',margin:0,color:'inherit'}}>{config.headline}</h2>}
     {!!rows.length&&<dl style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(min(100%, 150px),1fr))',gap:'clamp(16px,3vw,40px)',padding:'clamp(24px,5vw,64px)',margin:0,textAlign:'center'}}>
-      {rows.map(row=><div key={row.code}><dt style={{color:'#ddd',fontSize:'0.9rem',marginBottom:8}}>{row.label}</dt><dd style={{fontSize:'clamp(1.2rem,3vw,2.5rem)',fontWeight:600,margin:0,overflowWrap:'anywhere'}}>{row.value}{row.unit&&!String(row.value).trim().endsWith(row.unit.trim())?' '+row.unit:''}</dd></div>)}
+      {rows.map(row=><div key={row.code}><dt style={{color:'inherit',fontSize:'0.9rem',marginBottom:8}}>{row.label}</dt><dd style={{fontSize:'clamp(1.2rem,3vw,2.5rem)',fontWeight:600,margin:0,overflowWrap:'anywhere'}}>{row.value}{row.unit&&!String(row.value).trim().endsWith(row.unit.trim())?' '+row.unit:''}</dd></div>)}
     </dl>}
   </section>;
 }

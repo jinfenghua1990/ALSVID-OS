@@ -4,7 +4,7 @@ import { createBlock } from './cms-blocks.jsx';
 
 // 产品装修面板：
 // - CatalogLayoutPanel：「全部产品」列表页版式（分类导航 + 按销量自动展示），存 product_template 页草稿，走 CMS 发布流。
-// - StandardDetailPanel：「商品详情页（图文）」按商品维护 ① 主图 + ⑤ 图文详情，走商品发布流。
+// - StandardDetailPanel：「商品详情页（图文）」按商品维护 ① 主图 + P04 图文详情，走商品发布流。
 // - GlobalModulesPanel：「商品详情页（公共模块）」②营销 ③④预留 ⑥评价 ⑦退换货 ⑧其他，存 product_template 页草稿，更新 1 处全部商品生效。
 
 // 营销/预留模块默认值：三种标准样式共用一套内容 + 显示样式字段，与 server 端保持一致
@@ -178,7 +178,7 @@ function PerformanceEditor({value, fields, fieldError, assets, onChange}) {
   useEffect(()=>{let alive=true;api.assetsAll({category:'page',kind:'video'}).then(rows=>{if(alive)setVideos(Array.isArray(rows)?rows:[])}).catch(e=>{if(alive)setVideoError(e.message||'读取视频素材失败')});return()=>{alive=false}},[]);
   const patch = next => onChange({...config,...next});
   const options = [...P03_DEFAULTS.map(code=>({code,nameZh:P03_LABELS[code]+'（默认匹配）'})), ...fields];
-  return <section className="sdp__module"><header><strong>P03 核心性能展示</strong><span className="hint">固定四项 · 可替换字段</span></header>
+  return <section className="sdp__module"><header><strong>P01-02 四项核心参数</strong><span className="hint">固定四项 · 可替换字段</span></header>
     <label className="sdp__field">媒体类型<select value={config.mediaType} onChange={e=>patch({mediaType:e.target.value})}><option value="image">图片</option><option value="video">视频</option></select></label>
     {config.mediaType==='image'?<AssetImageSelect assets={assets} value={config.imageId} onChange={imageId=>patch({imageId})}/>:<label className="sdp__field">视频<select value={config.videoId} onChange={e=>patch({videoId:e.target.value})}><option value="">从素材库选择视频</option>{videos.map(v=><option key={v.id} value={v.id}>{v.label||v.fileName||v.id}</option>)}</select>{videoError&&<span className="error-text">{videoError}</span>}</label>}
     <label className="sdp__field">主文案<input maxLength={180} value={config.headline} onChange={e=>patch({headline:e.target.value})}/></label>
@@ -363,7 +363,7 @@ export function StandardDetailPanel({ locale, products, publishedMap, productId 
       <p className="sdg__tip">只保存素材引用与展示顺序，不会删除原始素材，也不影响 SKU 与库存。</p>
     </section>
     <section className="sdp__module">
-      <header><strong>⑤ 图文详情</strong><span className="hint">按商品 · 与主图是两套配置</span></header>
+      <header><strong>P04 图文详情</strong><span className="hint">按商品 · 与主图是两套配置</span></header>
       <p className="hint">主图管封面与顺序，图文详情管内容段落顺序；两者共用同一份商品素材库，互不影响。</p>
       {!localeDoc && <p className="hint">该商品尚未提供 {locale} 语言内容，请先在「商品列表」补充该语言后再装修图文详情。</p>}
       {localeDoc && <>
@@ -390,14 +390,15 @@ export function StandardDetailPanel({ locale, products, publishedMap, productId 
 // 公共模块的 8 个固定模块：序号、名称、是否属于全局装修
 const GLOBAL_MODULES = [
   ['productNavigation', '00', '商品专属导航栏'],
-  ['info', '01', '主信息区'],
-  ['marketing', '02', '营销模块'],
-  ['reserved3', '03', '核心性能展示'],
-  ['reserved4', '04', '预留位二'],
-  ['detail', '05', '图文详情'],
-  ['reviews', '06', '用户评价'],
-  ['returns', '07', '退换货'],
-  ['other', '08', '其他说明'],
+  ['info', '01', '车型选配与核心参数'],
+  ['marketing', '02', '商品主视觉与营销'],
+  ['detail', '04', '沉浸式产品详情'],
+  ['specifications', '05', '完整技术参数'],
+  ['warranty', '09', '售后保障'],
+  ['delivery', '10', '配送服务'],
+  ['reviews', '11', '用户评价'],
+  ['returns', '12', '退换货'],
+  ['other', '13', '其他说明'],
 ];
 
 // 每个模块在编辑区顶部的定位说明 + 预览侧是否有对应区块（决定点击能否真的滚过去）
@@ -408,6 +409,7 @@ const MODULE_META = {
   reserved3: { desc: '四项核心参数 · 读取整车主档 · 图片或视频', anchor: () => true },
   reserved4: { desc: '预留位 · 未配置内容时自动隐藏' },
   detail: { desc: '按商品维护，位置固定', anchor: () => true },
+  specifications:{desc:'整车主档参数',anchor:()=>true},warranty:{desc:'当前商品质保资料',anchor:()=>true},delivery:{desc:'当前商品配送资料',anchor:()=>true},
   reviews: { desc: '读取「评价管理」真实评价', anchor: (m) => m?.enabled !== false },
   returns: { desc: '全局文案，所有商品共用', anchor: (m) => Boolean(m?.enabled && (m.title || m.body)) },
   other: { desc: '全局文案，所有商品共用', anchor: (m) => Boolean(m?.enabled && (m.title || m.body)) },
@@ -478,7 +480,8 @@ export function GlobalModulesPanel({ cms, row, locale, onEditGraphic, onSelectMo
 
   const editor = (() => {
     if (active === 'productNavigation') return <section className="sdp__module"><header><strong>商品专属导航栏</strong><span className="hint">固定模块 · ALSVID-P00</span></header><p>PC 与手机共用一条吸顶导航，不显示品牌 Logo 或品牌名称。营销公告开启时位于其上方。</p><div aria-label="导航结构示意（非实时预览）" style={{display:'flex',alignItems:'center',gap:12,overflowX:'auto',whiteSpace:'nowrap',background:'#111',color:'#fff',padding:'12px 14px',borderRadius:4}}><span>☰</span><strong>当前车型</strong><span>概览</span><span>技术参数</span><span>视频</span><span>下载</span><span style={{background:'#fff',color:'#111',padding:'7px 10px',borderRadius:3}}>配置车型 / 购物车</span><span>个人账户</span></div><p>汉堡菜单保留返回首页；购买入口展开后可配置当前车型或查看购物车。无内容的快捷导航显示禁用状态，避免无效链接。手机端中间导航可横向滑动，两端不删减功能。</p><p className="sdw__tip">该区为四款及后续车型共用的固定结构，模块 ID 保持不变。以上为后台结构示意；真实预览同步和样式编辑仍待完善。</p></section>;
-    if (active === 'info') return <div className="sdp">
+    if (active === 'info') return <div className="sdp"><section className="sdp__module"><header><strong>P01-01 车型选配</strong></header><p>产品取数：商品主图、SKU、价格、库存。</p><button type="button" className="btn small" onClick={onEditGraphic}>按商品装修</button></section><PerformanceEditor value={modules.performance} fields={availableFields} fieldError={fieldError} assets={assets} onChange={performance=>patchModules({performance})}/></div>;
+    if (active === 'specifications') return <div className="sdp">
       <section className="sdp__module">
         <header><strong>主图 · 型号颜色 · 价格</strong><span className="hint">固定模块</span></header>
         <p className="sdw__tip">由商品数据自动生成，不可删除或移动；主图顺序在「商品详情页（图文）」按商品调整。</p>
@@ -494,17 +497,17 @@ export function GlobalModulesPanel({ cms, row, locale, onEditGraphic, onSelectMo
         </div>}
       </section>
     </div>;
-    if (active === 'reserved3') return <PerformanceEditor value={modules.performance} fields={availableFields} fieldError={fieldError} assets={assets} onChange={performance=>patchModules({performance})}/>;
+    if (['warranty','delivery'].includes(active)) return <section className="sdp__module"><header><strong>{no} {name}</strong></header><p>读取当前商品资料，不重复录入。</p></section>;
     if (active === 'detail') return <div className="sdp">
       <section className="sdp__module">
-        <header><strong>05 图文详情</strong><span className="hint">按商品</span></header>
+        <header><strong>04 沉浸式产品详情</strong><span className="hint">按商品</span></header>
         <p className="sdw__tip">每个商品内容不同，内部可自由组合文字段与图片段；位置固定，不随公共模块变化。</p>
         <div><button type="button" className="btn small" onClick={onEditGraphic}>去按商品装修 →</button></div>
       </section>
     </div>;
     if (active === 'reviews') return <div className="sdp">
       <section className="sdp__module">
-        <header><strong>06 用户评价</strong><span className="hint">标准模板</span></header>
+        <header><strong>11 用户评价</strong><span className="hint">标准模板</span></header>
         <label className="sdp__check"><input type="checkbox" checked={modules.reviews.enabled} onChange={e => patchModules({ reviews: { ...modules.reviews, enabled: e.target.checked } })}/> 显示评价区</label>
         <label className="sdp__field">显示条数<input type="number" min={1} max={50} value={modules.reviews.limit} onChange={e => patchModules({ reviews: { ...modules.reviews, limit: Number(e.target.value) || 20 } })}/></label>
         <label className="sdp__field">评价样式<select value={productLayout.reviews} onChange={e => setDoc({ ...doc, productLayout: { ...productLayout, reviews: e.target.value } })}><option value="list">列表</option><option value="cards">卡片</option></select></label>
@@ -512,10 +515,10 @@ export function GlobalModulesPanel({ cms, row, locale, onEditGraphic, onSelectMo
       </section>
     </div>;
     if (active === 'returns') return <div className="sdp">
-      <CopyEditor title="07 退换货政策" defaultTitle="退换货政策" value={modules.returns} onChange={returns => patchModules({ returns })}/>
+      <CopyEditor title="12 退换货政策" defaultTitle="退换货政策" value={modules.returns} onChange={returns => patchModules({ returns })}/>
     </div>;
     if (active === 'other') return <div className="sdp">
-      <CopyEditor title="08 其他说明" defaultTitle="其他说明" value={modules.other} onChange={other => patchModules({ other })}/>
+      <CopyEditor title="13 其他说明" defaultTitle="其他说明" value={modules.other} onChange={other => patchModules({ other })}/>
     </div>;
     return <div className="sdp">
       <MarketingEditor title={`${no} ${name}`} note={meta.desc} value={modules[active]} assets={assets} locale={locale} onSwitchLocale={switchLocale} onChange={next => patchModules({ [active]: next })}/>

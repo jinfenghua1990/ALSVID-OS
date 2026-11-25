@@ -97,7 +97,7 @@ export function CartDrawer({locale}:{locale:Locale}) {
       <header><h2>{t.title}</h2><button type="button" onClick={()=>setOpen(false)} aria-label={t.close} autoFocus>×</button></header>
       <div className="alsvid-cart-drawer-lines" aria-live="polite">
         {busy?<p>{t.loading}</p>:error?<p role="alert">{t.error} <button type="button" onClick={()=>void load()}>{locale==='zh'?'重试':locale==='de'?'Erneut versuchen':'Retry'}</button></p>:!rows.length?<p>{t.empty}</p>:rows.map(row=><article key={JSON.stringify([row.productId,row.sku,row.currency])}>
-          {row.image&&<img src={row.image} alt=""/>}<div><strong>{row.title}</strong><small>{row.sku}</small><small>{t.qty}: {row.quantity}</small></div><span>{minor(row.unitPrice)===null?t.unavailable:money(minor(row.unitPrice)!*row.quantity,row.currency)}</span>
+          {row.image?<img src={row.image} alt=""/>:<span aria-hidden="true"/>}<div><strong>{row.title}</strong><small>{row.sku}</small><small>{t.qty}: {row.quantity}</small></div><span>{minor(row.unitPrice)===null?t.unavailable:money(minor(row.unitPrice)!*row.quantity,row.currency)}</span>
         </article>)}
       </div>
       <div className="alsvid-cart-drawer-bottom">

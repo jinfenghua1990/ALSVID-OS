@@ -60,7 +60,7 @@ export function BlockRenderer({ block, lang = 'zh' }) {
     const rows = data.specifications || [];
     return <section className="cms-block cms-specs">
       {props.heading && <h2>{props.heading}</h2>}
-      {rows.length ? <table className="cms-specs-table"><tbody>{rows.map((row, index) => <tr key={index}><th>{row.label}</th><td>{row.value}</td></tr>)}</tbody></table> : <p className="hint" />}
+      {rows.length ? <table className="cms-specs-table"><tbody>{rows.map((row, index) => <tr key={row.code || index}><th>{row.label}</th><td>{row.value}{row.unit ? ` ${row.unit}` : ''}</td></tr>)}</tbody></table> : <p className="hint" />}
     </section>;
   }
   if (block.componentKey === 'features') return <section className="cms-block">

@@ -278,7 +278,7 @@ export default function ShopDesignWorkspace({ active = true, user, onSectionChan
   // 顶部动作条：公共模块的保存 / 发布（状态来自提升到本层的 useCmsDocument）
   const doGlobalSave = async () => { if (await globalCms.save()) setNotice('公共模块草稿已保存'); };
   const doGlobalPublish = async () => {
-    if (await globalCms.publish()) { setNotice('公共模块已发布，全部商品详情页生效'); await refreshPages(); }
+    if (await globalCms.publish()) { setNotice('公共模块已发布，请通过正式前台验收'); await refreshPages(); await refreshVersions(); }
   };
   // 发布记录里的「载入为草稿」：换草稿内容，不动线上，也不覆盖原始快照
   const loadVersionAsDraft = async version => {
@@ -286,7 +286,8 @@ export default function ShopDesignWorkspace({ active = true, user, onSectionChan
     if (!window.confirm(`以 v${version.version}（${fmt(version.createdAt)}）为基础生成新草稿？\n线上版本与原始历史快照都不受影响。`)) return;
     setBusy(true);
     try {
-      await api.restoreCmsVersionDraft(row.id, version.version, row.revision);
+      if (globalCms.dirty && !window.confirm('当前未保存的修改将丢失，仍要载入历史版本？')) return;
+      await api.restoreCmsVersionDraft(row.id, version.version, globalCms.page?.revision ?? row.revision);
       await refreshPages();
       await globalCms.reload();
       setHistoryOpen(false);
@@ -431,7 +432,7 @@ export default function ShopDesignWorkspace({ active = true, user, onSectionChan
             </div>)}
           </div>}
         </div>
-        <button type="button" className="btn small primary" disabled={globalCms.busy} onClick={doGlobalPublish}>{globalCms.busy ? '发布中…' : '发布'}</button>
+        <button type="button" className="btn small primary" disabled={globalCms.busy || globalCms.dirty || !globalCms.doc} onClick={doGlobalPublish}>{globalCms.busy ? '发布中…' : '发布'}</button>
       </div>
     </div>}
 

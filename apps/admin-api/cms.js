@@ -7,7 +7,7 @@ const { currentActor } = require('./audit-context');
 const { isUuidv7, uuidv7 } = require('./uuidv7');
 
 const LANGUAGES = ['zh', 'en', 'de'];
-const PAGE_TYPES = ['custom', 'product_template'];
+const PAGE_TYPES = ['custom', 'product_template', 'shared_module'];
 const COMPONENTS = ['hero', 'twoColumn', 'image', 'carousel', 'divider', 'spacer', 'video', 'productGallery', 'specs', 'features', 'faq', 'cta', 'article'];
 const RESERVED_PATHS = ['www', 'catalog', 'api', 'my', 'dealer', 'login'];
 
@@ -103,7 +103,17 @@ function blockOf(input) {
   else if (componentKey === 'faq') cleanProps = { heading: text(props.heading, 120), items: items(props.items, 12, [['question', 200, true], ['answer', 2000, true]]) };
   else if (componentKey === 'article') cleanProps = { heading: text(props.heading, 180), intro: text(props.intro, 1200), imageId: assetId(props.imageId), imageAlt: text(props.imageAlt, 160), sections: articleSections(props.sections) };
   else cleanProps = { title: text(props.title, 180, true), text: text(props.text, 600), buttonLabel: text(props.buttonLabel, 60), buttonHref: link(props.buttonHref) };
-  return { id, componentKey, schemaVersion: 1, visible: input.visible !== false, props: cleanProps, bindings: cleanBindings };
+  let sharedRef = null;
+  if (input.sharedRef && typeof input.sharedRef === 'object' && !Array.isArray(input.sharedRef)) {
+    const rawMode = String(input.sharedRef.mode || 'follow').toLowerCase();
+    const mode = ['follow', 'pinned', 'independent'].includes(rawMode) ? rawMode : 'follow';
+    const moduleId = text(input.sharedRef.moduleId, 80);
+    const pinnedVersion = Number.isSafeInteger(Number(input.sharedRef.pinnedVersion)) && Number(input.sharedRef.pinnedVersion) > 0 ? Number(input.sharedRef.pinnedVersion) : null;
+    if (mode !== 'independent' && !moduleId) fail('引用共享模块必须指定 moduleId');
+    if (mode === 'pinned' && !pinnedVersion) fail('固定版本引用必须指定有效版本号');
+    sharedRef = { mode, moduleId, pinnedVersion };
+  }
+  return { id, componentKey, schemaVersion: 1, visible: input.visible !== false, props: cleanProps, bindings: cleanBindings, sharedRef };
 }
 // 商品详情页 8 模块中的全局模块（②营销 ③④预留 ⑥评价开关 ⑦退换货 ⑧其他）。
 // 顺序固定不可拖拽；③④内容为空时前台自动隐藏。缺省字段全部给默认值，旧草稿可直接保存/发布。
@@ -297,7 +307,54 @@ function createCmsStore(connectionString) {
     return data;
   }
   async function enrich(blocks, locale, contextProductId = '') {
-    const specsBlocks = blocks.filter(block => block.componentKey === 'specs');
+    // 共享模块引用解析 (follow, pinned, independent)
+    const followIds = [], pinnedList = [];
+    for (const b of blocks) {
+      if (b.sharedRef && b.sharedRef.mode !== 'independent' && isUuidv7(b.sharedRef.moduleId)) {
+        if (b.sharedRef.mode === 'follow') followIds.push(b.sharedRef.moduleId);
+        else if (b.sharedRef.mode === 'pinned' && b.sharedRef.pinnedVersion) {
+          pinnedList.push({ id: b.sharedRef.moduleId, version: b.sharedRef.pinnedVersion });
+        }
+      }
+    }
+    const sharedDataMap = new Map();
+    if (followIds.length) {
+      const uniqueFollow = [...new Set(followIds)];
+      const rows = (await pool.query('SELECT id::text AS id, published FROM site_pages WHERE id=ANY($1::uuid[]) AND published IS NOT NULL', [uniqueFollow])).rows;
+      for (const r of rows) {
+        const doc = typeof r.published === 'string' ? JSON.parse(r.published) : r.published;
+        if (doc && Array.isArray(doc.blocks) && doc.blocks.length) {
+          sharedDataMap.set(`follow:${r.id}`, doc.blocks[0]);
+        }
+      }
+    }
+    for (const item of pinnedList) {
+      const row = (await pool.query('SELECT snapshot FROM site_page_versions WHERE page_id=$1 AND version=$2 AND deleted_at IS NULL', [item.id, item.version])).rows[0];
+      if (row) {
+        const doc = typeof row.snapshot === 'string' ? JSON.parse(row.snapshot) : row.snapshot;
+        if (doc && Array.isArray(doc.blocks) && doc.blocks.length) {
+          sharedDataMap.set(`pinned:${item.id}:${item.version}`, doc.blocks[0]);
+        }
+      }
+    }
+
+    // 将解析后的共享模块内容注入当前 blocks
+    const resolvedBlocks = blocks.map(b => {
+      if (!b.sharedRef || b.sharedRef.mode === 'independent' || !b.sharedRef.moduleId) return b;
+      const key = b.sharedRef.mode === 'follow' ? `follow:${b.sharedRef.moduleId}` : `pinned:${b.sharedRef.moduleId}:${b.sharedRef.pinnedVersion}`;
+      const sharedSource = sharedDataMap.get(key);
+      if (sharedSource) {
+        return {
+          ...b,
+          componentKey: sharedSource.componentKey || b.componentKey,
+          props: { ...b.props, ...(sharedSource.props || {}) },
+          sharedMeta: { sourceId: b.sharedRef.moduleId, mode: b.sharedRef.mode, resolved: true }
+        };
+      }
+      return b;
+    });
+
+    const specsBlocks = resolvedBlocks.filter(block => block.componentKey === 'specs');
     const galleryIds = blocks.filter(block => block.componentKey === 'productGallery').flatMap(block => block.bindings?.productIds || []);
     // 商品详情模板未绑定固定商品时，使用当前访问的商品 ID/SEO slug，做到一套模板服务所有车型。
     const specIds = specsBlocks.map(block => contextProductId || block.bindings?.productId).filter(Boolean);
@@ -318,7 +375,7 @@ function createCmsStore(connectionString) {
       };
       return [[r.id, value], ...(r.slug ? [[r.slug, value]] : [])];
     }));
-    return blocks.map(block => {
+    return resolvedBlocks.map(block => {
       if (block.componentKey === 'productGallery') return { ...block, data: { products: (block.bindings?.productIds || []).map(id => map.get(id)?.product).filter(Boolean) } };
       if (block.componentKey === 'specs') {
         const productRef = contextProductId || block.bindings?.productId;

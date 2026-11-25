@@ -22,7 +22,7 @@
 | WEB-003 | P0 | VERIFIED | 参数唯一源闭环 | 002 | 旧规格兼容迁移、默认绑定、字段分组/排序/单位/枚举值翻译、缓存联动；装修不录入参数值 |
 | WEB-004 | P0 | CODE | 单图、轮播、分隔、留白 | 001 | Admin 编辑、保存、发布、PC/手机及 Next.js 实际渲染一致；链接/素材校验 |
 | WEB-005 | P0 | CODE | 固定购买区与草稿保护 | 001 | 固定模块不被删除；保存不覆盖其他配置；未保存草稿不可发布；revision 与历史一致 |
-| WEB-006 | P0 | TODO | 通用模块登记与共享引用 | 001,003 | 稳定 key/schema；共享 follow、pinned、independent；两个不同页面引用同一实例 |
+| WEB-006 | P0 | VERIFIED | 通用模块登记与共享引用 | 001,003 | 稳定 key/schema；共享 follow、pinned、independent；两个不同页面引用同一实例 |
 | WEB-007 | P0 | TODO | 共享模块发布闭环 | 006 | 改草稿不影响线上；发布一次关联页同步；历史固定旧版本；快照失败阻断；回滚/撤回刷新缓存 |
 | WEB-008 | P0 | TODO | 页面及商品模板库 | 006,007 | 默认模板、保存/套用、按商品覆盖、模板关联；引用不被复制断开；固定业务区保留 |
 | WEB-009 | P0 | PARTIAL | 三栏编辑器 | 006,008 | 左侧结构树/模块库，中间真实预览，右侧属性；桌面/平板/手机；共享/独立状态明确 |
@@ -87,3 +87,11 @@ WEB-015 是整体官网验收占位任务，不代表其中每个子功能均未
 - 扩充 server/test/cms-product-specs.test.js 测试用例至 9 个，涵盖三语枚举、布尔、单位、排序，全部 100% 通过（9 pass, 0 fail）。
 - storefront npx tsc --noEmit 静态类型检查零错误。
 - 任务 WEB-002 与 WEB-003 标记为 VERIFIED。下一步推进 WEB-006（通用模块登记与共享引用）。
+
+2026-11-25（下午第三轮）：完成 WEB-006（通用模块登记与共享引用）。
+- 扩展 server/cms.js PAGE_TYPES 支持 'shared_module' 页面类型，复用既有版本快照、草稿与发布流水线。
+- 在 blockOf 强化 sharedRef 校验：严格支持 follow（跟随最新发布）、pinned（固定历史版本）和 independent（独立副本解绑）三种模式。
+- 在 enrich 解析流水线支持多页面共享实例的动态解析与属性合并注入，提供缺失平滑回退，防止前台白屏。
+- 在 storefront/src/lib/alsvid-api.ts 扩展 CmsBlock 与 SharedModuleRef 类型定义。
+- 新增测试套件 server/test/cms-shared-modules.test.js，验证多页面同时引用、版本锁定、解绑独立及 schema 约束，全部通过（2 pass, 0 fail）。
+- 任务 WEB-006 标记为 VERIFIED。下一步推进 WEB-007（共享模块发布闭环与快照回滚）。

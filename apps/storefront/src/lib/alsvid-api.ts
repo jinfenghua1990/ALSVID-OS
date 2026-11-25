@@ -197,7 +197,22 @@ export async function getCmsProductTemplate(locale: Locale, productId = '') {
   return getJson<{ id: string; name: string; locale: string; isProductSpecific: boolean; seo: { title?: string; description?: string }; productLayout?: { gallery?: 'standard' | 'immersive' | 'mosaic' | 'columns'; specifications?: 'list' | 'table' | 'accordion'; reviews?: 'list' | 'cards' }; modules?: ProductTemplateModules; catalogLayout?: CatalogLayout; blocks: CmsBlock[] }>(`/api/cms/product-template?locale=${locale}&productId=${encodeURIComponent(productId)}`);
 }
 
-export type CmsBlock = { id: string; componentKey: string; visible?: boolean; props: Record<string, any>; bindings?: Record<string, any>; data?: Record<string, any> };
+export interface SharedModuleRef {
+  mode: 'follow' | 'pinned' | 'independent';
+  moduleId?: string;
+  pinnedVersion?: number | null;
+}
+
+export type CmsBlock = {
+  id: string;
+  componentKey: string;
+  visible?: boolean;
+  props: Record<string, any>;
+  bindings?: Record<string, any>;
+  data?: Record<string, any>;
+  sharedRef?: SharedModuleRef | null;
+  sharedMeta?: { sourceId: string; mode: string; resolved: boolean };
+};
 
 export async function getReviews(productId?: string, limit=20) {
   const query = new URLSearchParams({ limit: String(Math.min(50,Math.max(1,limit))) });

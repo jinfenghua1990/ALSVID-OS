@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { api } from '../api.js';
+import { createBlock } from './cms-blocks.jsx';
 
 // 产品装修面板：
 // - CatalogLayoutPanel：「全部产品」列表页版式（分类导航 + 按销量自动展示），存 product_template 页草稿，走 CMS 发布流。
@@ -415,11 +416,26 @@ export function GlobalModulesPanel({ cms, row, locale, onEditGraphic, onSelectMo
   const { doc, setDoc, dirty } = cms;
   const [assets, setAssets] = useState([]);
   const [active, setActive] = useState('marketing');
+  const [fields, setFields] = useState([]);
+  const [fieldError, setFieldError] = useState('');
+  useEffect(() => { let alive = true; api.fields().then(rows => { if (alive) setFields(Array.isArray(rows) ? rows : []); }).catch(e => { if (alive) setFieldError(e.message || '读取参数字典失败'); }); return () => { alive = false; }; }, []);
   useEffect(() => { api.assetsAll({ category: 'page', kind: 'image' }).then(rows => setAssets(Array.isArray(rows) ? rows : [])).catch(() => setAssets([])); }, []);
   if (!doc) return <p className="sdw__tip">{cms.error || '正在读取公共模块配置…'}</p>;
   const modules = { ...DEFAULT_MODULES, ...(doc.modules || {}) };
   const patchModules = next => setDoc({ ...doc, modules: { ...modules, ...next } });
   const productLayout = { gallery: 'standard', specifications: 'list', reviews: 'list', ...(doc.productLayout || {}) };
+  const fixedSpec = (doc.blocks || []).find(block => block.componentKey === 'specs' && block.visible !== false);
+  const availableFields = fields.filter(field => field.enabled && field.shopVisible && field.level === 'product' && !field.code.startsWith('_') && (!field.templates?.length || field.templates.includes('EBI')));
+  const selectedCodes = fixedSpec?.bindings?.fieldCodes || [];
+  const setSpecBinding = codes => {
+    const block = fixedSpec || createBlock('specs');
+    setDoc({ ...doc, blocks: [...(doc.blocks || []).filter(item => item.componentKey !== 'specs'), { ...block, visible: true, bindings: { ...block.bindings, productId: '', fieldSet: 'public_specs', fieldCodes: codes } }] });
+  };
+  const toggleSpecField = (code, checked) => {
+    const current = selectedCodes.length ? selectedCodes : availableFields.map(field => field.code);
+    const next = checked ? [...new Set([...current, code])] : current.filter(value => value !== code);
+    if (next.length) setSpecBinding(next);
+  };
   const current = GLOBAL_MODULES.find(([key]) => key === active) || GLOBAL_MODULES[1];
   const [no, name] = [current[1], current[2]];
   const meta = MODULE_META[active] || {};
@@ -443,6 +459,15 @@ export function GlobalModulesPanel({ cms, row, locale, onEditGraphic, onSelectMo
         <header><strong>主图 · 型号颜色 · 价格</strong><span className="hint">固定模块</span></header>
         <p className="sdw__tip">由商品数据自动生成，不可删除或移动；主图顺序在「商品详情页（图文）」按商品调整。</p>
         <div><button type="button" className="btn small" onClick={onEditGraphic}>去按商品装修 →</button></div>
+        <label className="sdp__check"><input type="checkbox" checked={Boolean(fixedSpec)} onChange={e => e.target.checked ? setSpecBinding([]) : setDoc({ ...doc, blocks: (doc.blocks || []).map(block => block.componentKey === 'specs' ? { ...block, visible: false } : block) })}/> 技术参数读取整车主档</label>
+        <label className="sdp__field">技术参数样式<select value={productLayout.specifications} onChange={e => setDoc({ ...doc, productLayout: { ...productLayout, specifications: e.target.value } })}><option value="list">列表</option><option value="table">表格</option><option value="accordion">折叠</option></select></label>
+        {fixedSpec && <div className="cms-spec-field-picker">
+          <p className="hint">{selectedCodes.length ? '已选择 ' + selectedCodes.length + ' 个字段' : '显示全部公开参数'} · 固定位置，不重复录入</p>
+          {selectedCodes.length > 0 && <button type="button" className="btn small" onClick={() => setSpecBinding([])}>恢复全部公开参数</button>}
+          {fieldError && <p className="error-text">{fieldError}</p>}
+          {!availableFields.length && <p className="hint">请先在字段字典中启用需要展示的整车参数。</p>}
+          <div className="cms-spec-field-list">{availableFields.map(field => <label key={field.code} className="sdp__check"><input type="checkbox" checked={!selectedCodes.length || selectedCodes.includes(field.code)} disabled={selectedCodes.length ? selectedCodes.length === 1 && selectedCodes.includes(field.code) : availableFields.length === 1} onChange={e => toggleSpecField(field.code, e.target.checked)}/>{field.nameZh || field.code}{field.unit ? '（' + field.unit + '）' : ''}</label>)}</div>
+        </div>}
       </section>
     </div>;
     if (active === 'detail') return <div className="sdp">

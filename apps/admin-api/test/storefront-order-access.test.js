@@ -22,3 +22,18 @@ test('storefront order requests and manual payments enforce portal roles', async
   assert.equal((await post('/api/storefront/orders/id/payments', 'admin')).statusCode, 200);
   assert.equal(calls.length, 2);
 });
+
+test('direct order recovery permits only owner role and delegates ownership to the order store', async t => {
+  const id='018e6e58-3921-789a-bcde-1234567890ab';
+  const app=Fastify();
+  app.addHook('onRequest',apiAccessHook({user:async role=>role?{role,id:'account-'+role}:null},req=>req.headers['test-role']));
+  const seen=[];
+  registerStorefrontOrderRoutes(app,{async get(user,requested){seen.push([user.id,requested]);return {id:requested,status:'submitted'}}});
+  t.after(()=>app.close());
+  const get=role=>app.inject({method:'GET',url:'/api/portal/storefront/orders/'+id,headers:role?{'test-role':role}:{}});
+  for(const role of [null,'admin','viewer','dealer'])assert.notEqual((await get(role)).statusCode,200);
+  const response=await get('owner');
+  assert.equal(response.statusCode,200);
+  assert.deepEqual(response.json(),{id,status:'submitted'});
+  assert.deepEqual(seen,[['account-owner',id]]);
+});

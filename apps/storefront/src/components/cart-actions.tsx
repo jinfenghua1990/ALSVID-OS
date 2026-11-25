@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import type { Locale, Offer, ProductAvailability } from '@/lib/alsvid-api';
 import { UI } from '@/lib/ui-text';
 import { guestCartKey, notifyCartChanged, readGuestCart } from './cart-storage';
+import { openCartDrawerEvent } from './cart-drawer';
 import { uuidv7 } from '@/lib/uuid';
 import { cartDrawerOpenEvent } from './cart-nav-link';
 
@@ -113,19 +114,40 @@ export function CartActions({ locale, productId, offers, availability, giftPrevi
         else window.dispatchEvent(new Event(cartDrawerOpenEvent));
         return;
       }
-      const items = readGuestCart();
-      const existing = items.findIndex((item: any) => item.productId === productId && item.sku === selectedOffer.sku && item.currency === selectedOffer.currency);
-      if (existing >= 0) {
-        if (items[existing].quantity + quantity > 100) throw new Error('maximum quantity');
-        items[existing] = { ...items[existing], quantity: items[existing].quantity + quantity };
-      } else {
-        if (items.length >= 50) throw new Error('maximum items');
-        items.push({ productId, sku: selectedOffer.sku, currency: selectedOffer.currency, quantity });
+      const base='/api/catalog/products/'+encodeURIComponent(productId), query='?lang='+locale;
+      const [freshOffers,freshStock,auth]=await Promise.all([
+        data(await fetch(base+'/offers'+query,{cache:'no-store'})),
+        data(await fetch(base+'/availability'+query,{cache:'no-store'})),
+        fetch('/api/auth/status',{cache:'no-store'}),
+      ]);
+      const fresh=Array.isArray(freshOffers)&&freshOffers.find((offer:Offer)=>offer.sku===selectedOffer.sku&&offer.currency===selectedOffer.currency);
+      if(!fresh || amountCents(fresh.unitPrice)===null || fresh.unitPrice!==selectedOffer.unitPrice)throw new Error('offer changed');
+      const freshAvailable=freshStock?.items?.find((item:{sku:string;available:boolean})=>item.sku===selectedOffer.sku)?.available;
+      if(freshAvailable===false||(!freshStock?.items?.length&&freshStock?.available===false))throw new Error('unavailable');
+      if(!auth.ok&&auth.status!==401&&auth.status!==403)throw new Error('auth unavailable');
+      const user=auth.ok?(await auth.json())?.user:null;
+      const serverCart=user?.role==='owner'?await data(await fetch('/api/portal/storefront/cart',{cache:'no-store'})):null;
+      if(user?.role==='owner'&&(!Array.isArray(serverCart?.items)||!Number.isSafeInteger(serverCart?.revision)))throw new Error('invalid cart');
+      const merged=new Map<string,CartItem>();
+      for(const row of [...(serverCart?.items||[]),...readGuestCart(),{productId,sku:selectedOffer.sku,currency:selectedOffer.currency,quantity}] as CartItem[]){
+        const key=JSON.stringify([row.productId,row.sku,row.currency]);
+        const count=row.quantity+(merged.get(key)?.quantity||0);
+        if(count>100)throw new Error('maximum quantity');
+        merged.set(key,{...row,quantity:count});
       }
-      localStorage.setItem(guestCartKey, JSON.stringify(items));
+      const items=[...merged.values()];
+      if(items.length>50)throw new Error('maximum items');
+      if(serverCart){
+        await data(await fetch('/api/portal/storefront/cart',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({revision:serverCart.revision,items})}));
+        localStorage.removeItem(guestCartKey);
+      }else{
+        // Guest selections are local only; product availability and price were checked against the public API.
+        localStorage.setItem(guestCartKey,JSON.stringify(items));
+      }
       notifyCartChanged();
       setMessage(t.added);
-      if(direct) window.location.assign(cartHref);
+      if(direct) window.location.assign(cartHref+'?step=checkout');
+      else window.dispatchEvent(new Event(openCartDrawerEvent));
     } catch (error) { setMessage(error instanceof Error && error.message === 'maximum items' ? t.limit : error instanceof Error && error.message === 'maximum quantity' ? t.quantityLimit : t.error); }
     finally { setBusy(false); }
   };
@@ -168,7 +190,7 @@ function amountCents(value: string) {
   return Number(whole!) * 100 + Number((fraction + '00').slice(0, 2));
 }
 
-export function CartPage({ locale }: { locale: Locale }) {
+export function CartPage({ locale, initialStep = 1 }: { locale: Locale; initialStep?: 1 | 2 }) {
   const t = cartCopy[locale];
   const [items, setItems] = useState<CartItem[]>([]);
   const [details, setDetails] = useState<Record<string, { product: CartProduct; offers: CartOffer[] }>>({});
@@ -179,7 +201,7 @@ export function CartPage({ locale }: { locale: Locale }) {
   const [error, setError] = useState('');
   const [status, setStatus] = useState<'guest' | 'ownerOnly' | 'owner'>('guest');
   const [success, setSuccess] = useState(false);
-  const [step, setStep] = useState<1 | 2 | 3>(1);
+  const [step, setStep] = useState<1 | 2 | 3>(initialStep);
   const [orderId, setOrderId] = useState('');
   const [submittedStatus, setSubmittedStatus] = useState('');
   const flow = transactionCopy[locale];
@@ -233,10 +255,7 @@ export function CartPage({ locale }: { locale: Locale }) {
   };
 
   useEffect(() => { void load(); }, [locale]);
-  useEffect(() => {
-    const requested = new URLSearchParams(window.location.search).get('step');
-    if (requested === 'checkout') setStep(2);
-  }, []);
+  useEffect(() => { setStep(previous => previous===3?3:initialStep); }, [initialStep]);
 
   const save = async (next: CartItem[]) => {
     setBusy(true); setError('');
@@ -310,7 +329,7 @@ export function CartPage({ locale }: { locale: Locale }) {
       {step===1 && available && currencies.length===1 && <button className="button" type="button" disabled={busy||Object.keys(quantities).length>0} onClick={()=>navigateStep(2)}>{flow.next}</button>}
       {step===2 && <button type="button" className="cart-view-link" onClick={()=>navigateStep(1)} disabled={busy}>{flow.back}</button>}
       {step===2 && <p>{flow.shipping}</p>}
-      {step===2 && status === 'owner' && available && currencies.length === 1 && <form className="cart-checkout" onSubmit={submit}><h2>{t.request}</h2>{(Object.keys(delivery) as (keyof typeof delivery)[]).map(field => <label key={field}>{t[field]}<input required maxLength={field === 'address' ? 500 : field === 'phone' ? 80 : 120} value={delivery[field]} onChange={event => setDelivery(current => ({ ...current, [field]: event.target.value }))} /></label>)}<button className="button" disabled={busy}>{busy ? '…' : t.request}</button></form>}
+      {step===2 && status === 'owner' && available && currencies.length === 1 && <form className="cart-checkout" onSubmit={submit}><h2>{t.request}</h2>{(Object.keys(delivery) as (keyof typeof delivery)[]).map(field => <label key={field}>{t[field]}<input required maxLength={field === 'address' ? 500 : field === 'phone' ? 80 : field==='postalCode'?40:field==='country'?100:120} value={delivery[field]} onChange={event => setDelivery(current => ({ ...current, [field]: event.target.value }))} /></label>)}<button className="button" disabled={busy}>{busy ? '…' : t.request}</button></form>}
     </>}
   </main>;
 }

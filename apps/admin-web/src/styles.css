@@ -2908,3 +2908,10 @@ html[data-accent] .app[data-mode='dark'] :is(.shop-status.is-on,.shop-health.is-
 .ledger-row__id { flex:0 0 30px; font-weight:700; color:var(--text-sub); padding-top:2px; }
 .ledger-row__main { flex:1 1 auto; min-width:0; }
 .ledger-row__name { font-size:13px; font-weight:600; margin-bottom:4px; display:flex; flex-wrap:wrap; align-items:center; gap:8px; }
+
+/* CMS 商品参数模块字段选择器 */
+.cms-spec-field-picker{display:flex;flex-direction:column;gap:10px;padding:12px;border:1px solid var(--line,#dfe5df);border-radius:10px;background:var(--panel,#fff)}
+.cms-spec-field-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;max-height:260px;overflow:auto;padding:8px;background:var(--surface,#f7f9f7);border-radius:8px}
+.cms-spec-field-list label{min-width:0;font-size:12px}
+.cms-spec-field-list input{flex:0 0 auto}
+@media(max-width:720px){.cms-spec-field-list{grid-template-columns:1fr}}

@@ -7,7 +7,7 @@ const PAGE_TYPES = [['custom', '自定义页面'], ['product_template', '商品�
 const TYPE_LABELS = { home: '官网首页', custom: '自定义页面', product_template: '商品详情模板' };
 const STATE_LABELS = { active: '启用', disabled: '已停用' };
 const LANG_LABEL = { zh: '中文', en: '英文', de: '德文', '*': '多语言' };
-const PRODUCT_CONTENT_BLOCKS = new Set(['twoColumn', 'image', 'carousel', 'divider', 'spacer', 'video', 'specs', 'features', 'faq', 'cta']);
+const PRODUCT_CONTENT_BLOCKS = new Set(['twoColumn', 'image', 'carousel', 'divider', 'spacer', 'video', 'features', 'faq', 'cta']);
 const DEFAULT_PRODUCT_LAYOUT = { gallery: 'standard', specifications: 'list', reviews: 'list' };
 const emptyDraft = () => ({ blocks: [], seo: { title: '', description: '' }, productLayout: DEFAULT_PRODUCT_LAYOUT });
 
@@ -61,6 +61,7 @@ export default function CmsPageManager({ active = true, user, onDirtyChange, onB
   const [selectedId, setSelectedId] = useState(''), [device, setDevice] = useState('desktop'), [preview, setPreview] = useState(false);
   const [media, setMedia] = useState([]), [videos, setVideos] = useState([]), [products, setProducts] = useState([]), [fields, setFields] = useState([]), [previewProduct, setPreviewProduct] = useState(null);
   const [versions, setVersions] = useState(null), [createOpen, setCreateOpen] = useState(false);
+  const [previewMaster, setPreviewMaster] = useState(null);
   const [form, setForm] = useState({ name: '', pageType: 'custom', locale: 'de', path: '' });
   const loadVersion = useRef(0);
   const canEdit = user?.role === 'admin';
@@ -91,7 +92,7 @@ export default function CmsPageManager({ active = true, user, onDirtyChange, onB
     try {
       const data = await api.cmsPage(page.id);
       const loaded = data.draft || emptyDraft();
-      const next = { blocks: loaded.blocks || [], seo: data.draftSeo || loaded.seo || { title: '', description: '' }, productLayout: { ...DEFAULT_PRODUCT_LAYOUT, ...(loaded.productLayout || {}) } };
+      const next = { ...loaded, blocks: loaded.blocks || [], seo: data.draftSeo || loaded.seo || { title: '', description: '' }, productLayout: { ...DEFAULT_PRODUCT_LAYOUT, ...(loaded.productLayout || {}) } };
       setRecord(data); setName(data.name || ''); setPath(data.path || '');
       setDraft(next);
       histRef.current = { stack: [next], index: 0 }; syncHist();
@@ -124,6 +125,14 @@ export default function CmsPageManager({ active = true, user, onDirtyChange, onB
     fetch(`/api/catalog/products/${encodeURIComponent(previewProductId)}?lang=${encodeURIComponent(record.locale)}`).then(response => response.ok ? response.json() : null).then(data => { if (!cancelled) setPreviewProduct(data); }).catch(() => { if (!cancelled) setPreviewProduct(null); });
     return () => { cancelled = true; };
   }, [active, previewProductId, record?.locale]);
+  useEffect(() => {
+    const id = previewProduct?.productId;
+    setPreviewMaster(null);
+    if (!active || !id) return;
+    let cancelled = false;
+    api.product(id).then(data => { if (!cancelled) setPreviewMaster(data); }).catch(() => {});
+    return () => { cancelled = true; };
+  }, [active, previewProduct?.productId]);
   const renderBlock = block => {
     if (block.componentKey === 'video' && block.props?.videoId) return { ...block, data: { ...block.data, videoUrl: block.data?.videoUrl || `/api/media-assets/${encodeURIComponent(block.props.videoId)}/file` } };
     if (!previewProduct) return block;
@@ -132,6 +141,21 @@ export default function CmsPageManager({ active = true, user, onDirtyChange, onB
     return block;
   };
   const previewBlocks = draft.blocks.map(renderBlock);
+  // 参数属于固定业务区，旧版 specs 块仅作为字段配置读取，不再作为可拖动内容渲染。
+  const fixedSpec = draft.blocks.find(block => block.componentKey === 'specs' && block.visible !== false);
+  const fixedSpecCodes = fixedSpec?.bindings?.fieldCodes || [];
+  const fixedSpecRows = fixedSpec
+    ? fields.filter(field => field.enabled && field.shopVisible && field.level === 'product' && !field.code.startsWith('_') &&
+      (!field.templates?.length || field.templates.includes(previewMaster?.productType)) &&
+      (!fixedSpecCodes.length || fixedSpecCodes.includes(field.code)) &&
+      previewMaster?.specs?.[field.code] != null && String(previewMaster.specs[field.code]).trim() !== '')
+      .map(field => ({ label: (record?.locale === 'de' ? field.nameDe : record?.locale === 'en' ? field.nameEn : field.nameZh) || field.nameZh || field.code,
+        value: String(previewMaster.specs[field.code]).trim() + (field.unit ? ' ' + field.unit : '') }))
+    : (previewProduct?.specifications || []);
+  const setFixedSpec = patch => {
+    const block = fixedSpec || createBlock('specs');
+    edit({ ...draft, blocks: [...draft.blocks.filter(item => item.componentKey !== 'specs'), { ...block, ...patch, visible: true }] });
+  };
 
   const edit = next => {
     const h = histRef.current;
@@ -163,7 +187,7 @@ export default function CmsPageManager({ active = true, user, onDirtyChange, onB
     edit({ ...draft, blocks });
   };
   const dropBlock = (from, to) => {
-    if (from === to || from < 0 || to < 0) return;
+    if (!Number.isInteger(from) || !Number.isInteger(to) || from === to || from < 0 || to < 0 || from >= draft.blocks.length || to >= draft.blocks.length) return;
     const blocks = [...draft.blocks];
     const [moved] = blocks.splice(from, 1);
     blocks.splice(to, 0, moved);
@@ -265,7 +289,7 @@ export default function CmsPageManager({ active = true, user, onDirtyChange, onB
         </div>
       </div>
       {error && <p className="error-text" role="alert">{error}</p>}
-      {message && <p className="hint" role="status" />}
+      {message && <p className="hint" role="status">{message}</p>}
       <div className="cms-editor-meta">
         <label>页面名称<input value={name} maxLength={120} onChange={e => { setName(e.target.value); setDirty(true); }}/></label>
         <label>页面路径<input value={path} maxLength={160} disabled={record.pageType === 'home' || record.pageType === 'product_template' && path.startsWith('/products/')} onChange={e => { setPath(e.target.value); setDirty(true); }}/></label>
@@ -277,6 +301,8 @@ export default function CmsPageManager({ active = true, user, onDirtyChange, onB
         <label>图库样式<select value={draft.productLayout?.gallery || 'standard'} onChange={event => updateProductLayout({ gallery: event.target.value })}><option value="standard">Standard · 标准</option><option value="immersive">Immersive · 沉浸</option><option value="mosaic">Mosaic · 拼图</option><option value="columns">Columns · 侧栏缩略图</option></select></label>
         <div><strong>标准业务模块</strong><span>数据来自商品、评价与商城业务资料；在商品详情页固定呈现</span></div>
         <label>技术参数样式<select value={draft.productLayout?.specifications || 'list'} onChange={event => updateProductLayout({ specifications: event.target.value })}><option value="list">列表</option><option value="table">表格</option><option value="accordion">折叠</option></select></label>
+        <label className="row"><input type="checkbox" checked={Boolean(fixedSpec)} onChange={e => e.target.checked ? setFixedSpec({ bindings: { productId: '', fieldSet: 'public_specs', fieldCodes: [] } }) : edit({ ...draft, blocks: draft.blocks.map(block => block.componentKey === 'specs' ? { ...block, visible: false } : block) })}/> 从整车主档读取技术参数</label>
+        {fixedSpec && <BlockProps block={fixedSpec} media={media} videos={videos} products={products} fields={fields} pageType="product_template" locale={record.locale} onProps={patch => setFixedSpec({ props: { ...fixedSpec.props, ...patch } })} onBindings={patch => setFixedSpec({ bindings: { ...fixedSpec.bindings, ...patch } })}/>}
         <label>用户评价样式<select value={draft.productLayout?.reviews || 'list'} onChange={event => updateProductLayout({ reviews: event.target.value })}><option value="list">列表</option><option value="cards">卡片</option></select></label>
         <p className="hint">配送与质保文案在单个商品的官网发布资料中维护；适配配件从产品研发的车型适配关系读取。</p>
       </section>}
@@ -287,7 +313,7 @@ export default function CmsPageManager({ active = true, user, onDirtyChange, onB
             <div className="cms-product-fixed-preview__image">{previewProduct?.images?.[0]?.url ? <img src={previewProduct.images[0].url} alt=""/> : '商品图库'}</div>
             <div><strong>{previewProduct?.title || '商品名称与型号'}</strong><p>版本与颜色 · 价格与库存</p><p>数量选择 · 加入购物车</p></div>
           </div>
-          <div className={`cms-product-standard-preview cms-product-standard-preview--${draft.productLayout?.specifications || 'list'}`}><h3>标准业务模块 · 技术参数</h3>{draft.productLayout?.specifications === 'accordion' ? <details><summary>查看技术参数</summary><div>{(previewProduct?.specifications||[]).map(row=><p key={row.label}>{row.label}：{row.value}</p>)}</div></details> : draft.productLayout?.specifications === 'table' ? <table><tbody>{(previewProduct?.specifications||[]).map(row=><tr key={row.label}><th>{row.label}</th><td>{row.value}</td></tr>)}</tbody></table> : <div>{(previewProduct?.specifications||[]).map(row=><p key={row.label}>{row.label}：{row.value}</p>)}</div>}</div>
+          <div className={`cms-product-standard-preview cms-product-standard-preview--${draft.productLayout?.specifications || 'list'}`}><h3>标准业务模块 · 技术参数</h3>{draft.productLayout?.specifications === 'accordion' ? <details><summary>查看技术参数</summary><div>{fixedSpecRows.map(row=><p key={row.label}>{row.label}：{row.value}</p>)}</div></details> : draft.productLayout?.specifications === 'table' ? <table><tbody>{fixedSpecRows.map(row=><tr key={row.label}><th>{row.label}</th><td>{row.value}</td></tr>)}</tbody></table> : <div>{fixedSpecRows.map(row=><p key={row.label}>{row.label}：{row.value}</p>)}</div>}</div>
           <div className={`cms-product-standard-preview cms-product-standard-preview--${draft.productLayout?.reviews || 'list'}`}><h3>标准业务模块 · 用户评价</h3><p>只展示已公开评价；评价样式：{draft.productLayout?.reviews === 'cards' ? '卡片' : '列表'}</p></div>
           {previewProduct?.delivery&&<div className="cms-product-standard-preview"><h3>标准业务模块 · 配送与交付</h3><p>{previewProduct.delivery}</p></div>}
           {previewProduct?.warranty&&<div className="cms-product-standard-preview"><h3>标准业务模块 · 质保</h3><p>{previewProduct.warranty}</p></div>}
@@ -312,7 +338,7 @@ export default function CmsPageManager({ active = true, user, onDirtyChange, onB
         </aside>
         <div className={'cms-canvas' + deviceClass}>
           {!draft.blocks.length && <p className="hint" />}
-          {draft.blocks.map((block, index) => <div key={block.id} draggable className={'cms-block-wrap' + (block.id === selectedId ? ' is-selected' : '') + (block.visible === false ? ' is-hidden' : '')} onClick={() => setSelectedId(block.id)} onDragStart={e => e.dataTransfer.setData('text/plain', String(index))} onDragOver={e => e.preventDefault()} onDrop={e => { e.preventDefault(); dropBlock(Number(e.dataTransfer.getData('text/plain')), index); }}>
+          {draft.blocks.map((block, index) => record.pageType === 'product_template' && block.componentKey === 'specs' ? null : <div key={block.id} draggable className={'cms-block-wrap' + (block.id === selectedId ? ' is-selected' : '') + (block.visible === false ? ' is-hidden' : '')} onClick={() => setSelectedId(block.id)} onDragStart={e => e.dataTransfer.setData('text/plain', String(index))} onDragOver={e => e.preventDefault()} onDrop={e => { e.preventDefault(); dropBlock(Number(e.dataTransfer.getData('text/plain')), index); }}>
             <div className="cms-block-bar"><span>{index + 1}. {blockLabel(block)}{block.visible === false ? '（已隐藏）' : ''}{record.pageType === 'product_template' && !PRODUCT_CONTENT_BLOCKS.has(block.componentKey) ? '（旧模块不会发布到商品详情）' : ''}</span><span className="row">
               <button type="button" className="btn small" onClick={e => { e.stopPropagation(); moveBlock(index, -1); }} disabled={index === 0}>↑</button>
               <button type="button" className="btn small" onClick={e => { e.stopPropagation(); moveBlock(index, 1); }} disabled={index === draft.blocks.length - 1}>↓</button>
@@ -458,8 +484,8 @@ function BlockProps({ block, media, videos, products, fields = [], pageType = 'c
         {!allSelected && <button type="button" className="btn small" onClick={() => onBindings({ fieldCodes: [] })}>恢复全部公开参数</button>}
         <div className="cms-spec-field-list">
           {availableFields.map(field => <label key={field.code} className="row" style={{ justifyContent: 'flex-start', gap: 8 }}>
-            <input type="checkbox" checked={allSelected || selectedCodes.includes(field.code)} onChange={e => toggleField(field.code, e.target.checked)}/>
-            <span>{fieldLabel(field)}{field.unit ? \`（\${field.unit}）\` : ''}</span>
+            <input type="checkbox" checked={allSelected || selectedCodes.includes(field.code)} disabled={(allSelected ? availableFields.length === 1 : selectedCodes.length === 1 && selectedCodes.includes(field.code))} onChange={e => toggleField(field.code, e.target.checked)}/>
+            <span>{fieldLabel(field)}{field.unit ? '（' + field.unit + '）' : ''}</span>
           </label>)}
         </div>
         {!availableFields.length && <p className="hint">没有可展示的公开整车参数。请先在整车产品字段字典中启用「商城可见」。</p>}

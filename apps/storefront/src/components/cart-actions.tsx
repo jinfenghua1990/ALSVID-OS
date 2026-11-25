@@ -166,7 +166,12 @@ function amountCents(value: string) {
   return Number(whole!) * 100 + Number((fraction + '00').slice(0, 2));
 }
 
-export function CartPage({ locale, initialStep = 1 }: { locale: Locale; initialStep?: 1 | 2 }) {
+const orderStatuses:Record<Locale,Record<string,string>>={
+ zh:{submitted:'申请已提交，尚未付款',quoted:'已报价',accepted:'报价已接受',allocated:'库存已分配，等待付款',partially_paid:'部分付款',paid:'已付款',shipped:'已发货',delivered:'已收货',cancelled:'订单已取消',declined:'报价已拒绝'},
+ en:{submitted:'Request submitted, not paid',quoted:'Quote issued',accepted:'Quote accepted',allocated:'Stock allocated, awaiting payment',partially_paid:'Partially paid',paid:'Paid',shipped:'Shipped',delivered:'Delivered',cancelled:'Order cancelled',declined:'Quote declined'},
+ de:{submitted:'Anfrage eingereicht, nicht bezahlt',quoted:'Angebot erstellt',accepted:'Angebot angenommen',allocated:'Bestand reserviert, Zahlung offen',partially_paid:'Teilweise bezahlt',paid:'Bezahlt',shipped:'Versandt',delivered:'Zugestellt',cancelled:'Bestellung storniert',declined:'Angebot abgelehnt'},
+};
+export function CartPage({ locale, initialStep = 1, initialOrderId }: { locale: Locale; initialStep?: 1 | 2; initialOrderId?: string }) {
   const t = cartCopy[locale];
   const [items, setItems] = useState<CartItem[]>([]);
   const [details, setDetails] = useState<Record<string, { product: CartProduct; offers: CartOffer[] }>>({});
@@ -177,12 +182,13 @@ export function CartPage({ locale, initialStep = 1 }: { locale: Locale; initialS
   const [error, setError] = useState('');
   const [status, setStatus] = useState<'guest' | 'ownerOnly' | 'owner'>('guest');
   const [success, setSuccess] = useState(false);
-  const [step, setStep] = useState<1 | 2 | 3>(initialStep);
+  const [step, setStep] = useState<1 | 2 | 3>(initialOrderId?3:initialStep);
   const [orderId, setOrderId] = useState('');
   const [submittedStatus, setSubmittedStatus] = useState('');
   const flow = transactionCopy[locale];
   const navigateStep = (next: 1 | 2 | 3) => {
     setStep(next);
+    if(next!==3)window.history.replaceState(null,'','/'+locale+'/cart'+(next===2?'?step=checkout':''));
     window.scrollTo({top:0,behavior:'auto'});
   };
   const [delivery, setDelivery] = useState({ name: '', phone: '', country: '', city: '', postalCode: '', address: '' });
@@ -191,6 +197,13 @@ export function CartPage({ locale, initialStep = 1 }: { locale: Locale; initialS
   const load = async () => {
     setLoading(true); setError('');
     try {
+      if(initialOrderId){
+        const order=await data(await fetch('/api/portal/storefront/orders/'+encodeURIComponent(initialOrderId),{cache:'no-store'}));
+        if(order?.id!==initialOrderId || typeof order.status!=='string')throw Error('invalid order');
+        setOrderId(order.id);setSubmittedStatus(order.status);setStatus('owner');setSuccess(true);setStep(3);
+        if(order.delivery)setDelivery(current=>({...current,...order.delivery}));
+        return;
+      }
       const auth = await fetch('/api/auth/status', { cache: 'no-store' }).then(response => response.ok ? response.json() : null).catch(() => null);
       let current: CartItem[] = readGuestCart();
       if (auth?.user?.role === 'owner') {
@@ -230,8 +243,8 @@ export function CartPage({ locale, initialStep = 1 }: { locale: Locale; initialS
     finally { setLoading(false); }
   };
 
-  useEffect(() => { void load(); }, [locale]);
-  useEffect(() => { setStep(previous => previous===3?3:initialStep); }, [initialStep]);
+  useEffect(() => { void load(); }, [locale,initialOrderId]);
+  useEffect(() => { setStep(initialOrderId?3:initialStep); }, [initialStep,initialOrderId]);
 
   const save = async (next: CartItem[]) => {
     setBusy(true); setError('');
@@ -271,7 +284,7 @@ export function CartPage({ locale, initialStep = 1 }: { locale: Locale; initialS
       });
       const result = await data(await fetch('/api/portal/storefront/orders', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: requestId, cartRevision: revision, delivery, items: requestItems }) }));
       if (!result || result.id !== requestId || typeof result.status !== 'string') throw new Error('invalid response');
-      localStorage.removeItem(key); setOrderId(result.id); setSubmittedStatus(result.status); setItems([]); setSuccess(true); navigateStep(3); notifyCartChanged();
+      localStorage.removeItem(key); setOrderId(result.id); setSubmittedStatus(result.status); setItems([]); setSuccess(true); navigateStep(3); window.history.replaceState(null,'','/'+locale+'/cart?order='+encodeURIComponent(result.id)); notifyCartChanged();
     } catch (cause: any) { setError(cause.message === 'unavailable' ? t.unavailable : t.submitError); }
     finally { setBusy(false); }
   };
@@ -282,11 +295,11 @@ export function CartPage({ locale, initialStep = 1 }: { locale: Locale; initialS
     <nav className="transaction-steps" aria-label={flow.review} style={{display:'flex',alignItems:'center',gap:'clamp(12px,4vw,48px)',margin:'0 0 28px',flexWrap:'wrap'}}>
       {([flow.cart,flow.checkout,flow.complete] as const).map((label,i)=><span key={label} aria-current={step===i+1?'step':undefined} style={{fontWeight:step===i+1?700:400,opacity:step===i+1?1:0.65}}>{i+1}. {label}{i<2?'  →':''}</span>)}
     </nav>
-    <h1>{step===1?flow.cart:step===2?flow.checkout:flow.complete}</h1><p className="lede">{t.note}</p>
+    <h1>{step===1?flow.cart:step===2?flow.checkout:flow.complete}</h1>{step!==3&&<p className="lede">{t.note}</p>}
     {loading && <p role="status">{t.loading}</p>}
     {!loading && status !== 'owner' && items.length > 0 && <section className="cart-notice"><p>{t.login}</p><a className="button" href={loginHref}>{t.loginButton}</a></section>}
     {!loading && error && <p className="cart-error" role="alert">{error} <button type="button" onClick={() => void load()}>{t.retry}</button></p>}
-    {!loading && !error && status === 'owner' && success && step === 3 && <section className="cart-success" role="status"><h2>{flow.pending}</h2><p>{t.success}</p><p>{flow.order}: <strong>{orderId}</strong></p><p>{locale==='zh'?'服务器状态':locale==='de'?'Serverstatus':'Server status'}: {submittedStatus}</p><Link className="button" href={`/${locale}/account`}>{flow.orders}</Link></section>}
+    {!loading && !error && status === 'owner' && success && step === 3 && <section className="cart-success" role="status"><h2>{orderStatuses[locale][submittedStatus]||submittedStatus}</h2>{submittedStatus==='submitted'&&<p>{t.success}</p>}<p>{flow.order}: <strong>{orderId}</strong></p>{delivery.address&&<p>{delivery.name} · {delivery.address} · {delivery.postalCode} {delivery.city} · {delivery.country}</p>}<Link className="button" href={`/${locale}/account`}>{flow.orders}</Link></section>}
     {!loading && !error && !success && !items.length && <section className="cart-notice"><p>{t.empty}</p><a className="button" href={`/${locale}/e-bikes`}>{t.browse}</a></section>}
     {!loading && !error && !success && items.length > 0 && <>
       {step===1&&<div className="cart-lines">{items.map((item, index) => {

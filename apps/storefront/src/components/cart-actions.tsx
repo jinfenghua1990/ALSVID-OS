@@ -121,7 +121,7 @@ export function CartActions({ locale, productId, offers, availability, giftPrevi
         fetch('/api/auth/status',{cache:'no-store'}),
       ]);
       const fresh=Array.isArray(freshOffers)&&freshOffers.find((offer:Offer)=>offer.sku===selectedOffer.sku&&offer.currency===selectedOffer.currency);
-      if(!fresh || amountCents(fresh.unitPrice)===null || fresh.unitPrice!==selectedOffer.unitPrice)throw new Error('offer changed');
+      if(!fresh || !(Number(amountCents(fresh.unitPrice))>0) || fresh.unitPrice!==selectedOffer.unitPrice)throw new Error('offer changed');
       const freshAvailable=freshStock?.items?.find((item:{sku:string;available:boolean})=>item.sku===selectedOffer.sku)?.available;
       if(freshAvailable===false||(!freshStock?.items?.length&&freshStock?.available===false))throw new Error('unavailable');
       if(!auth.ok&&auth.status!==401&&auth.status!==403)throw new Error('auth unavailable');
@@ -272,7 +272,7 @@ export function CartPage({ locale, initialStep = 1 }: { locale: Locale; initialS
     finally { setBusy(false); }
   };
 
-  const available = items.length > 0 && items.every(item => details[item.productId]?.offers.some(offer => offer.sku === item.sku && offer.currency === item.currency && amountCents(offer.unitPrice) !== null));
+  const available = items.length > 0 && items.every(item => details[item.productId]?.offers.some(offer => offer.sku === item.sku && offer.currency === item.currency && Number(amountCents(offer.unitPrice)) > 0));
   const currencies = [...new Set(items.map(item => item.currency))];
   const totals = new Map<string, number>();
   for (const item of items) {

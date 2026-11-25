@@ -15,7 +15,7 @@ export type CatalogProduct = {
   relatedAccessories?: { id: string; productId: string; slug: string; title: string; images: { id: string; url: string }[]; prices: { currency: string; unitPrice: string }[] }[];
   languages: string[];
   images: { id: string; url: string }[];
-  prices: { currency: string; unitPrice: string }[];
+  prices: { currency: string; unitPrice: string; referencePrice?: string|null }[];
   specifications: { label: string; value: string }[];
   detailBlocks?: { type: 'image' | 'text'; imageId?: string; alt?: string; text?: string; url?: string }[];
 };
@@ -44,7 +44,7 @@ export type ProductTemplateModules = {
 // 「全部产品」列表页版式：分类导航 + 自动展示（按销量）。null = 未装修，维持系统默认渲染。
 export type CatalogLayout = { sort: 'sales' | 'default'; categories: { name: string; productIds: string[] }[] } | null;
 
-export type Offer = { sku: string; spec: string; color: string; currency: string; unitPrice: string; images?: {id:string;url:string}[] };
+export type Offer = { sku: string; spec: string; color: string; currency: string; unitPrice: string; referencePrice?:string|null; promotionEndsAt?:string|null; images?: {id:string;url:string}[] };
 export type ProductAvailability = { available: boolean | null; items?: { sku: string; available: boolean }[] };
 export type ReviewSummary = { average: string; total: number; goodRate: number; distribution?: Record<string, number> };
 export type ReviewPage = {items:PublicReview[];counts:ReviewSummary;page:number;hasMore:boolean;filteredTotal:number};
@@ -119,7 +119,7 @@ async function getJsonLive<T>(path: string): Promise<T | null> {
 export async function getProducts(locale: Locale, sort?: 'sales') {
   const items: CatalogProduct[] = [];
   for (let page = 1; page <= 100; page += 1) {
-    const result = await getJson<{ items: CatalogProduct[]; hasMore: boolean }>(`/api/catalog/products?lang=${locale}&page=${page}${sort === 'sales' ? '&sort=sales' : ''}`);
+    const result = await getJsonLive<{ items: CatalogProduct[]; hasMore: boolean }>(`/api/catalog/products?lang=${locale}&page=${page}${sort === 'sales' ? '&sort=sales' : ''}`);
     if (!result) break;
     items.push(...result.items);
     if (!result.hasMore) break;

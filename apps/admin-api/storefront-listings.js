@@ -6,6 +6,7 @@ const { documentOf } = require('./catalog');
 const { isUuidv7, uuidv7 } = require('./uuidv7');
 const { normalizeSeoProductId } = require('./seo-product-id');
 const { revalidateStorefront } = require('./storefront-revalidate');
+const { normalizePrice } = require('./listing-price-policy');
 
 function fail(message, statusCode = 400) { throw Object.assign(new Error(message), { statusCode }); }
 function sameSkuPrices(current, next) {
@@ -43,7 +44,7 @@ function createStorefrontListingStore(url,{onPublicationChanged=()=>{}}={}) {
   async function load(c,id,lock=false) {
     const row=(await c.query(`SELECT l.id,p.id AS "productId",l.product_uuid AS "productUuid",l.channel,l.slug,l.is_default AS "isDefault",l.draft,l.published,l.revision,l.published_revision AS "publishedRevision",l.legacy_product_market AS "legacyMarket" FROM storefront_listings l JOIN products p ON p.entity_uuid=l.product_uuid WHERE l.id=$1${lock?' FOR UPDATE OF l,p':''}`,[id])).rows[0];
     if(!row)fail('商品不存在',404);
-    row.skus=(await c.query(`SELECT s.code AS sku,COALESCE(jsonb_agg(jsonb_build_object('currency',lp.currency,'unitPrice',lp.unit_price::text,'published',lp.published) ORDER BY lp.currency) FILTER(WHERE lp.currency IS NOT NULL),'[]'::jsonb) AS prices FROM storefront_listing_skus ls JOIN skus s ON s.entity_uuid=ls.sku_uuid LEFT JOIN storefront_listing_prices lp ON lp.listing_id=ls.listing_id AND lp.sku_uuid=ls.sku_uuid WHERE ls.listing_id=$1 GROUP BY s.code ORDER BY s.code`,[id])).rows;
+    row.skus=(await c.query(`SELECT s.code AS sku,COALESCE(jsonb_agg(jsonb_build_object('currency',lp.currency,'unitPrice',lp.unit_price::text,'published',lp.published,'promotion',CASE WHEN sp.listing_id IS NULL THEN NULL ELSE jsonb_build_object('salePrice',sp.sale_price::text,'startsAt',sp.starts_at,'endsAt',sp.ends_at,'referencePrice',sp.reference_price::text,'referenceEvidence',sp.reference_evidence,'referenceVerifiedAt',sp.reference_verified_at) END) ORDER BY lp.currency) FILTER(WHERE lp.currency IS NOT NULL),'[]'::jsonb) AS prices FROM storefront_listing_skus ls JOIN skus s ON s.entity_uuid=ls.sku_uuid LEFT JOIN storefront_listing_prices lp ON lp.listing_id=ls.listing_id AND lp.sku_uuid=ls.sku_uuid LEFT JOIN storefront_listing_promotions sp ON sp.listing_id=lp.listing_id AND sp.sku_uuid=lp.sku_uuid AND sp.currency=lp.currency WHERE ls.listing_id=$1 GROUP BY s.code ORDER BY s.code`,[id])).rows;
     return row;
   }
   async function write(input,id) {
@@ -101,6 +102,28 @@ function createStorefrontListingStore(url,{onPublicationChanged=()=>{}}={}) {
       await c.query('INSERT INTO audit_log(actor,action,target,before_json,after_json) VALUES($1,$2,$3,$4,$5)',[currentActor(),before?'listing.update':'listing.create',`storefront-listings/${id}`,before?JSON.stringify(before):null,JSON.stringify(after)]);
       await c.query('COMMIT');return after;
     } catch(e){await c.query('ROLLBACK').catch(()=>{});if(e.code==='23505')fail('该渠道的 URL 别名已存在',409);throw e} finally{c.release()}
+  }
+  async function updatePrice(id,input){
+    if(!isUuidv7(id))fail('商品 ID 无效');
+    const price=normalizePrice(input),c=await pool.connect();
+    try{
+      await c.query('BEGIN');
+      const before=await load(c,id,true);
+      if(before.revision!==price.revision)fail('商品已更新，请重新加载',409);
+      if(!before.published||before.channel!=='website')fail('仅已发布的官网商品支持独立价格管理',409);
+      const target=(await c.query('SELECT lp.sku_uuid FROM storefront_listing_prices lp JOIN skus s ON s.entity_uuid=lp.sku_uuid WHERE lp.listing_id=$1 AND s.code=$2 AND lp.currency=$3 AND lp.published FOR UPDATE OF lp',[id,price.sku,price.currency])).rows[0];
+      if(!target)fail('该 SKU 未公开报价',404);
+      await c.query('UPDATE storefront_listing_prices SET unit_price=$1,revision=revision+1 WHERE listing_id=$2 AND sku_uuid=$3 AND currency=$4',[price.unitPrice,id,target.sku_uuid,price.currency]);
+      if(price.promotion){
+        const x=price.promotion;
+        await c.query('INSERT INTO storefront_listing_promotions(listing_id,sku_uuid,currency,sale_price,starts_at,ends_at,reference_price,reference_evidence,reference_verified_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8,CASE WHEN $7::numeric IS NULL THEN NULL ELSE CURRENT_TIMESTAMP END) ON CONFLICT(listing_id,sku_uuid,currency) DO UPDATE SET sale_price=EXCLUDED.sale_price,starts_at=EXCLUDED.starts_at,ends_at=EXCLUDED.ends_at,reference_price=EXCLUDED.reference_price,reference_evidence=EXCLUDED.reference_evidence,reference_verified_at=EXCLUDED.reference_verified_at',[id,target.sku_uuid,price.currency,x.salePrice,x.startsAt,x.endsAt,x.referencePrice,x.referenceEvidence]);
+      }else await c.query('DELETE FROM storefront_listing_promotions WHERE listing_id=$1 AND sku_uuid=$2 AND currency=$3',[id,target.sku_uuid,price.currency]);
+      await c.query('UPDATE storefront_listings SET revision=revision+1,updated_at=now() WHERE id=$1',[id]);
+      const after=await load(c,id);
+      await c.query('INSERT INTO audit_log(actor,action,target,before_json,after_json) VALUES($1,$2,$3,$4,$5)',[currentActor(),'listing.price.update','storefront-listings/'+id,JSON.stringify(before.skus),JSON.stringify(after.skus)]);
+      await c.query('COMMIT');onPublicationChanged();
+      return {...after,storefrontRevalidate:await revalidateStorefront(['storefront-products','storefront-layout'])};
+    }catch(e){await c.query('ROLLBACK').catch(()=>{});throw e}finally{c.release()}
   }
   async function recordVersion(c,row,action,document,sourceRevision=null) {
     await c.query('INSERT INTO storefront_listing_versions(listing_id,revision,action,document,channel,slug,sku_prices,actor,source_revision) VALUES($1,$2,$3,$4::jsonb,$5,$6,$7::jsonb,$8,$9)',[row.id,row.revision,action,JSON.stringify(document),row.channel,row.slug,JSON.stringify(row.skus),currentActor(),sourceRevision]);
@@ -161,7 +184,7 @@ function createStorefrontListingStore(url,{onPublicationChanged=()=>{}}={}) {
   }
   return {
     async list(productId){const c=await pool.connect();try{const product=(await c.query('SELECT entity_uuid FROM products WHERE id=$1',[productId])).rows[0];if(!product)fail('产品不存在',404);const ids=(await c.query('SELECT id FROM storefront_listings WHERE product_uuid=$1 ORDER BY is_default DESC,created_at,id',[product.entity_uuid])).rows;const rows=[];for(const row of ids)rows.push(await load(c,row.id));return rows}finally{c.release()}},
-    create: input=>write(input,null), update:(id,input)=>write(input,id), publish:(id,input)=>transition(id,input,true), unpublish:(id,input)=>transition(id,input,false), history,rollback,close:()=>pool.end(),
+    create: input=>write(input,null), update:(id,input)=>write(input,id), publish:(id,input)=>transition(id,input,true), unpublish:(id,input)=>transition(id,input,false), history,rollback,updatePrice,close:()=>pool.end(),
   };
 }
 
@@ -170,6 +193,7 @@ function registerStorefrontListingRoutes(app,store) {
   route('GET','/api/products/:id/listings',req=>store.list(req.params.id));
   route('POST','/api/storefront/listings',(req,reply)=>store.create(req.body||{}).then(row=>reply.code(201).send(row)));
   route('PUT','/api/storefront/listings/:id',req=>store.update(req.params.id,req.body||{}));
+  route('PUT','/api/storefront/listings/:id/price',req=>store.updatePrice(req.params.id,req.body||{}));
   route('POST','/api/storefront/listings/:id/publish',req=>store.publish(req.params.id,req.body||{}));
   route('POST','/api/storefront/listings/:id/unpublish',req=>store.unpublish(req.params.id,req.body||{}));
   route('GET','/api/storefront/listings/:id/versions',req=>store.history(req.params.id));

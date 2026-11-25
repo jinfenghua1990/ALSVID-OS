@@ -28,6 +28,7 @@ test('one physical product supports independent channel listings and prices', { 
     INSERT INTO alsvid_v2.skus VALUES('10000000-0000-4000-8000-000000000001','00000000-0000-4000-8000-000000000001','A1-EBI-450-BLK'),('10000000-0000-4000-8000-000000000002','00000000-0000-4000-8000-000000000002','B1-EBI-450-BLK');`);
   await admin.query(readFileSync(path.join(__dirname,'../migrations/082_storefront_listings.sql'),'utf8'));
   await admin.query(readFileSync(path.join(__dirname,'../migrations/183_storefront_listing_versions.sql'),'utf8'));
+  await admin.query(readFileSync(path.join(__dirname,'../migrations/184_storefront_listing_promotions.sql'),'utf8'));
   store=createStorefrontListingStore(url.toString());
   const document=(title,slug)=>({model:'A1',languages:{de:{title,description:'',specifications:[]}},mediaIds:[],seo:{slug,title:'',description:'',keywords:'',canonical:''}});
   const sku=(price)=>[{sku:'A1-EBI-450-BLK',prices:[{currency:'EUR',unitPrice:price,published:true}]}];

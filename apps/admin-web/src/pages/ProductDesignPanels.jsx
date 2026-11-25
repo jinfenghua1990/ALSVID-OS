@@ -374,7 +374,7 @@ const GLOBAL_MODULES = [
   ['productNavigation', '00', '商品专属导航栏'],
   ['info', '01', '主信息区'],
   ['marketing', '02', '营销模块'],
-  ['reserved3', '03', '预留位一'],
+  ['reserved3', '03', '核心性能展示'],
   ['reserved4', '04', '预留位二'],
   ['detail', '05', '图文详情'],
   ['reviews', '06', '用户评价'],
@@ -387,7 +387,7 @@ const MODULE_META = {
   productNavigation: { desc:'整车详情页单行吸顶导航；PC 与手机共用', anchor:()=>false },
   info: { desc: '固定模块，由商品数据自动生成', anchor: () => true },
   marketing: { desc: '促销展现 · 标准模板 3 选 1' },
-  reserved3: { desc: '预留位 · 未配置内容时自动隐藏' },
+  reserved3: { desc: '全宽视觉 · 四项参数读取整车主档', anchor: m => m?.showParameters !== false || Boolean(m?.imageId || m?.videoId || m?.title || m?.text) },
   reserved4: { desc: '预留位 · 未配置内容时自动隐藏' },
   detail: { desc: '按商品维护，位置固定', anchor: () => true },
   reviews: { desc: '读取「评价管理」真实评价', anchor: (m) => m?.enabled !== false },
@@ -409,7 +409,8 @@ function moduleAnchor(key, modules) {
 function moduleBadge(key, modules) {
   if (key === 'info' || key === 'productNavigation') return '固定';
   if (key === 'detail') return '按商品';
-  if (key === 'reserved3' || key === 'reserved4') {
+  if (key === 'reserved3') return modules.reserved3?.showParameters !== false || modules.reserved3?.imageId || modules.reserved3?.videoId || modules.reserved3?.title || modules.reserved3?.text ? '已启用' : '自动隐藏';
+  if (key === 'reserved4') {
     const m = modules[key] || {};
     return m.enabled && (m.imageId || m.text || m.href) ? '已配置' : '自动隐藏';
   }
@@ -421,6 +422,8 @@ export function GlobalModulesPanel({ cms, row, locale, onEditGraphic, onSelectMo
   const [assets, setAssets] = useState([]);
   const [active, setActive] = useState('marketing');
   const [fields, setFields] = useState([]);
+  const [coreVideos, setCoreVideos] = useState([]);
+  useEffect(() => { let alive=true; api.assetsAll({ category:'page', kind:'video' }).then(rows=>{if(alive)setCoreVideos(Array.isArray(rows)?rows:[])}).catch(()=>{}); return ()=>{alive=false}; }, []);
   const [fieldError, setFieldError] = useState('');
   useEffect(() => { let alive = true; api.fields().then(rows => { if (alive) setFields(Array.isArray(rows) ? rows : []); }).catch(e => { if (alive) setFieldError(e.message || '读取参数字典失败'); }); return () => { alive = false; }; }, []);
   useEffect(() => { api.assetsAll({ category: 'page', kind: 'image' }).then(rows => setAssets(Array.isArray(rows) ? rows : [])).catch(() => setAssets([])); }, []);
@@ -475,6 +478,21 @@ export function GlobalModulesPanel({ cms, row, locale, onEditGraphic, onSelectMo
         </div>}
       </section>
     </div>;
+    if (active === 'reserved3') {
+      const core = {...BANNER_DEFAULT, ...modules.reserved3};
+      const slots = Array.isArray(core.fieldCodes) && core.fieldCodes.length === 4 ? core.fieldCodes : ['', '', '', ''];
+      const patch = next => patchModules({reserved3:{...core,...next}});
+      const defaults = ['整车重量','续航里程','车架材质','折叠尺寸'];
+      return <section className="sdp__module">
+        <header><strong>P03 · 核心性能展示</strong><span className="hint">全宽视觉 · 四项参数</span></header>
+        <label className="sdp__field">背景图片<select value={core.imageId || ''} onChange={e=>patch({imageId:e.target.value,videoId:''})}><option value="">无图片</option>{assets.map(a=><option key={a.id} value={a.id}>{a.label || a.fileName || a.id}</option>)}</select></label>
+        <label className="sdp__field">背景视频<select value={core.videoId || ''} onChange={e=>patch({videoId:e.target.value})}><option value="">无视频（显示图片）</option>{coreVideos.map(a=><option key={a.id} value={a.id}>{a.label || a.fileName || a.id}</option>)}</select></label>
+        <label className="sdp__field">主文案<input maxLength={120} value={core.title || ''} onChange={e=>patch({title:e.target.value})}/></label>
+        <label className="sdp__field">文字位置<select value={core.alignment || 'center'} onChange={e=>patch({alignment:e.target.value})}><option value="left">左</option><option value="center">中</option><option value="right">右</option></select></label>
+        <label className="sdp__check"><input type="checkbox" checked={core.showParameters !== false} onChange={e=>patch({showParameters:e.target.checked})}/> 显示四项核心参数</label>
+        {core.showParameters !== false && <div>{fieldError && <p className="error-text">{fieldError}</p>}{slots.map((code,i)=><label key={i} className="sdp__field">参数 {i+1}<select value={code} onChange={e=>patch({fieldCodes:slots.map((v,j)=>j===i?e.target.value:v)})}><option value="">默认 · {defaults[i]}</option>{code && !availableFields.some(f=>f.code===code) && <option value={code}>已选字段不可用：{code}</option>}{availableFields.map(f=><option key={f.code} value={f.code} disabled={slots.some((v,j)=>j!==i&&v===f.code)}>{f.nameZh || f.code}{f.unit ? '（'+f.unit+'）':''}</option>)}</select></label>)}<p className="hint">实际数值只读取整车主档，不可手填；未录入的数值显示 —。</p></div>}
+      </section>;
+    }
     if (active === 'detail') return <div className="sdp">
       <section className="sdp__module">
         <header><strong>05 图文详情</strong><span className="hint">按商品</span></header>

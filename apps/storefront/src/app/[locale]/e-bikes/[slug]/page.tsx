@@ -69,7 +69,6 @@ export default async function ProductPage({ params }: Props) {
   const modules = template?.modules;
   const banners = ([
     { key: 'marketing', banner: modules?.marketing },
-    { key: 'reserved3', banner: modules?.reserved3 },
     { key: 'reserved4', banner: modules?.reserved4 },
   ] as { key: string; banner: ProductModuleBanner | undefined }[]).filter((row): row is { key: string; banner: ProductModuleBanner } => !!row.banner?.enabled && !!(row.banner.imageId || row.banner.title || row.banner.description || row.banner.text || row.banner.href));
   const detailBlocks = (product.detailBlocks || []).filter(block => (block.type === 'image' && block.url) || (block.type === 'text' && block.text));
@@ -98,7 +97,9 @@ export default async function ProductPage({ params }: Props) {
           {product.warranty && <section className="product-business-module"><h2>{UI.warranty[locale]}</h2><p>{product.warranty}</p></section>}
         </section>
       </div>
-      {banners.map(({ key, banner }) => <MarketingBlock key={key} name={key} banner={banner} alt={product.title} href={bannerHref(banner.href)}/>)}
+      {banners.filter(row=>row.key==='marketing').map(({ key, banner }) => <MarketingBlock key={key} name={key} banner={banner} alt={product.title} href={bannerHref(banner.href)}/>)} 
+      <CorePerformance config={modules?.reserved3} parameters={template?.coreParameters || []}/>
+      {banners.filter(row=>row.key!=='marketing').map(({ key, banner }) => <MarketingBlock key={key} name={key} banner={banner} alt={product.title} href={bannerHref(banner.href)}/>)} 
       {detailBlocks.length > 0 && <section className="product-detail-blocks" id="product-details" data-module-id="ALSVID-P05" data-module="detail">
         <h2>{UI.detailDescription[locale]}</h2>
         {detailBlocks.map((block, index) => block.type === 'image'
@@ -133,4 +134,20 @@ function MarketingBlock({ name, banner, alt, href }: { name: string; banner: Pro
   const media = banner.imageId ? <img className="product-mkt__media" src={publicAssetUrl(banner.imageId)} alt={title || alt} loading="lazy" /> : null;
   if (banner.style === 'promoBar') return <section className={cls} data-module={name} data-module-id={name==='marketing'?'ALSVID-P02':name==='reserved3'?'ALSVID-P03':'ALSVID-P04'}>{title && <strong>{title}</strong>}{banner.description && <span>{banner.description}</span>}{button}</section>;
   return <section className={cls} data-module={name} data-module-id={name==='marketing'?'ALSVID-P02':name==='reserved3'?'ALSVID-P03':'ALSVID-P04'}>{media}{(title || banner.description || button) && <div className="product-mkt__copy">{title && <h2>{title}</h2>}{banner.description && <p>{banner.description}</p>}{button}</div>}</section>;
+}
+
+function CorePerformance({config,parameters}:{config?:import('@/lib/alsvid-api').ProductTemplateModules['reserved3'];parameters:{code:string;label:string;value:string;unit?:string}[]}) {
+  const image=config?.imageId?publicAssetUrl(config.imageId):undefined;
+  const video=config?.videoId?publicAssetUrl(config.videoId):undefined;
+  const headline=config?.title||config?.text;
+  const show=config?.showParameters!==false&&parameters.length>0;
+  if(!image&&!video&&!headline&&!show)return null;
+  return <section className="p03-performance" data-module-id="ALSVID-P03" data-module="reserved3">
+    {image&&<img className="p03-performance__media" src={image} alt="" loading="lazy"/>}
+    {video&&<video className="p03-performance__media" src={video} poster={image} autoPlay muted loop playsInline preload="metadata" aria-hidden="true"/>}
+    <div className={'p03-performance__content p03-align-'+(config?.alignment||'center')}>
+      {headline&&<h2>{headline}</h2>}
+      {show&&<dl className="p03-performance__parameters">{parameters.map((row,i)=><div key={row.code+'-'+i}><dt>{row.label}</dt><dd>{row.value?row.value+(row.unit&&!String(row.value).trim().endsWith(row.unit.trim())?' '+row.unit:''):'—'}</dd></div>)}</dl>}
+    </div>
+  </section>;
 }

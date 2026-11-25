@@ -231,6 +231,39 @@ function copyModuleOf(value) {
   const row = value && typeof value === 'object' && !Array.isArray(value) ? value : {};
   return { enabled: row.enabled === true, title: text(row.title ?? '', 180), body: text(row.body ?? '', 4000) };
 }
+// P03: default slots resolve from the public product field dictionary, never from manual values.
+const CORE_PARAMETER_DEFAULTS = [
+  { names: ['整车重量','整车净重','车重','重量'], labels: { zh:'整车重量', en:'Bike weight', de:'Fahrradgewicht' } },
+  { names: ['续航里程','最大续航','续航','助力续航','最长续航里程'], labels: { zh:'续航里程', en:'Range', de:'Reichweite' } },
+  { names: ['车架材质','车架材料','车架材质类型'], labels: { zh:'车架材质', en:'Frame material', de:'Rahmenmaterial' } },
+  { names: ['折叠尺寸','折叠后尺寸','折叠状态尺寸'], labels: { zh:'折叠尺寸', en:'Folded dimensions', de:'Faltmaß' } },
+];
+function coreSlotsOf(value) {
+  if (value == null) return ['', '', '', ''];
+  if (!Array.isArray(value) || value.length !== 4 || value.some(code => typeof code !== 'string' || code.length > 128)) fail('P03 必须配置四个参数字段');
+  const codes = value.map(code => code.trim());
+  const explicit = codes.filter(Boolean);
+  if (new Set(explicit).size !== explicit.length) fail('P03 参数字段不能重复');
+  return codes;
+}
+function coreParameterRows(product, fields, locale, slots) {
+  const valid = fields.filter(f => f.enabled && f.shopVisible && f.level === 'product' && typeof f.code === 'string' && !f.code.startsWith('_') && (!f.templates?.length || f.templates.includes(product?.productType)));
+  const rows = publicProductSpecifications(product, valid, locale);
+  const byCode = new Map(rows.map(row => [row.code,row]));
+  const configured = new Set(slots.filter(Boolean));
+  const used = new Set();
+  const labelKey = locale === 'de' ? 'nameDe' : locale === 'en' ? 'nameEn' : 'nameZh';
+  return CORE_PARAMETER_DEFAULTS.map((slot,i) => {
+    const explicit = slots[i];
+    const field = explicit ? valid.find(f=>f.code===explicit) : slot.names.map(name=>valid.find(f=>f.nameZh===name && !configured.has(f.code) && !used.has(f.code))).find(Boolean);
+    if (field) used.add(field.code);
+    return (field && byCode.get(field.code)) || {
+      code: field?.code || explicit || 'default-'+i,
+      label: field ? (field[labelKey] || field.nameZh || field.code) : explicit ? (locale==='zh'?'参数':locale==='de'?'Parameter':'Specification') : slot.labels[locale] || slot.labels.en,
+      value:'',unit:''
+    };
+  });
+}
 function modulesOf(input) {
   const value = input.modules == null ? {} : input.modules;
   if (typeof value !== 'object' || Array.isArray(value)) fail('商品详情模块配置无效');
@@ -239,7 +272,10 @@ function modulesOf(input) {
   if (!Number.isSafeInteger(limit) || limit < 1 || limit > 50) fail('评价显示条数须为 1-50 的整数');
   return {
     marketing: bannerModuleOf(value.marketing),
-    reserved3: bannerModuleOf(value.reserved3),
+    reserved3: { ...bannerModuleOf(value.reserved3), showParameters: value.reserved3?.showParameters !== false,
+      fieldCodes: coreSlotsOf(value.reserved3?.fieldCodes), videoId: assetId(value.reserved3?.videoId ?? ''),
+      alignment: ['left','center','right'].includes(value.reserved3?.alignment) ? value.reserved3.alignment : 'center',
+    },
     reserved4: bannerModuleOf(value.reserved4),
     reviews: { enabled: reviews.enabled !== false, limit, style: reviews.style === 'cards' ? 'cards' : 'list' },
     returns: copyModuleOf(value.returns),
@@ -399,6 +435,7 @@ function createCmsStore(connectionString) {
       const imageId = document.modules?.[key]?.imageId;
       if (imageId) images.push(imageId);
     }
+    if (document.modules?.reserved3?.videoId) videos.push(document.modules.reserved3.videoId);
     if (images.length) {
       const rows = (await client.query("SELECT id::text AS id FROM media_assets WHERE id::text=ANY($1::text[]) AND kind='image'", [images])).rows;
       if (rows.length !== new Set(images).size) fail('所选素材不存在或不是图片，请重新选择');
@@ -585,6 +622,9 @@ function createCmsStore(connectionString) {
       if (block.componentKey === 'specs') {
         const productRef = contextProductId || block.bindings?.productId;
         const product = map.get(productRef);
+        if (block.bindings?.coreParameters === true) {
+          return { ...block, data: { specifications: coreParameterRows(product, fieldRows, locale, coreSlotsOf(block.bindings.fieldCodes)) } };
+        }
         const selectedCodes = new Set(block.bindings?.fieldCodes || []);
         let specifications = product ? publicProductSpecifications(product, fieldRows, locale, selectedCodes) : [];
         if (!specifications.length && Array.isArray(block.props?.items) && block.props.items.length) {
@@ -905,14 +945,22 @@ function createCmsStore(connectionString) {
       const { version = null, draft = false } = options;
       const productPath = productId ? normalizePath(`/products/${productId}`) : '';
       // 老数据没有 modules/catalogLayout 字段：读取时补默认值，保证发布前后前台一致。
-      const payload = async (document, data) => ({
+      const payload = async (document, data) => {
+        const blocks = Array.isArray(document.blocks) ? document.blocks : [];
+        const core = document.modules?.reserved3;
+        const readCore = Boolean(productId) && core?.showParameters !== false;
+        const marker = { id: '__alsvid_p03_core__', componentKey: 'specs', visible: true, props: {}, bindings: { coreParameters: true, fieldCodes: coreSlotsOf(core?.fieldCodes) } };
+        const enriched = await enrich(readCore ? [...blocks, marker] : blocks, locale, productId);
+        const coreParameters = readCore ? enriched.pop()?.data?.specifications || [] : [];
+        return ({
         id: data.id, name: data.name, locale, isProductSpecific: data.isProductSpecific, seo: data.seo || {},
         productLayout: document.productLayout || { gallery: 'standard', specifications: 'list', reviews: 'list' },
         modules: document.modules || DEFAULT_PRODUCT_MODULES,
         catalogLayout: document.catalogLayout || null,
-        blocks: await enrich(Array.isArray(document.blocks) ? document.blocks : [], locale, productId),
+        blocks: enriched,
+        coreParameters,
         preview: draft ? 'draft' : version ? `v${version}` : undefined,
-      });
+      }); };
       // 草稿预览：仅后台装修工作区使用（路由层已校验管理员身份）
       if (draft) {
         const data = (await pool.query("SELECT id::text AS id,page_name AS \"name\",draft AS document,draft_seo AS seo,(path=$2) AS \"isProductSpecific\" FROM site_pages WHERE page_type='product_template' AND locale=$1 AND status='active' AND draft IS NOT NULL AND (path=$2 OR path NOT LIKE '/products/%') ORDER BY (path=$2) DESC,updated_at DESC LIMIT 1", [locale, productPath])).rows[0];

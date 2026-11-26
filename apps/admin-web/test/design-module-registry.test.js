@@ -4,7 +4,7 @@ import {modulesFor,SHELL_MODULES,editorKey,shellValue,shellState,DESIGN_LOCALES,
 
 test('stable four-region modules are shared; detail uses P00 instead of G02',()=>{
  const ids=page=>modulesFor(page).map(x=>x.id.replace('ALSVID-',''));
- assert.deepEqual(ids('home'),['G01','G02','G03','H01','H02','H03','H04','G04']);
+ assert.deepEqual(ids('home'),['G01','G02','G03','G03-01','G03-02','G03-03','G03-04','G03-05','G04']);
  assert.deepEqual(ids('list'),['G01','G02','G03','L01','L02','L03','L04','L05','G04']);
  assert.deepEqual(ids('detail'),['G01','P00','G03','P01','P01-01','P01-02','P02','P04','P05','P06','P07','P08','P09','P10','G04']);
  assert.deepEqual(ids('transaction'),['G01','G02','G03','G04']);

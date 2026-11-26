@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import { DesignPreviewFocus } from '@/components/design-preview-focus';
 import { CartDrawer } from '@/components/cart-drawer';
 import { SiteHeader } from '@/components/site-header';
 import { notFound } from 'next/navigation';
@@ -24,6 +25,7 @@ export default async function LocaleLayout({ children, params }: Readonly<{ chil
     <SiteHeader locale={lang} catalogLayout={template?.catalogLayout||null} config={shell.header}/>
     <div data-module-id="ALSVID-G03">{children}</div>
     <CartDrawer locale={lang}/>
+    <DesignPreviewFocus/>
     <footer className="site-footer site-footer--global" data-module-id="ALSVID-G04">
       {!!shell.footer?.groups?.length && <div className="site-footer-groups">{shell.footer.groups.map((group,i)=><nav key={i} aria-label={group.title}><strong>{group.title}</strong>{group.links.map((item,j)=><Link key={j} href={item.href}>{item.label}</Link>)}</nav>)}</div>}
       <div className="site-footer-bottom"><span>{shell.footer?.brand||'ALSVID · Electric mobility'}</span><nav aria-label={copy.legalAria}>{copy.legal.map(([slug,label])=><Link key={slug} href={`/${lang}/legal/${slug}`}>{label}</Link>)}</nav></div>

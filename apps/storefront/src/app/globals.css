@@ -383,8 +383,9 @@ h1 { max-width:900px; margin:14px 0 20px; font-size:clamp(42px,7vw,92px); font-w
 
 /* Shared shopping bag and minimal header */
 .site-header[data-module-id="ALSVID-G02"] { display:grid; grid-template-columns:minmax(44px,1fr) auto minmax(0,1fr); align-items:center; position:relative; z-index:20; gap:12px; padding:12px clamp(14px,4vw,60px); }
-.site-header>.brand { grid-column:2; grid-row:1; justify-self:center; }
-.site-header>.mobile-menu { grid-column:1; grid-row:1; justify-self:start; }
+.site-header>.brand { grid-column:1; grid-row:1; justify-self:start; white-space:nowrap; }
+.site-header>.site-primary-nav { grid-column:2; grid-row:1; display:flex; align-items:center; justify-content:center; gap:clamp(18px,3vw,42px); font-size:14px; white-space:nowrap; }
+.site-header>.mobile-menu { grid-column:2; grid-row:1; justify-self:center; display:none; }
 .site-header>.site-header-actions { grid-column:3; grid-row:1; justify-self:end; display:flex; gap:10px; align-items:center; }
 .site-header .mobile-menu>summary { list-style:none; display:grid; place-items:center; min-width:44px; min-height:44px; cursor:pointer; }
 .site-header .mobile-menu>summary::-webkit-details-marker { display:none; }
@@ -392,6 +393,7 @@ h1 { max-width:900px; margin:14px 0 20px; font-size:clamp(42px,7vw,92px); font-w
 .site-header .mobile-menu[open]>.site-nav { position:absolute; top:100%; left:0; z-index:40; display:flex; flex-direction:column; align-items:flex-start; gap:18px; width:min(100%,420px); max-height:70vh; overflow:auto; padding:24px; background:#fbfbf9; }
 .site-header .site-header-actions>a { display:inline-flex; align-items:center; justify-content:center; min-width:32px; min-height:44px; }
 .site-header .nav-mega__panel { position:static; display:block; }
+@media(max-width:900px){.site-header>.site-primary-nav{display:none;} .site-header>.mobile-menu{display:block;} .site-header[data-module-id="ALSVID-G02"]{grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);} }
 @media(max-width:720px){.site-header[data-module-id="ALSVID-G02"]{gap:6px;padding:8px 12px;} .site-header>.site-header-actions{gap:3px;} .site-header>.brand{font-size:17px;} .locale-switch--flags summary{min-width:32px;} }
 
 /* Shared transaction drawer: one surface, no product-card backgrounds. */

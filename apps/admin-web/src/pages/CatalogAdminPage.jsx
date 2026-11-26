@@ -8,6 +8,7 @@ import ShopProductList from './ShopProductList.jsx';
 import ShopPricingPage from './ShopPricingPage.jsx';
 import StorefrontPageAdmin from './StorefrontPageAdmin.jsx';
 import StorefrontListingsAdmin from './StorefrontListingsAdmin.jsx';
+import UnifiedDesignWorkspace from './UnifiedDesignWorkspace.jsx';
 import ShopDesignWorkspace from './ShopDesignWorkspace.jsx';
 import SeoTrafficCenter from './SeoTrafficCenter.jsx';
 import PaymentProviders from './PaymentProviders.jsx';
@@ -17,7 +18,7 @@ import { api } from '../api.js';
 
 const StorefrontBuilderAdmin = lazy(() => import('./StorefrontBuilderAdmin.jsx'));
 
-export default function CatalogAdminPage({ user, active = true, workspaceKey, onWorkspaceDirtyChange, section = 'overview', pageQuery = '', pageId = '', productId = '', onSectionChange, onOpenProduct, onCreateProduct }) {
+export default function CatalogAdminPage({ user, active = true, workspaceKey, onWorkspaceDirtyChange, section = 'overview', pageQuery = '', pageId = '', productId = '', onSectionChange, onOpenProduct, onCreateProduct, onOpenDesignEditor }) {
   const [publishedIds,setPublishedIds]=useState(()=>new Map());
   const [pageView,setPageView]=useState('list');
   const [editingPage,setEditingPage]=useState('');
@@ -69,6 +70,7 @@ export default function CatalogAdminPage({ user, active = true, workspaceKey, on
     <CmsPageManager active={active} user={user} openPageId={editingPage} onDirtyChange={setCmsDirty} onBack={() => { setPageView('design'); setEditingPage(''); }} />
   </>;
   // 店铺装修工作区：页面 TAB + 语言 TAB + 版本历史 + 真实页面预览
+  if (section === 'unified-design') return <UnifiedDesignWorkspace active={active} user={user} onOpenEditor={onOpenDesignEditor}/>;
   if (section === 'design') return <ShopDesignWorkspace active={active} user={user} onSectionChange={onSectionChange} />;
   if (section === 'orders') return <div className="shop-work">
     <ShopPageHead />

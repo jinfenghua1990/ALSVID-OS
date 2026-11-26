@@ -16,7 +16,7 @@ function verify(token,type){
  return value;
 }
 function scope(page,actor){
- if(!page||page.pageType!=='shared_module'||!['/site-shell/announcement','/site-shell/header','/site-shell/footer'].includes(page.path)||page.status!=='active'||!page.draft?.siteShell||!locales.includes(page.locale)||!Number.isSafeInteger(page.revision)||!actor)fail('该模块没有可发布的公共草稿');
+ if(!page||page.pageType!=='shared_module'||!['/site-shell/announcement','/site-shell/header','/site-shell/footer'].includes(page.path)||!['active','disabled'].includes(page.status)||!page.draft?.siteShell||!locales.includes(page.locale)||!Number.isSafeInteger(page.revision)||!actor)fail('该模块没有可发布的公共草稿');
  return {id:page.id,path:page.path,revision:page.revision,sourceLocale:page.locale,actor:String(actor)};
 }
 function same(a,b){return ['id','path','revision','sourceLocale','actor'].every(k=>a[k]===b[k])}
@@ -29,6 +29,10 @@ function rendered(ticket,page){
  if(!same(ticket,scope(page,ticket.actor)))fail('草稿已修改，请重新开始预览');
  return sign({...ticket,type:'rendered'});
 }
+function requireReviewedRelease(page,actor,input={}){
+ if(['/site-shell/announcement','/site-shell/header','/site-shell/footer'].includes(page.path)&&!actor)fail('公共模块必须通过六项发布预览，不能使用旧版直接发布');
+ return actor?approve(page,actor,input.session,input.receipts):null;
+}
 function approve(page,actor,session,receipts){
  const target=scope(page,actor);
  if(typeof session!=='string'||!Array.isArray(receipts)||receipts.length!==6)fail('必须确认全部六项预览');
@@ -40,4 +44,4 @@ function approve(page,actor,session,receipts){
  if(seen.size!==6)fail('必须确认六种不同预览');
  return {session,slots:[...seen]};
 }
-module.exports={start,read,rendered,approve};
+module.exports={start,read,rendered,approve,requireReviewedRelease};

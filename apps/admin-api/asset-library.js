@@ -626,7 +626,7 @@ function createAssetLibraryStore(url, objectStorage) {
   async function mergeReused(existing, { label, folder, tags, langs, markets }) {
     const merged = {
       label: existing.label || label,
-      folder: existing.folder || (folder.startsWith('原始素材/') ? '' : folder),
+      folder: existing.folder || (String(folder || '').startsWith('原始素材/') ? '' : (folder || '')),
       tags: unique([...(existing.tags || []), ...tags]),
       langs: unique([...(existing.langs || []), ...langs]),
       markets: unique([...(existing.markets || []), ...markets]),

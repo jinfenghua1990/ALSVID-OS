@@ -16,16 +16,16 @@ export default function UnifiedDesignWorkspace({active,user,onOpenEditor}){
      const docs=await Promise.all(relevant.map(row=>api.cmsPage(row.id)));
      if(seq!==request.current)return;
      setRecords(Object.fromEntries(docs.map(doc=>[doc.path,doc])));
-     const url=connection?.storefrontPublicOrigin;
+     const url=connection?.data?.storefrontPublicOrigin;
      try{const parsed=new URL(url);setOrigin(['http:','https:'].includes(parsed.protocol)&&!parsed.username&&!parsed.password?parsed.origin:'')}catch{setOrigin('')}
    }catch(e){if(seq===request.current){setError(e.message||'读取失败');setOrigin('')}}
    finally{if(seq===request.current)setLoading(false)}
  };
  useEffect(()=>{if(active&&user?.role==='admin')void load();return()=>{request.current++;historyRequest.current++}},[active,locale,user?.role]);
- useEffect(()=>{if(!active||page!=='detail')return;let alive=true;setProducts([]);setSlug('');(async()=>{try{
+ useEffect(()=>{if(page!=='detail')return;let alive=true;setProducts([]);(async()=>{try{
    const list=[];let p=1,result;do{result=await api.catalogProducts(locale,p++);list.push(...(result.items||[]))}while(result.hasMore&&alive&&p<=50);
-   if(alive){const vehicles=list.filter(x=>x.kind==='vehicle'&&x.slug);setProducts(vehicles);setSlug(vehicles[0]?.slug||'')}
- }catch(e){if(alive)setError(e.message||'读取车型失败')}})();return()=>{alive=false}},[active,page,locale]);
+   if(alive){const vehicles=list.filter(x=>x.kind==='vehicle'&&x.slug);setProducts(vehicles);setSlug(old=>vehicles.some(v=>v.slug===old)?old:(vehicles[0]?.slug||''))}
+ }catch(e){if(alive)setError(e.message||'读取车型失败')}})();return()=>{alive=false}},[page,locale]);
  const route=page==='home'?'/':page==='list'?'/e-bikes':page==='transaction'?'/cart':slug?'/e-bikes/'+encodeURIComponent(slug):'';
  const preview=origin&&route?origin+'/'+locale+(route==='/'?'':route):'';
  const focus=id=>{setFocusResult('');if(preview&&frame.current?.contentWindow)frame.current.contentWindow.postMessage({type:'alsvid:design-focus',id},origin)};

@@ -132,6 +132,16 @@ function resolveFolder(meta = {}, fallback = '') {
   return normalizeFolder(meta.folder === undefined ? fallback : meta.folder);
 }
 
+// Logical business views: retain existing category contracts and original object keys.
+function assetViewFilter(view) {
+  if (!view) return '';
+  const original = "(category='product' AND (folder='原始素材' OR folder LIKE '原始素材/%'))";
+  if (view === 'original') return original;
+  if (view === 'storefront') return "(category='page' OR (category='product' AND NOT " + original + "))";
+  if (view === 'marketing') return "category='marketing'";
+  fail('素材业务分类无效');
+}
+
 function createAssetLibraryStore(url, objectStorage) {
   const pool = createPool(url, { max: 3, connectionTimeoutMillis: 10000 });
 
@@ -259,8 +269,10 @@ function createAssetLibraryStore(url, objectStorage) {
     productIndex,
     async folders(query = {}) {
       const category = query.category ? oneOf(query.category, CATEGORIES, '素材分类无效') : '';
+      const view = assetViewFilter(query.assetView);
+      const filters = [category ? 'category=$1' : '', view].filter(Boolean);
       const rows = (await pool.query(
-        `SELECT folder,count(*)::int AS total FROM media_assets ${category ? 'WHERE category=$1' : ''} GROUP BY folder ORDER BY folder`,
+        `SELECT folder,count(*)::int AS total FROM media_assets ${filters.length ? 'WHERE '+filters.join(' AND ') : ''} GROUP BY folder ORDER BY folder`,
         category ? [category] : []
       )).rows;
       return { items: rows };
@@ -268,6 +280,8 @@ function createAssetLibraryStore(url, objectStorage) {
 
     async list(query = {}) {
       const filters = [], values = [];
+      const view = assetViewFilter(query.assetView);
+      if (view) filters.push(view);
       if (query.kind) { values.push(oneOf(query.kind, ['image', 'video', 'other'], '素材类型无效')); filters.push(`kind=$${values.length}`); }
       if (query.category) { values.push(oneOf(query.category, CATEGORIES, '素材分类无效')); filters.push(`category=$${values.length}`); }
       if (query.folder) { values.push(normalizeFolder(query.folder)); filters.push(`folder=$${values.length}`); }

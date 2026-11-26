@@ -1,6 +1,8 @@
 name: ALSVID V2 build checks (no deployment)
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
   pull_request:
     branches: [main]
     paths: ['apps/admin-api/**', 'apps/admin-web/**', 'apps/storefront/**', 'scripts/**', 'infra/**', '.dockerignore', '.github/workflows/v2-check.yml']

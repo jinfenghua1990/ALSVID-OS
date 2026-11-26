@@ -1,61 +1,35 @@
 'use strict';
+// UNIT_TEST_NO_DATABASE
 const {test}=require('node:test');
 const assert=require('node:assert/strict');
-const Fastify=require('fastify');
-const {storefrontReleaseGate,isReleaseLocked}=require('../storefront-release-gate');
-const {apiAccessHook}=require('../access-policy');
-const {registerCmsRoutes}=require('../cms');
-const {registerCatalogRoutes}=require('../catalog');
-const {registerStorefrontListingRoutes}=require('../storefront-listings');
-
-const id='018e6e58-3921-789a-bcde-1234567890ab';
-const locked=[
-  '/api/site/layout-draft/publish','/api/site/layout-draft/publish-locale',
-  '/api/site/layout-draft/rollback','/api/site/homepage/publish',
-  '/api/products/'+id+'/publication/publish','/api/cms/pages/'+id+'/publish',
-  '/api/cms/pages/'+id+'/rollback','/api/storefront/listings/'+id+'/publish',
-  '/api/storefront/listings/'+id+'/rollback',
-];
-
-test('all real legacy release endpoints reject fabricated approval before invoking a store',async t=>{
-  const app=Fastify(),calls=[];
-  app.addHook('onRequest',apiAccessHook({user:async role=>role?{id:'user',role}:null},req=>req.headers['test-role']));
-  app.addHook('preHandler',storefrontReleaseGate);
-  const store=new Proxy({}, {get:(_target,key)=>async(...args)=>{calls.push([key,...args]);return {ok:true}}});
-  registerCatalogRoutes(app,{catalog:store,objectStorage:null});
-  registerCmsRoutes(app,store);
-  registerStorefrontListingRoutes(app,store);
-  t.after(()=>app.close());
-  await app.ready();
-  for(const url of locked){
-    const response=await app.inject({method:'POST',url:url+'?reviewed=true',headers:{'test-role':'admin'},payload:{revision:1,approved:true,confirmations:['zh-desktop','zh-mobile','en-desktop','en-mobile','de-desktop','de-mobile']}});
-    assert.equal(response.statusCode,409,url);
-    assert.equal(response.json().code,'STOREFRONT_RELEASE_REVIEW_REQUIRED',url);
-  }
-  const activate=await app.inject({method:'PATCH',url:'/api/cms/pages/'+id+'/status',headers:{'test-role':'admin'},payload:{status:'active'}});
-  assert.equal(activate.statusCode,409);
-  assert.equal(calls.length,0,'release guard must run before store mutations');
-  const anonymous=await app.inject({method:'POST',url:locked[0],payload:{}});
-  assert.equal(anonymous.statusCode,401);
-  const viewer=await app.inject({method:'POST',url:locked[0],headers:{'test-role':'viewer'},payload:{}});
-  assert.equal(viewer.statusCode,403);
-  for(const [method,url,payload] of [
-    ['PUT','/api/cms/pages/'+id+'/draft',{revision:1,draft:{blocks:[]}}],
-    ['POST','/api/cms/pages/'+id+'/versions/1/restore-draft',{revision:1}],
-    ['GET','/api/cms/pages/'+id+'/versions',undefined],
-    ['PATCH','/api/cms/pages/'+id+'/status',{status:'disabled'}],
-    ['POST','/api/site/layout-draft/unpublish',{}],
-    ['POST','/api/storefront/listings/'+id+'/unpublish',{revision:1}],
-  ]){
-    const response=await app.inject({method,url,headers:{'test-role':'admin'},...(payload===undefined?{}:{payload})});
-    assert.equal(response.statusCode,200,url);
-  }
-  assert.equal(calls.length,6);
+const {start,read,rendered,approve,requireReviewedRelease}=require('../shell-release-review');
+const page={id:'018e6e58-3921-789a-bcde-1234567890ab',path:'/site-shell/header',pageType:'shared_module',status:'active',locale:'de',revision:7,draft:{siteShell:{kind:'header',brand:'ALSVID',links:[]}}};
+test('six scoped signed preview receipts are required; stale, fake, duplicate and cross-account receipts fail',t=>{
+ const prior=process.env.ALSVID_PREVIEW_SECRET;
+ process.env.ALSVID_PREVIEW_SECRET='unit-test-preview-secret-12345678901234567890';
+ t.after(()=>{if(prior===undefined)delete process.env.ALSVID_PREVIEW_SECRET;else process.env.ALSVID_PREVIEW_SECRET=prior});
+ const session=start(page,'admin-a');
+ assert.equal(session.slots.length,6);
+ assert.equal(session.slots.filter(s=>s.draft).length,2);
+ const receipts=session.slots.map(s=>rendered(read(s.token),page));
+ const input={session:session.session,receipts};
+ assert.equal(requireReviewedRelease(page,'admin-a',input).slots.length,6);
+ assert.throws(()=>requireReviewedRelease(page,null,{...input,approved:true}),/必须通过/);
+ assert.throws(()=>approve(page,'admin-b',session.session,receipts),/不匹配/);
+ assert.throws(()=>approve({...page,revision:8},'admin-a',session.session,receipts),/不匹配/);
+ assert.throws(()=>approve(page,'admin-a',session.session,receipts.slice(0,5)),/六项/);
+ assert.throws(()=>approve(page,'admin-a',session.session,Array(6).fill(receipts[0])),/六种/);
+ assert.throws(()=>approve(page,'admin-a',session.session,session.slots.map(s=>s.token)),/失效|无效/);
+ assert.throws(()=>rendered(read(session.slots[0].token),{...page,revision:8}),/草稿已修改/);
+ assert.throws(()=>read(session.slots[0].token+'x'),/无效/);
+ const disabled={...page,status:'disabled',revision:9};
+ const reenable=start(disabled,'admin-a');
+ assert.equal(approve(disabled,'admin-a',reenable.session,reenable.slots.map(s=>rendered(read(s.token),disabled))).slots.length,6);
+ assert.equal(requireReviewedRelease({...page,path:'/',pageType:'home'},null,{}),null);
+ assert.throws(()=>start({...page,path:'/',pageType:'home'},'admin-a'),/公共草稿/);
 });
-
-test('release policy does not freeze independent price operations, withdrawals or reads',()=>{
-  assert.equal(isReleaseLocked('PUT','/api/storefront/listings/:id/price',{}),false);
-  assert.equal(isReleaseLocked('POST','/api/site/layout-draft/unpublish-locale',{}),false);
-  assert.equal(isReleaseLocked('GET','/api/site/layout-draft/versions',{}),false);
-  assert.equal(isReleaseLocked('POST','/api/site/layout-draft/production-sync',{}),false);
+test('missing preview secret fails closed',t=>{
+ const prior=process.env.ALSVID_PREVIEW_SECRET;delete process.env.ALSVID_PREVIEW_SECRET;
+ t.after(()=>{if(prior!==undefined)process.env.ALSVID_PREVIEW_SECRET=prior});
+ assert.throws(()=>start(page,'admin-a'),/密钥/);
 });

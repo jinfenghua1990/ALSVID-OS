@@ -49,7 +49,7 @@ export default function CatalogAdminPage({ user, active = true, workspaceKey, on
   if (section === 'module-ledger') return <ModuleLedger />;
   if (section === 'media') return <>
     <ShopPageHead />
-    <AssetLibrary active={active} user={user}/>
+    <AssetLibrary active={active} user={user} initialCategory="storefront"/>
   </>;
   if (section === 'pricing') return <ShopPricingPage/>;
   if (section === 'product-design') return <>

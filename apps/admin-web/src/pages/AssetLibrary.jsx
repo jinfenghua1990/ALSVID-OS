@@ -2,6 +2,13 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { api } from '../api.js';
 
 const CATEGORIES = [['product', '产品素材'], ['marketing', '营销素材'], ['page', '页面素材']];
+const VIEWS = [['', '全部素材'], ['original', '原始素材'], ['storefront', '商城素材'], ['marketing', '营销素材']];
+const ORIGINAL_FOLDERS = ['白底图', '透明底图', '多角度图', '颜色图', '零部件图', '原始视频', '其他'];
+const STOREFRONT_FOLDERS = ['首页装修', '商品主图', '商品详情', '官网视频', '其他'];
+const viewOf = asset => asset?.category === 'marketing' ? 'marketing' : asset?.category === 'product' && /^原始素材(?:\/|$)/.test(asset.folder || '') ? 'original' : ['product','page'].includes(asset?.category) ? 'storefront' : '';
+const viewLabel = key => VIEWS.find(([value]) => value === key)?.[1] || '全部素材';
+const originalFolder = folder => '原始素材/' + (ORIGINAL_FOLDERS.includes(String(folder || '').replace(/^原始素材\/?/, '')) ? String(folder).replace(/^原始素材\/?/, '') : '其他');
+const MARKETING_FOLDERS = ['社交媒体', '广告投放', '品牌宣传', '展会活动', 'AI 生成', '其他'];
 const KINDS = [['', '全部类型'], ['image', '图片'], ['video', '视频'], ['other', '文档']];
 const STATUSES = [['', '全部状态'], ['draft', '草稿'], ['published', '已发布'], ['archived', '已归档']];
 const VISIBILITIES = [['', '全部可见性'], ['public', '对外公开'], ['internal', '仅内部']];
@@ -46,7 +53,7 @@ function Thumb({ asset }) {
 
 function UsageBadges({ asset }) {
   return <div className="al-card__badges">
-    <span className={'al-badge' + (asset.usage ? '' : ' al-badge--muted')}>{asset.usageLabel || '未分类'}</span>
+    <span className="al-badge">{viewLabel(viewOf(asset))} · {asset.folder || asset.usageLabel || '未分类'}</span>
     <span className="al-badge al-badge--muted">{statusLabel(asset.status)}</span>
     <span className="al-badge al-badge--muted">{visibilityLabel(asset.visibility)}</span>
   </div>;
@@ -66,10 +73,11 @@ function RefLine({ asset }) {
   </>;
 }
 
-export default function AssetLibrary({ active = true, user, initialCategory = 'product' }) {
-  const canEdit = user?.role === 'admin';
+export default function AssetLibrary({ active = true, user, initialCategory = 'storefront', fixedProductId = '' }) {
   const [category, setCategory] = useState(initialCategory);
-  const [selection, setSelection] = useState({ type: 'all', id: '' });
+  const [selection, setSelection] = useState(fixedProductId ? {type:'product', id:fixedProductId} : { type: 'all', id: '' });
+  const [skuFilter, setSkuFilter] = useState('');
+  const [filterSkus, setFilterSkus] = useState([]);
   const [usage, setUsage] = useState('all');
   const [index, setIndex] = useState(null);
   const [folders, setFolders] = useState([]);
@@ -79,30 +87,31 @@ export default function AssetLibrary({ active = true, user, initialCategory = 'p
   const [loading, setLoading] = useState(false), [error, setError] = useState(''), [message, setMessage] = useState('');
   const [dragOver, setDragOver] = useState(false);
   const [detailId, setDetailId] = useState(''), [detail, setDetail] = useState(null), [detailError, setDetailError] = useState('');
+  const canManage = user?.role === 'admin';
+  const canUpload = canManage && category === initialCategory;
+  const canEdit = canManage && !!detail && viewOf(detail) === initialCategory;
   const [form, setForm] = useState(null), [references, setReferences] = useState(null), [conflict, setConflict] = useState(null);
   const [linkPicker, setLinkPicker] = useState('');
   const [uploadOpen, setUploadOpen] = useState(false), [uploading, setUploading] = useState(false);
   const [skuOptions, setSkuOptions] = useState([]);
   const [uploadMeta, setUploadMeta] = useState({
-    files: [], productIds: [], shared: false, usage: 'hero', sku: '',
-    label: '', tags: '', langs: '', markets: '', visibility: 'public', status: 'published',
+    files: [], productIds: [], shared: false, usage: 'hero', sku: '', storageCategory: 'product',
+    label: '', tags: '', langs: '', markets: '', folder: '', visibility: 'public', status: 'published',
   });
   const loadVersion = useRef(0);
+  const folderVersion = useRef(0);
   const fileRef = useRef(null);
   const replaceRef = useRef(null);
   const replaceNote = useRef({ value: '' });
 
   const products = index?.products || [];
-  const isProductView = category === 'product';
-  const usageCounts = useMemo(() => {
-    if (!isProductView) return {};
-    if (selection.type === 'product') return products.find(item => item.id === selection.id)?.usages || {};
-    if (selection.type === 'all') return index?.globalUsage || {};
-    return {};
-  }, [isProductView, selection, products, index]);
-
+  const isProductView = category === 'storefront';
+  const isMarketingView = category === 'marketing';
+  const isOriginalView = category === 'original';
+  const productScope = fixedProductId || (selection.type === 'product' ? selection.id : '');
+  const supportsProductLink = Boolean(category);
+  const usesProductUpload = isProductView && uploadMeta.storageCategory === 'product';
   const selectionLabel = useMemo(() => {
-    if (!isProductView) return categoryLabel(category);
     if (selection.type === 'product') return shortName(products.find(item => item.id === selection.id) || { name: selection.id });
     if (selection.type === 'shared') return '通用素材';
     if (selection.type === 'unclassified') return '待分类';
@@ -110,15 +119,14 @@ export default function AssetLibrary({ active = true, user, initialCategory = 'p
   }, [isProductView, category, selection, products]);
 
   const query = useMemo(() => {
-    const q = { category, ...filters, folder: filters.folder === '__none__' ? '' : filters.folder, unfiled: filters.folder === '__none__' ? '1' : '', page, pageSize: PAGE_SIZE };
-    if (isProductView) {
-      if (selection.type === 'product' && selection.id) q.productId = selection.id;
-      else if (selection.type === 'shared') q.scope = 'shared';
-      else if (selection.type === 'unclassified') q.scope = 'unclassified';
-      if (usage !== 'all') q.usage = usage;
-    }
+    const q = { assetView: category, ...filters, folder: filters.folder === '__none__' ? '' : filters.folder, unfiled: filters.folder === '__none__' ? '1' : '', page, pageSize: PAGE_SIZE };
+    if (productScope) q.productId = productScope;
+    if (selection.type === 'shared') q.scope = 'shared';
+    else if (selection.type === 'unclassified') q.scope = 'unclassified';
+    if (isProductView && usage !== 'all') q.usage = usage;
+    if (skuFilter) { q.targetType = 'sku'; q.targetId = skuFilter; }
     return q;
-  }, [category, filters, page, isProductView, selection, usage]);
+  }, [category, filters, page, isProductView, productScope, selection, usage, skuFilter]);
 
   const load = useCallback(async () => {
     if (!active) return;
@@ -145,11 +153,12 @@ export default function AssetLibrary({ active = true, user, initialCategory = 'p
 
   const loadFolders = useCallback(async () => {
     if (!active) return;
+    const request = ++folderVersion.current;
     try {
-      const data = await api.assetFolders({ category });
-      setFolders(Array.isArray(data.items) ? data.items : []);
+      const data = await api.assetFolders({ assetView: category, productId: productScope, scope: selection.type==='shared'?'shared':selection.type==='unclassified'?'unclassified':'' });
+      if(request===folderVersion.current) setFolders(Array.isArray(data.items) ? data.items : []);
     } catch (_) { /* 目录读取失败不影响主列表 */ }
-  }, [active, category]);
+  }, [active, category, productScope, selection.type]);
 
   useEffect(() => {
     if (!active) return undefined;
@@ -158,27 +167,37 @@ export default function AssetLibrary({ active = true, user, initialCategory = 'p
   }, [active, load, filters.q]);
 
   useEffect(() => { loadIndex(); }, [loadIndex]);
-  useEffect(() => { loadFolders(); }, [loadFolders]);
+  useEffect(() => { loadFolders(); return ()=>{folderVersion.current++;}; }, [loadFolders]);
+
+  useEffect(() => {
+    let cancelled = false;
+    setFilterSkus([]); setSkuFilter('');
+    if (active && productScope) api.product(productScope).then(p => { if (!cancelled) setFilterSkus(p.skus || []); }).catch(() => {});
+    return () => { cancelled = true; };
+  }, [active, productScope]);
 
   const refreshAll = async () => { await Promise.all([load(), loadIndex(), loadFolders()]); };
 
   const switchCategory = key => {
+    if (key === category) return;
+    loadVersion.current++; setRows([]); setTotal(0); setLoading(true); setFolders([]);
     setCategory(key); setPage(1); setUsage('all');
-    setSelection({ type: 'all', id: '' });
-    setFilters(current => ({ ...current, folder: '', q: '' }));
+    setFilters(current => ({ ...current, folder: '' }));
   };
-  // 不清空 rows：切换车型时保留上一批卡片直到新数据到达，避免整片空白闪烁。
-  const selectNode = node => { setSelection(node); setPage(1); setUsage('all'); };
+  const selectNode = node => { if (fixedProductId || (node.type===selection.type && node.id===selection.id)) return; loadVersion.current++; setRows([]); setTotal(0); setLoading(true); setFolders([]); setSelection(node); setSkuFilter(''); setPage(1); setUsage('all'); setFilters(f=>({...f,folder:''})); };
   const switchUsage = key => { setUsage(key); setPage(1); };
 
   // 上传弹窗：预填当前选中车型；产品列表直接来自「产品研发」档案。
   const openUpload = files => {
+    if (!canUpload) return;
     setUploadMeta(current => ({
       ...current,
       files: files || [],
-      productIds: isProductView && selection.type === 'product' && selection.id ? [selection.id] : [],
-      shared: isProductView && selection.type === 'shared',
-      sku: '',
+      productIds: productScope ? [productScope] : [],
+      shared: !productScope && (selection.type === 'shared' || (isMarketingView && filters.folder.startsWith('通用素材'))),
+      sku: '', storageCategory: 'product',
+      folder: filters.folder !== '__none__' ? filters.folder : '',
+      ...(isMarketingView || isOriginalView ? { visibility: 'internal', status: 'draft' } : { visibility: 'public', status: 'published' }),
     }));
     setUploadOpen(true);
   };
@@ -210,7 +229,8 @@ export default function AssetLibrary({ active = true, user, initialCategory = 'p
   const doUpload = async () => {
     const files = uploadMeta.files;
     if (!files.length) { setError('请先选择要上传的文件'); return; }
-    if (!uploadMeta.productIds.length && !uploadMeta.shared && !uploadMeta.sku) {
+    if (!canUpload) return;
+    if (supportsProductLink && !uploadMeta.productIds.length && !uploadMeta.shared && !(!productScope && isProductView && uploadMeta.storageCategory === 'page')) {
       setError('请选择关联产品，或勾选「通用素材」'); return;
     }
     setUploading(true); setError(''); setMessage('');
@@ -220,33 +240,32 @@ export default function AssetLibrary({ active = true, user, initialCategory = 'p
       if (file.size > limitOf(file)) { failures.push(`${file.name}：超过大小限制`); continue; }
       try {
         const result = await api.uploadAsset(file, {
-          category,
-          usage: uploadMeta.usage,
-          shared: uploadMeta.shared,
+          category: isOriginalView ? 'product' : isMarketingView ? 'marketing' : uploadMeta.storageCategory,
+          ...(usesProductUpload ? { usage: uploadMeta.usage, shared: uploadMeta.shared } : { folder: isOriginalView ? originalFolder(uploadMeta.folder) : uploadMeta.shared ? ['通用素材', uploadMeta.folder.trim().replace(/^通用素材\/?/, '')].filter(Boolean).join('/') : uploadMeta.folder.trim() }),
           label: uploadMeta.label.trim(),
           tags: textToList(uploadMeta.tags),
           langs: textToList(uploadMeta.langs),
           markets: textToList(uploadMeta.markets),
-          visibility: uploadMeta.visibility,
-          status: uploadMeta.status,
+          visibility: isMarketingView || isOriginalView ? 'internal' : uploadMeta.visibility,
+          status: isMarketingView || isOriginalView ? 'draft' : uploadMeta.status,
         });
         if (result.reused) reused++; else saved++;
         const assetId = result.id;
         for (const productId of uploadMeta.productIds) {
           try {
-            await api.addAssetLink(assetId, { targetType: 'product', targetId: productId, role: USAGE_ROLE[uploadMeta.usage] || 'gallery', channel: 'product', sortOrder: 0 });
+            await api.addAssetLink(assetId, { targetType: 'product', targetId: productId, role: usesProductUpload ? (USAGE_ROLE[uploadMeta.usage] || 'gallery') : 'gallery', channel: 'product', sortOrder: 0 });
             linked++;
           } catch (e) { if (e.status !== 409) failures.push(`${file.name} 关联产品失败：${e.message}`); }
         }
         if (uploadMeta.sku) {
           try {
-            await api.addAssetLink(assetId, { targetType: 'sku', targetId: uploadMeta.sku, role: 'hero', channel: 'product' });
+            await api.addAssetLink(assetId, { targetType: 'sku', targetId: uploadMeta.sku, role: usesProductUpload ? 'hero' : 'gallery', channel: 'product' });
             linked++;
           } catch (e) { if (e.status !== 409) failures.push(`${file.name} 关联 SKU 失败：${e.message}`); }
         }
       } catch (e) { failures.push(`${file.name}：${e.message}`); }
     }
-    setMessage(`上传完成：新增 ${saved} 个${reused ? `，复用 ${reused} 个已有素材（同一文件不重复存储）` : ''}，建立关联 ${linked} 条${failures.length ? `；失败 ${failures.length} 项` : ''}。`);
+    setMessage(`上传完成：新增 ${saved} 个${reused ? `，复用 ${reused} 个已有素材（不重复存储，保留其原分类，可切换分类查找）` : ''}，建立关联 ${linked} 条${failures.length ? `；失败 ${failures.length} 项` : ''}。`);
     if (failures.length) setError(failures.join('；'));
     setUploadOpen(false);
     setUploadMeta(current => ({ ...current, files: [] }));
@@ -256,7 +275,7 @@ export default function AssetLibrary({ active = true, user, initialCategory = 'p
 
   const onDrop = event => {
     event.preventDefault(); setDragOver(false);
-    if (canEdit) openUpload(Array.from(event.dataTransfer.files || []));
+    if (canUpload) openUpload(Array.from(event.dataTransfer.files || []));
   };
 
   const openDetail = async id => {
@@ -282,7 +301,7 @@ export default function AssetLibrary({ active = true, user, initialCategory = 'p
   const closeDetail = () => { setDetailId(''); setDetail(null); setForm(null); setReferences(null); setDetailError(''); setConflict(null); };
 
   const saveMeta = async () => {
-    if (!detail || !form) return;
+    if (!detail || !form || !canEdit) return;
     setDetailError('');
     try {
       const body = {
@@ -292,11 +311,13 @@ export default function AssetLibrary({ active = true, user, initialCategory = 'p
         markets: textToList(form.markets),
         visibility: form.visibility,
         status: form.status,
-        category: form.category,
-        usage: form.usage,
-        shared: form.shared,
+        category: detail.category,
+        ...(viewOf(detail) === 'original' ? { folder: originalFolder(form.folder) } : detail.category === 'product' ? { usage: form.usage, shared: form.shared } : { folder: form.folder.trim() }),
       };
-      if (!form.usage && !form.shared) body.folder = '';
+      if (viewOf(detail) !== 'original' && form.category === 'product' && !form.usage && !form.shared) body.folder = '';
+      if (form.category === 'marketing' && form.status === 'published' && form.visibility === 'public' && (detail.status !== 'published' || detail.visibility !== 'public')) {
+        if (!window.confirm('确认已人工检查素材内容及使用授权，允许对外使用？此操作不会自动发布到社交平台。')) return;
+      }
       const updated = await api.updateAsset(detail.id, body);
       setDetail(current => ({ ...current, ...updated }));
       setMessage('素材信息已保存。');
@@ -307,7 +328,7 @@ export default function AssetLibrary({ active = true, user, initialCategory = 'p
   const replaceFile = async event => {
     const file = event.currentTarget.files?.[0];
     event.currentTarget.value = '';
-    if (!file || !detail) return;
+    if (!file || !detail || !canEdit) return;
     if (file.size > limitOf(file)) { setDetailError('文件超过当前类型的大小限制。'); return; }
     setDetailError(''); setConflict(null);
     try {
@@ -323,7 +344,7 @@ export default function AssetLibrary({ active = true, user, initialCategory = 'p
   };
 
   const remove = async () => {
-    if (!detail) return;
+    if (!detail || !canEdit) return;
     if (!window.confirm(`确定删除素材「${detail.label || detail.fileName || detail.id}」？正在被引用的素材不能删除。`)) return;
     setReferences(null); setDetailError('');
     try {
@@ -338,6 +359,7 @@ export default function AssetLibrary({ active = true, user, initialCategory = 'p
   };
 
   const unlink = async linkId => {
+    if (!canEdit) return;
     if (!window.confirm('解除该引用？页面或商品中将不再显示这张素材。')) return;
     try {
       await api.removeAssetLink(linkId);
@@ -348,10 +370,10 @@ export default function AssetLibrary({ active = true, user, initialCategory = 'p
   };
 
   const addProductLink = async () => {
-    if (!detail || !linkPicker) return;
+    if (!detail || !linkPicker || !canEdit) return;
     setDetailError('');
     try {
-      await api.addAssetLink(detail.id, { targetType: 'product', targetId: linkPicker, role: USAGE_ROLE[form?.usage] || 'gallery', channel: 'product', sortOrder: 0 });
+      await api.addAssetLink(detail.id, { targetType: 'product', targetId: linkPicker, role: viewOf(detail) === 'storefront' && detail.category === 'product' ? (USAGE_ROLE[form?.usage] || 'gallery') : 'gallery', channel: 'product', sortOrder: 0 });
       setLinkPicker('');
       setMessage('已关联到所选产品。');
       await openDetail(detail.id);
@@ -366,59 +388,19 @@ export default function AssetLibrary({ active = true, user, initialCategory = 'p
   };
 
   const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
-  const activeFilter = ['kind', 'tag', 'lang', 'market', 'status', 'visibility', 'folder'].some(key => filters[key]) || Boolean(filters.q);
-  const productTotal = index?.categories?.product ?? 0;
+  const activeFilter = ['kind', 'tag', 'lang', 'market', 'status', 'visibility', 'folder'].some(key => filters[key]) || Boolean(filters.q) || Boolean(skuFilter);
 
   return <div className="shop-media">
     <aside className="shop-media__side">
-      <div className="shop-media__title">素材库</div>
-      {CATEGORIES.map(([key, label]) => <button type="button" key={key} className={'shop-media__folder' + (category === key ? ' is-active' : '')} onClick={() => switchCategory(key)}>
-        <span>{label}</span><span className="shop-media__count">{key === 'product' ? productTotal : (index?.categories?.[key] ?? 0)}</span>
-      </button>)}
-
-      <div className="shop-media__sep" />
-
-      {isProductView ? <>
-        <div className="al-group-label">独立车型 · 来自产品研发</div>
-        <button type="button" className={'al-vehicle' + (selection.type === 'all' ? ' is-active' : '')} onClick={() => selectNode({ type: 'all', id: '' })}>
-          <span className="al-vehicle__body"><span className="al-vehicle__name">全部车型</span><span className="al-vehicle__sub">所有已关联产品的素材</span></span>
-          <span className="al-count">{productTotal}</span>
-        </button>
-        {products.map(item => <button type="button" key={item.id} title={item.name}
-          className={'al-vehicle' + (selection.type === 'product' && selection.id === item.id ? ' is-active' : '')}
-          onClick={() => selectNode({ type: 'product', id: item.id })}>
-          <span className="al-vehicle__body">
-            <span className="al-vehicle__name">{shortName(item)}</span>
-            <span className="al-vehicle__sub" title={item.name}>{item.name} · {item.status || '—'}</span>
-          </span>
-          <span className="al-count">{item.total}</span>
-        </button>)}
-        <div className="shop-media__sep" />
-        <button type="button" className={'al-vehicle' + (selection.type === 'shared' ? ' is-active' : '')} onClick={() => selectNode({ type: 'shared', id: '' })}>
-          <span className="al-vehicle__body"><span className="al-vehicle__name">通用素材</span><span className="al-vehicle__sub">不归属单一产品的共享文件</span></span>
-          <span className="al-count">{index?.shared ?? 0}</span>
-        </button>
-        <button type="button" className={'al-vehicle' + (selection.type === 'unclassified' ? ' is-active' : '')} onClick={() => selectNode({ type: 'unclassified', id: '' })}>
-          <span className="al-vehicle__body"><span className="al-vehicle__name">待分类</span><span className="al-vehicle__sub">尚未建立产品 ID 关联</span></span>
-          <span className="al-count">{index?.unclassified ?? 0}</span>
-        </button>
-        <div className="shop-media__sep" />
-        <p className="shop-media__tip">新增产品会自动出现在这里，无需手工建目录；归属以产品 ID 关联为准，不按文件名判断。</p>
-      </> : <>
-        <div className="shop-media__title" style={{ fontSize: 12 }}>目录</div>
-        <button type="button" className={'shop-media__folder' + (!filters.folder ? ' is-active' : '')} onClick={() => { setPage(1); setFilters({ ...filters, folder: '' }); }}>
-          <span>全部目录</span>
-        </button>
-        {folders.filter(item => item.folder).map(item => <button type="button" key={item.folder}
-          className={'shop-media__folder' + (filters.folder === item.folder ? ' is-active' : '')}
-          onClick={() => { setPage(1); setFilters({ ...filters, folder: item.folder }); }}>
-          <span title={item.folder}>{item.folder.split('/').pop()}</span><span className="shop-media__count">{item.total}</span>
-        </button>)}
-        {folders.some(item => !item.folder) && <button type="button" className={'shop-media__folder' + (filters.folder === '__none__' ? ' is-active' : '')} onClick={() => { setPage(1); setFilters({ ...filters, folder: '__none__' }); }}>
-          <span>未归档</span><span className="shop-media__count">{folders.find(item => !item.folder)?.total || 0}</span>
-        </button>}
-      </>}
-
+      <div className="shop-media__title">车型目录</div>
+      {!fixedProductId && <button type="button" className={'al-vehicle'+(selection.type==='all'?' is-active':'')} onClick={()=>selectNode({type:'all',id:''})}>全部车型及通用素材</button>}
+      {products.filter(item=>!fixedProductId||item.id===fixedProductId).map(item=><button type="button" key={item.id} title={item.name} className={'al-vehicle'+(productScope===item.id?' is-active':'')} onClick={()=>selectNode({type:'product',id:item.id})}><span className="al-vehicle__body"><span className="al-vehicle__name">{shortName(item)}</span><span className="al-vehicle__sub">{item.name}</span></span></button>)}
+      {!fixedProductId && <><button type="button" className={'al-vehicle'+(selection.type==='shared'?' is-active':'')} onClick={()=>selectNode({type:'shared',id:''})}>通用素材</button><button type="button" className={'al-vehicle'+(selection.type==='unclassified'?' is-active':'')} onClick={()=>selectNode({type:'unclassified',id:''})}>待关联</button></>}
+      <div className="shop-media__sep"/>
+      <div className="shop-media__title">用途目录</div>
+      <button type="button" className={'shop-media__folder'+(!filters.folder?' is-active':'')} onClick={()=>{setPage(1);setFilters(f=>({...f,folder:''}));}}>全部目录</button>
+      {folders.filter(item=>item.folder).map(item=><button type="button" key={item.folder} className={'shop-media__folder'+(filters.folder===item.folder?' is-active':'')} onClick={()=>{setPage(1);setFilters(f=>({...f,folder:item.folder}));}} title={item.folder}>{item.folder}<span className="shop-media__count">{item.total}</span></button>)}
+      {folders.some(item=>!item.folder)&&<button type="button" className="shop-media__folder" onClick={()=>{setPage(1);setFilters(f=>({...f,folder:'__none__'}));}}>未归档</button>}
       <div className="shop-media__sep" />
       <p className="shop-media__tip">一个文件只存一次，可关联多个产品、SKU 变体与页面；替换会保留旧版本，已发布页面不受影响。</p>
       <div className="shop-media__sep" />
@@ -426,45 +408,43 @@ export default function AssetLibrary({ active = true, user, initialCategory = 'p
     </aside>
 
     <div className="shop-media__main"
-      onDragOver={e => { if (canEdit) { e.preventDefault(); setDragOver(true); } }}
+      onDragOver={e => { if (canUpload) { e.preventDefault(); setDragOver(true); } }}
       onDragLeave={e => { if (!e.currentTarget.contains(e.relatedTarget)) setDragOver(false); }}
       onDrop={onDrop}>
 
       <div className="al-head">
         <div>
           <div className="al-head__title">{selectionLabel}</div>
-          <div className="al-head__meta">{categoryLabel(category)} · {total} 个素材</div>
+          <div className="al-head__meta">{viewLabel(category)} · {total} 个素材</div>
         </div>
         <span className="al-head__spacer" />
-        {canEdit && <button type="button" className="btn small primary" onClick={() => openUpload([])}>上传素材</button>}
+        {canUpload && <button type="button" className="btn small primary" onClick={() => openUpload([])}>上传素材</button>}
       </div>
 
-      {isProductView && <div className="al-tabs">
-        <button type="button" className={'al-tab' + (usage === 'all' ? ' is-active' : '')} onClick={() => switchUsage('all')}>全部<em>{Object.values(usageCounts).reduce((a, b) => a + b, 0) || (selection.type === 'shared' ? index?.shared : selection.type === 'unclassified' ? index?.unclassified : productTotal)}</em></button>
-        {USAGES.map(([key, label]) => <button type="button" key={key} className={'al-tab' + (usage === key ? ' is-active' : '')} onClick={() => switchUsage(key)}>
-          {label}<em>{usageCounts[key] ?? 0}</em>
-        </button>)}
-      </div>}
-
+      <div className="al-tabs">{VIEWS.map(([key,label])=><button type="button" key={key} className={'al-tab'+(category===key?' is-active':'')} onClick={()=>switchCategory(key)}>{label}{initialCategory===key?'（本部门）':''}</button>)}</div>
+      {category!==initialCategory && <p className="hint">跨部门素材可查看并复制链接；修改请在归属部门进行。</p>}
+      {productScope && <div className="shop-media__toolbar"><label>SKU <select value={skuFilter} onChange={e=>{setPage(1);setSkuFilter(e.target.value);}}><option value="">全部 SKU（含车型共用）</option>{filterSkus.map(item=><option key={item.sku} value={item.sku}>{item.sku}</option>)}</select></label></div>}
       <div className="shop-media__toolbar">
         <input type="search" value={filters.q} placeholder="搜索文件名、标签、产品" aria-label="搜索素材" onChange={e => { setPage(1); setFilters({ ...filters, q: e.target.value }); }} />
         <div className="al-kind-filter" role="group" aria-label="按媒体类型筛选">
           {KINDS.map(([value, label]) => <button type="button" key={value} className={'al-kind-filter__button' + (filters.kind === value ? ' is-active' : '')} aria-pressed={filters.kind === value} onClick={() => { setPage(1); setFilters({ ...filters, kind: value }); }}>{label}</button>)}
         </div>
+        <input value={filters.market} placeholder="市场（DE）" aria-label="市场" onChange={e=>{setPage(1);setFilters(f=>({...f,market:e.target.value}));}} />
         <select value={filters.status} aria-label="素材状态" onChange={e => { setPage(1); setFilters({ ...filters, status: e.target.value }); }}>{STATUSES.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>
         <select value={filters.visibility} aria-label="可见性" onChange={e => { setPage(1); setFilters({ ...filters, visibility: e.target.value }); }}>{VISIBILITIES.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>
-        {activeFilter && <button type="button" className="btn small" onClick={() => { setPage(1); setFilters({ q: '', kind: '', tag: '', lang: '', market: '', status: '', visibility: '', folder: '' }); }}>清除筛选</button>}
+        {activeFilter && <button type="button" className="btn small" onClick={() => { setPage(1); setSkuFilter(''); setFilters({ q: '', kind: '', tag: '', lang: '', market: '', status: '', visibility: '', folder: '' }); }}>清除筛选</button>}
         <span className="hint" style={{ marginLeft: 'auto' }} />
       </div>
 
+      {loading && <p className="hint" role="status">正在读取素材…</p>}
       {error && <p className="error-text mt8" role="alert">{error}</p>}
-      {message && <p className="hint mt8" role="status" />}
+      {message && <p className="hint mt8" role="status">{message}</p>}
 
       {!rows.length && !loading && <div className={'shop-media__drop' + (dragOver ? ' is-over' : '')}>
         <div className="shop-media__drop-icon">+</div>
         <b>{activeFilter || usage !== 'all' ? '没有匹配的素材' : `${selectionLabel}还没有上传内容`}</b>
         <span className="hint" />
-        {canEdit && <button type="button" className="btn" onClick={() => openUpload([])}>选择文件上传</button>}
+        {canUpload && <button type="button" className="btn" onClick={() => openUpload([])}>选择文件上传</button>}
       </div>}
 
       {rows.length > 0 && <>
@@ -475,7 +455,7 @@ export default function AssetLibrary({ active = true, user, initialCategory = 'p
               <strong className="shop-media__name" title={asset.fileName}>{asset.label || asset.fileName || '未命名素材'}</strong>
               <UsageBadges asset={asset} />
               <RefLine asset={asset} />
-              {asset.folder && <div className="hint" style={{ fontSize: 11 }} title={asset.folder} />}
+              {asset.folder && <div className="hint" style={{ fontSize: 11 }} title={asset.folder}>{asset.folder}</div>}
             </div>
             <div className="shop-media__ops">
               <button type="button" className="btn small" onClick={() => openDetail(asset.id)}>详情</button>
@@ -496,7 +476,7 @@ export default function AssetLibrary({ active = true, user, initialCategory = 'p
     {uploadOpen && <div className="al-modal" onClick={() => !uploading && setUploadOpen(false)}>
       <div className="al-modal__card" onClick={e => e.stopPropagation()}>
         <div className="al-modal__head">
-          <span className="al-modal__title">上传素材 · {categoryLabel(category)}</span>
+          <span className="al-modal__title">上传素材 · {viewLabel(category)}</span>
           <button type="button" className="btn small" disabled={uploading} onClick={() => setUploadOpen(false)}>关闭</button>
         </div>
 
@@ -505,13 +485,14 @@ export default function AssetLibrary({ active = true, user, initialCategory = 'p
           {uploadMeta.files.length > 0 && <div className="al-files">已选择 {uploadMeta.files.length} 个文件：{uploadMeta.files.map(f => f.name).join('、')}</div>}
         </div>
 
-        {isProductView && <>
+        {isProductView && <div className="field"><label>商城用途类型</label><select value={uploadMeta.storageCategory} onChange={e=>setUploadMeta(m=>({...m,storageCategory:e.target.value,folder:''}))}><option value="product">商品素材</option><option value="page">页面素材（首页 KV 等）</option></select></div>}
+        {supportsProductLink && <>
           <div className="al-field-label mt8">关联产品（可多选，一份素材可关联多个产品，不会重复上传）</div>
           <div className="al-products mt8">
-            {products.map(item => <label key={item.id} className="al-product">
-              <input type="checkbox" checked={uploadMeta.productIds.includes(item.id)} disabled={uploadMeta.shared}
+            {products.filter(item=>!fixedProductId||item.id===fixedProductId).map(item => <label key={item.id} className="al-product">
+              <input type="checkbox" checked={uploadMeta.productIds.includes(item.id)} disabled={uploadMeta.shared || Boolean(fixedProductId && item.id===fixedProductId)}
                 onChange={e => setUploadMeta(current => ({
-                  ...current,
+                  ...current, sku: '',
                   productIds: e.target.checked ? [...current.productIds, item.id] : current.productIds.filter(id => id !== item.id),
                 }))} />
               <span title={item.name}>{shortName(item)}</span>
@@ -520,12 +501,12 @@ export default function AssetLibrary({ active = true, user, initialCategory = 'p
           </div>
 
           <label className="al-product mt8">
-            <input type="checkbox" checked={uploadMeta.shared}
-              onChange={e => setUploadMeta(current => ({ ...current, shared: e.target.checked, productIds: e.target.checked ? [] : current.productIds }))} />
+            <input type="checkbox" disabled={Boolean(fixedProductId)||isOriginalView} checked={uploadMeta.shared}
+              onChange={e => setUploadMeta(current => ({ ...current, shared: e.target.checked, sku: '', productIds: e.target.checked ? [] : current.productIds }))} />
             <span>通用素材（不归属单一产品，供多产品共享）</span>
           </label>
 
-          {isProductView && <div className="field mt8"><label>素材用途</label>
+          {usesProductUpload && <div className="field mt8"><label>素材用途</label>
             <select value={uploadMeta.usage} onChange={e => setUploadMeta({ ...uploadMeta, usage: e.target.value })}>
               {USAGES.filter(([key]) => key !== 'uncategorized').map(([key, label]) => <option key={key} value={key}>{label}</option>)}
             </select>
@@ -539,13 +520,16 @@ export default function AssetLibrary({ active = true, user, initialCategory = 'p
           </div>}
         </>}
 
+        {category === 'marketing' && <p className="hint">新营销素材先保存为内部草稿；人工检查后在素材详情中设置为已发布、对外公开。可通过分类切换复用同库素材。</p>}
+        {isOriginalView && <div className="field mt8"><label>原始素材类型</label><select value={originalFolder(uploadMeta.folder)} onChange={e=>setUploadMeta(m=>({...m,folder:e.target.value}))}>{ORIGINAL_FOLDERS.map(item=><option key={item} value={'原始素材/'+item}>{item}</option>)}</select></div>}
+        {!usesProductUpload && !isOriginalView && <div className="field mt8"><label>素材目录</label><input list="asset-upload-folders" value={uploadMeta.folder} maxLength={160} placeholder="选择或输入目录" onChange={e => setUploadMeta({ ...uploadMeta, folder: e.target.value })}/><datalist id="asset-upload-folders">{[...new Set([...(isMarketingView ? MARKETING_FOLDERS : STOREFRONT_FOLDERS), ...folders.map(item => item.folder).filter(Boolean)])].map(folder => <option key={folder} value={folder}/>)}</datalist></div>}
         <div className="form-grid mt8" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(160px,1fr))' }}>
           <div className="field"><label>素材名称</label><input value={uploadMeta.label} maxLength={200} placeholder="留空则使用文件名" onChange={e => setUploadMeta({ ...uploadMeta, label: e.target.value })} /></div>
           <div className="field"><label>标签（逗号分隔）</label><input value={uploadMeta.tags} onChange={e => setUploadMeta({ ...uploadMeta, tags: e.target.value })} /></div>
           <div className="field"><label>语言（逗号分隔）</label><input value={uploadMeta.langs} placeholder="de, en, fr" onChange={e => setUploadMeta({ ...uploadMeta, langs: e.target.value })} /></div>
           <div className="field"><label>市场（逗号分隔）</label><input value={uploadMeta.markets} placeholder="DE, AT, FR" onChange={e => setUploadMeta({ ...uploadMeta, markets: e.target.value })} /></div>
-          <div className="field"><label>可见性</label><select value={uploadMeta.visibility} onChange={e => setUploadMeta({ ...uploadMeta, visibility: e.target.value })}><option value="public">对外公开</option><option value="internal">仅内部</option></select></div>
-          <div className="field"><label>状态</label><select value={uploadMeta.status} onChange={e => setUploadMeta({ ...uploadMeta, status: e.target.value })}><option value="published">已发布</option><option value="draft">草稿</option><option value="archived">已归档</option></select></div>
+          <div className="field"><label>可见性</label><select disabled={isMarketingView || isOriginalView} value={uploadMeta.visibility} onChange={e => setUploadMeta({ ...uploadMeta, visibility: e.target.value })}><option value="public">对外公开</option><option value="internal">仅内部</option></select></div>
+          <div className="field"><label>状态</label><select disabled={isMarketingView || isOriginalView} value={uploadMeta.status} onChange={e => setUploadMeta({ ...uploadMeta, status: e.target.value })}><option value="published">已发布</option><option value="draft">草稿</option><option value="archived">已归档</option></select></div>
         </div>
 
         <div className="al-modal__foot">
@@ -570,7 +554,7 @@ export default function AssetLibrary({ active = true, user, initialCategory = 'p
               <h3 style={{ margin: 0 }}>{detail.label || detail.fileName || '未命名素材'}</h3>
               <p className="hint" />
             </div>
-            <span className="tag">{categoryLabel(detail.category)}</span>
+            <span className="tag">{viewLabel(viewOf(detail))}</span>
           </div>
 
           <div style={{ background: 'var(--hover)', border: '1px solid var(--border)', borderRadius: 4, padding: 10, textAlign: 'center', marginBottom: 12 }}>
@@ -588,32 +572,34 @@ export default function AssetLibrary({ active = true, user, initialCategory = 'p
 
           <div className="form-grid" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))' }}>
             <div className="field"><label>素材名称</label><input disabled={!canEdit} value={form.label} maxLength={200} onChange={e => setForm({ ...form, label: e.target.value })} /></div>
-            <div className="field"><label>分类</label><select disabled={!canEdit} value={form.category} onChange={e => setForm({ ...form, category: e.target.value })}>{CATEGORIES.map(([key, label]) => <option key={key} value={key}>{label}</option>)}<option value="other">其他素材</option></select></div>
-            {form.category === 'product' && <div className="field"><label>素材用途</label><select disabled={!canEdit} value={form.usage} onChange={e => setForm({ ...form, usage: e.target.value })}>
+            <div className="field"><label>分类</label><select disabled value={form.category} onChange={e => setForm({ ...form, category: e.target.value })}>{CATEGORIES.map(([key, label]) => <option key={key} value={key}>{label}</option>)}<option value="other">其他素材</option></select></div>
+            {viewOf(detail)==='original' && <div className="field"><label>原始素材类型</label><select disabled={!canEdit} value={originalFolder(form.folder)} onChange={e=>setForm({...form,folder:e.target.value})}>{ORIGINAL_FOLDERS.map(item=><option key={item} value={'原始素材/'+item}>{item}</option>)}</select></div>}
+            {form.category === 'product' && viewOf(detail)!=='original' && <div className="field"><label>素材用途</label><select disabled={!canEdit} value={form.usage} onChange={e => setForm({ ...form, usage: e.target.value })}>
               <option value="">未分类</option>
               {USAGES.filter(([key]) => key !== 'uncategorized').map(([key, label]) => <option key={key} value={key}>{label}</option>)}
             </select></div>}
+            {form.category !== 'product' && <div className="field"><label>素材目录</label><input disabled={!canEdit} value={form.folder} maxLength={160} onChange={e => setForm({ ...form, folder: e.target.value })}/></div>}
             <div className="field"><label>标签（逗号分隔）</label><input disabled={!canEdit} value={form.tags} onChange={e => setForm({ ...form, tags: e.target.value })} /></div>
             <div className="field"><label>语言（逗号分隔）</label><input disabled={!canEdit} value={form.langs} onChange={e => setForm({ ...form, langs: e.target.value })} /></div>
             <div className="field"><label>市场（逗号分隔）</label><input disabled={!canEdit} value={form.markets} onChange={e => setForm({ ...form, markets: e.target.value })} /></div>
             <div className="field"><label>可见性</label><select disabled={!canEdit} value={form.visibility} onChange={e => setForm({ ...form, visibility: e.target.value })}><option value="internal">仅内部</option><option value="public">对外公开</option></select></div>
             <div className="field"><label>状态</label><select disabled={!canEdit} value={form.status} onChange={e => setForm({ ...form, status: e.target.value })}><option value="draft">草稿</option><option value="published">已发布</option><option value="archived">已归档</option></select></div>
           </div>
-          {form.category === 'product' && <label className="al-product mt8">
+          {form.category === 'product' && viewOf(detail)!=='original' && <label className="al-product mt8">
             <input type="checkbox" disabled={!canEdit} checked={form.shared} onChange={e => setForm({ ...form, shared: e.target.checked })} />
             <span>标记为通用素材（不归属单一产品）</span>
           </label>}
-          {canEdit && <div className="row mt8" style={{ gap: 8 }}>
-            <button type="button" className="btn small primary" onClick={saveMeta}>保存素材信息</button>
+          {canManage && <div className="row mt8" style={{ gap: 8 }}>
+            {canEdit && <button type="button" className="btn small primary" onClick={saveMeta}>保存素材信息</button>}
             <button type="button" className="btn small" onClick={() => copyLink(detail)}>复制链接</button>
-            <button type="button" className="btn small danger" onClick={remove}>删除素材</button>
+            {canEdit && <button type="button" className="btn small danger" onClick={remove}>删除素材</button>}
           </div>}
 
           <h4 className="mt16">关联产品（{detail.links?.filter(link => link.targetType === 'product').length || 0}）</h4>
           {canEdit && <div className="row" style={{ gap: 8, alignItems: 'center' }}>
             <select value={linkPicker} onChange={e => setLinkPicker(e.target.value)} style={{ maxWidth: 320 }}>
               <option value="">选择要关联的产品…</option>
-              {products.map(item => <option key={item.id} value={item.id}>{shortName(item)}</option>)}
+              {products.filter(item=>!fixedProductId||item.id===fixedProductId).map(item => <option key={item.id} value={item.id}>{shortName(item)}</option>)}
             </select>
             <button type="button" className="btn small" disabled={!linkPicker} onClick={addProductLink}>添加关联</button>
           </div>}

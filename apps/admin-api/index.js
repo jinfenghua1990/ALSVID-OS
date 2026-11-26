@@ -27,7 +27,6 @@ const { runAsActor, currentActor } = require('./audit-context');
 const { apiAccessHook } = require('./access-policy');
 const { createCatalogStore, registerCatalogRoutes } = require('./catalog');
 const { createCmsStore, registerCmsRoutes } = require('./cms');
-const {storefrontReleaseGate}=require('./storefront-release-gate');
 const { createStorefrontListingStore, registerStorefrontListingRoutes } = require('./storefront-listings');
 const {createShippingRateTemplates,registerShippingRateTemplateRoutes}=require('./shipping-rate-templates');
 const { createStorefrontCart, registerStorefrontCartRoutes } = require('./storefront-cart');
@@ -118,7 +117,6 @@ const authAttemptsCleanup = setInterval(() => {
 authAttemptsCleanup.unref();
 function sessionToken(req) { const match=String(req.headers.cookie||'').match(/(?:^|;\s*)alsvid_session=([A-Za-z0-9_-]{43})(?:;|$)/); return match?.[1]||''; }
 app.addHook('onRequest',apiAccessHook(auth,sessionToken));
-app.addHook('preHandler',storefrontReleaseGate);
 app.addHook('onRequest',(req,reply,done)=>runAsActor(req.user?.username||'system',done));
 app.get('/api/auth/status',async req=>({initialized:auth?await auth.hasUsers():false,user:auth?await auth.user(sessionToken(req)):null}));
 app.get('/api/auth/registration',async()=>({enabled:!!auth?.registration.ready()}));

@@ -755,14 +755,13 @@ function createCmsStore(connectionString) {
         if (!old) fail('页面不存在', 404);
         if (old.rev !== input.revision) fail('页面草稿已被其他人更新，请重新加载', 409);
         if (!old.draft) fail('请先保存页面草稿');
-        const isShell = SITE_SHELL_PATHS.includes(old.path);
-        if(isShell&&!reviewActor)fail('公共模块必须通过六项发布预览，不能使用旧版直接发布',409);
-        const review = reviewActor ? shellReview.approve(old,reviewActor,input.session,input.receipts) : null;
+        const review = shellReview.requireReviewedRelease(old,reviewActor,input);
         const document = documentOf(old.draft);
         assertLegalReady(old.path,document,old.draftSeo);
         assertShellDocument(old.path,old.pageType,document);
         if (old.pageType !== 'product_template' && !document.siteShell && !document.blocks.some(block => block.visible !== false)) fail('页面至少需要一个可见组件才能发布');
         await validateAssets(c, document);
+        if(review&&old.status==='disabled')await c.query("UPDATE site_pages SET status='active' WHERE id=$1",[id]);
         const next = (await c.query('SELECT COALESCE(max(version),0)+1 AS version FROM site_page_versions WHERE page_id=$1', [id])).rows[0].version;
         await c.query('INSERT INTO site_page_versions(page_id,version,snapshot,seo,label,created_by) VALUES($1,$2,$3,$4,$5,$6)', [id, next, JSON.stringify(document), JSON.stringify(old.draftSeo || {}), old.draftLabel || null, currentActor()]);
         const after = (await c.query(`UPDATE site_pages SET published=$1,published_seo=$2,published_revision=revision+1,published_version=$3,revision=revision+1,updated_by=$4,updated_at=now() WHERE id=$5 RETURNING ${columns}`, [JSON.stringify(document), JSON.stringify(old.draftSeo || {}), next, currentActor(), id])).rows[0];
@@ -888,9 +887,10 @@ function createCmsStore(connectionString) {
     async setStatus(id, status) {
       if (!['active', 'disabled'].includes(status)) fail('页面状态无效');
       const old = await row(id);
-      if(SITE_SHELL_PATHS.includes(old.path)&&status==='active'&&old.status!=='active'&&old.publishedVersion)fail('公共模块重新启用须经发布审核',409);
+      if(SITE_SHELL_PATHS.includes(old.path)&&status==='active')fail('公共模块重新启用须经发布审核',409);
       if (old.pageType === 'home' && status === 'disabled') fail('官网首页不能停用');
-      return (await pool.query('UPDATE site_pages SET status=$1,updated_by=$2,updated_at=now() WHERE id=$3 RETURNING id::text AS id,status', [status, currentActor(), id])).rows[0];
+      const updated=(await pool.query('UPDATE site_pages SET status=$1,revision=revision+1,updated_by=$2,updated_at=now() WHERE id=$3 RETURNING id::text AS id,status', [status, currentActor(), id])).rows[0];
+      return {...updated,storefrontRevalidate:await refreshCms()};
     },
     async remove(id) {
       const c = await pool.connect();

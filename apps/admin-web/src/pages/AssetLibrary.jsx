@@ -116,7 +116,7 @@ export default function AssetLibrary({ active = true, user, initialCategory = 'p
     const q = { category, ...filters, folder: filters.folder === '__none__' ? '' : filters.folder, unfiled: filters.folder === '__none__' ? '1' : '', page, pageSize: PAGE_SIZE };
     if (supportsProductLink && selection.type === 'product' && selection.id) q.productId = selection.id;
     if (isProductView) {
-      else if (selection.type === 'shared') q.scope = 'shared';
+      if (selection.type === 'shared') q.scope = 'shared';
       else if (selection.type === 'unclassified') q.scope = 'unclassified';
       if (usage !== 'all') q.usage = usage;
     }
@@ -180,7 +180,7 @@ export default function AssetLibrary({ active = true, user, initialCategory = 'p
       ...current,
       files: files || [],
       productIds: supportsProductLink && selection.type === 'product' && selection.id ? [selection.id] : [],
-      shared: isProductView && selection.type === 'shared',
+      shared: supportsProductLink && (selection.type === 'shared' || (isMarketingView && filters.folder.startsWith('通用素材'))),
       sku: '',
       folder: !isProductView && filters.folder !== '__none__' ? filters.folder : '',
       ...(category === 'marketing' ? { visibility: 'internal', status: 'draft' } : { visibility: 'public', status: 'published' }),
@@ -226,7 +226,7 @@ export default function AssetLibrary({ active = true, user, initialCategory = 'p
       try {
         const result = await api.uploadAsset(file, {
           category,
-          ...(isProductView ? { usage: uploadMeta.usage, shared: uploadMeta.shared } : { folder: uploadMeta.folder.trim() }),
+          ...(isProductView ? { usage: uploadMeta.usage, shared: uploadMeta.shared } : { folder: isMarketingView && uploadMeta.shared ? ['通用素材', uploadMeta.folder.trim().replace(/^通用素材\/?/, '')].filter(Boolean).join('/') : uploadMeta.folder.trim() }),
           label: uploadMeta.label.trim(),
           tags: textToList(uploadMeta.tags),
           langs: textToList(uploadMeta.langs),
@@ -244,7 +244,7 @@ export default function AssetLibrary({ active = true, user, initialCategory = 'p
         }
         if (uploadMeta.sku) {
           try {
-            await api.addAssetLink(assetId, { targetType: 'sku', targetId: uploadMeta.sku, role: 'hero', channel: 'product' });
+            await api.addAssetLink(assetId, { targetType: 'sku', targetId: uploadMeta.sku, role: isMarketingView ? 'gallery' : 'hero', channel: 'product' });
             linked++;
           } catch (e) { if (e.status !== 409) failures.push(`${file.name} 关联 SKU 失败：${e.message}`); }
         }
@@ -372,7 +372,7 @@ export default function AssetLibrary({ active = true, user, initialCategory = 'p
   };
 
   const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
-  const activeFilter = ['kind', 'tag', 'lang', 'market', 'status', 'visibility', 'folder'].some(key => filters[key]) || Boolean(filters.q);
+  const activeFilter = ['kind', 'tag', 'lang', 'market', 'status', 'visibility', 'folder'].some(key => filters[key]) || Boolean(filters.q) || (isMarketingView && selection.type === 'product');
   const productTotal = index?.categories?.product ?? 0;
 
   return <div className="shop-media">
@@ -460,7 +460,7 @@ export default function AssetLibrary({ active = true, user, initialCategory = 'p
         </div>
         <select value={filters.status} aria-label="素材状态" onChange={e => { setPage(1); setFilters({ ...filters, status: e.target.value }); }}>{STATUSES.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>
         <select value={filters.visibility} aria-label="可见性" onChange={e => { setPage(1); setFilters({ ...filters, visibility: e.target.value }); }}>{VISIBILITIES.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>
-        {activeFilter && <button type="button" className="btn small" onClick={() => { setPage(1); setFilters({ q: '', kind: '', tag: '', lang: '', market: '', status: '', visibility: '', folder: '' }); }}>清除筛选</button>}
+        {activeFilter && <button type="button" className="btn small" onClick={() => { setPage(1); if (isMarketingView) setSelection({type:'all',id:''}); setFilters({ q: '', kind: '', tag: '', lang: '', market: '', status: '', visibility: '', folder: '' }); }}>清除筛选</button>}
         <span className="hint" style={{ marginLeft: 'auto' }} />
       </div>
 

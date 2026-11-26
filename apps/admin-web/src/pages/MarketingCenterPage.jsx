@@ -1,5 +1,6 @@
 import React from 'react';
 import MarketingModule from './MarketingModules.jsx';
+import AssetLibrary from './AssetLibrary.jsx';
 
 const SECTIONS = {
   coupons: {
@@ -19,9 +20,13 @@ const SECTIONS = {
   },
 };
 
-export default function MarketingCenterPage({ section = 'overview' }) {
+export default function MarketingCenterPage({ section = 'overview', active = true, user }) {
+  if (section === 'materials') return <div className="page">
+    <header className="prod-head"><div><div className="prod-head__eyebrow">MARKETING DEPT · 市场部</div><h2>营销素材</h2><p className="hint">与商城共用素材库 · 分类、检索、版本及使用记录</p></div></header>
+    <AssetLibrary active={active} user={user} initialCategory="marketing"/>
+  </div>;
   // 市场部新增八个子模块由 MarketingModules 承载；优惠券/返利/触达保留原结构
-  if (['overview', 'ads', 'materials', 'ai', 'channels', 'social', 'publishing', 'brand'].includes(section)) {
+  if (['overview', 'ads', 'ai', 'channels', 'social', 'publishing', 'brand'].includes(section)) {
     return <div className="page">
       <header className="prod-head">
         <div><div className="prod-head__eyebrow">MARKETING DEPT · 市场部</div><h2>{({ overview: '市场概览', ads: '站外推广', materials: '营销素材', ai: 'AI 内容生成', channels: '推广渠道管理', social: '社交媒体管理', publishing: '内容发布管理', brand: '品牌推广' })[section]}</h2></div>

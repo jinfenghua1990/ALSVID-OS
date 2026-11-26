@@ -99,6 +99,7 @@ export default function AssetLibrary({ active = true, user, initialCategory = 's
     label: '', tags: '', langs: '', markets: '', folder: '', visibility: 'public', status: 'published',
   });
   const loadVersion = useRef(0);
+  const folderVersion = useRef(0);
   const fileRef = useRef(null);
   const replaceRef = useRef(null);
   const replaceNote = useRef({ value: '' });
@@ -110,13 +111,6 @@ export default function AssetLibrary({ active = true, user, initialCategory = 's
   const productScope = fixedProductId || (selection.type === 'product' ? selection.id : '');
   const supportsProductLink = Boolean(category);
   const usesProductUpload = isProductView && uploadMeta.storageCategory === 'product';
-  const usageCounts = useMemo(() => {
-    if (!isProductView) return {};
-    if (selection.type === 'product') return products.find(item => item.id === selection.id)?.usages || {};
-    if (selection.type === 'all') return index?.globalUsage || {};
-    return {};
-  }, [isProductView, selection, products, index]);
-
   const selectionLabel = useMemo(() => {
     if (selection.type === 'product') return shortName(products.find(item => item.id === selection.id) || { name: selection.id });
     if (selection.type === 'shared') return '通用素材';
@@ -159,11 +153,12 @@ export default function AssetLibrary({ active = true, user, initialCategory = 's
 
   const loadFolders = useCallback(async () => {
     if (!active) return;
+    const request = ++folderVersion.current;
     try {
-      const data = await api.assetFolders({ assetView: category });
-      setFolders(Array.isArray(data.items) ? data.items : []);
+      const data = await api.assetFolders({ assetView: category, productId: productScope, scope: selection.type==='shared'?'shared':selection.type==='unclassified'?'unclassified':'' });
+      if(request===folderVersion.current) setFolders(Array.isArray(data.items) ? data.items : []);
     } catch (_) { /* 目录读取失败不影响主列表 */ }
-  }, [active, category]);
+  }, [active, category, productScope, selection.type]);
 
   useEffect(() => {
     if (!active) return undefined;
@@ -172,7 +167,7 @@ export default function AssetLibrary({ active = true, user, initialCategory = 's
   }, [active, load, filters.q]);
 
   useEffect(() => { loadIndex(); }, [loadIndex]);
-  useEffect(() => { loadFolders(); }, [loadFolders]);
+  useEffect(() => { loadFolders(); return ()=>{folderVersion.current++;}; }, [loadFolders]);
 
   useEffect(() => {
     let cancelled = false;
@@ -184,11 +179,12 @@ export default function AssetLibrary({ active = true, user, initialCategory = 's
   const refreshAll = async () => { await Promise.all([load(), loadIndex(), loadFolders()]); };
 
   const switchCategory = key => {
+    if (key === category) return;
+    loadVersion.current++; setRows([]); setTotal(0); setLoading(true); setFolders([]);
     setCategory(key); setPage(1); setUsage('all');
     setFilters(current => ({ ...current, folder: '' }));
   };
-  // 不清空 rows：切换车型时保留上一批卡片直到新数据到达，避免整片空白闪烁。
-  const selectNode = node => { if (fixedProductId) return; setSelection(node); setSkuFilter(''); setPage(1); setUsage('all'); };
+  const selectNode = node => { if (fixedProductId || (node.type===selection.type && node.id===selection.id)) return; loadVersion.current++; setRows([]); setTotal(0); setLoading(true); setFolders([]); setSelection(node); setSkuFilter(''); setPage(1); setUsage('all'); setFilters(f=>({...f,folder:''})); };
   const switchUsage = key => { setUsage(key); setPage(1); };
 
   // 上传弹窗：预填当前选中车型；产品列表直接来自「产品研发」档案。
@@ -234,7 +230,7 @@ export default function AssetLibrary({ active = true, user, initialCategory = 's
     const files = uploadMeta.files;
     if (!files.length) { setError('请先选择要上传的文件'); return; }
     if (!canUpload) return;
-    if (supportsProductLink && !uploadMeta.productIds.length && !uploadMeta.shared && !(isProductView && uploadMeta.storageCategory === 'page')) {
+    if (supportsProductLink && !uploadMeta.productIds.length && !uploadMeta.shared && !(!productScope && isProductView && uploadMeta.storageCategory === 'page')) {
       setError('请选择关联产品，或勾选「通用素材」'); return;
     }
     setUploading(true); setError(''); setMessage('');
@@ -245,7 +241,7 @@ export default function AssetLibrary({ active = true, user, initialCategory = 's
       try {
         const result = await api.uploadAsset(file, {
           category: isOriginalView ? 'product' : isMarketingView ? 'marketing' : uploadMeta.storageCategory,
-          ...(usesProductUpload ? { usage: uploadMeta.usage, shared: uploadMeta.shared } : { folder: isOriginalView ? originalFolder(uploadMeta.folder) : isMarketingView && uploadMeta.shared ? ['通用素材', uploadMeta.folder.trim().replace(/^通用素材\/?/, '')].filter(Boolean).join('/') : uploadMeta.folder.trim() }),
+          ...(usesProductUpload ? { usage: uploadMeta.usage, shared: uploadMeta.shared } : { folder: isOriginalView ? originalFolder(uploadMeta.folder) : uploadMeta.shared ? ['通用素材', uploadMeta.folder.trim().replace(/^通用素材\/?/, '')].filter(Boolean).join('/') : uploadMeta.folder.trim() }),
           label: uploadMeta.label.trim(),
           tags: textToList(uploadMeta.tags),
           langs: textToList(uploadMeta.langs),
@@ -393,7 +389,6 @@ export default function AssetLibrary({ active = true, user, initialCategory = 's
 
   const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const activeFilter = ['kind', 'tag', 'lang', 'market', 'status', 'visibility', 'folder'].some(key => filters[key]) || Boolean(filters.q) || Boolean(skuFilter);
-  const productTotal = index?.categories?.product ?? 0;
 
   return <div className="shop-media">
     <aside className="shop-media__side">
@@ -427,19 +422,21 @@ export default function AssetLibrary({ active = true, user, initialCategory = 's
       </div>
 
       <div className="al-tabs">{VIEWS.map(([key,label])=><button type="button" key={key} className={'al-tab'+(category===key?' is-active':'')} onClick={()=>switchCategory(key)}>{label}{initialCategory===key?'（本部门）':''}</button>)}</div>
-      {category!==initialCategory && <p className="hint">跨部门素材可查看、下载和引用；修改请在归属部门进行。</p>}
+      {category!==initialCategory && <p className="hint">跨部门素材可查看并复制链接；修改请在归属部门进行。</p>}
       {productScope && <div className="shop-media__toolbar"><label>SKU <select value={skuFilter} onChange={e=>{setPage(1);setSkuFilter(e.target.value);}}><option value="">全部 SKU（含车型共用）</option>{filterSkus.map(item=><option key={item.sku} value={item.sku}>{item.sku}</option>)}</select></label></div>}
       <div className="shop-media__toolbar">
         <input type="search" value={filters.q} placeholder="搜索文件名、标签、产品" aria-label="搜索素材" onChange={e => { setPage(1); setFilters({ ...filters, q: e.target.value }); }} />
         <div className="al-kind-filter" role="group" aria-label="按媒体类型筛选">
           {KINDS.map(([value, label]) => <button type="button" key={value} className={'al-kind-filter__button' + (filters.kind === value ? ' is-active' : '')} aria-pressed={filters.kind === value} onClick={() => { setPage(1); setFilters({ ...filters, kind: value }); }}>{label}</button>)}
         </div>
+        <input value={filters.market} placeholder="市场（DE）" aria-label="市场" onChange={e=>{setPage(1);setFilters(f=>({...f,market:e.target.value}));}} />
         <select value={filters.status} aria-label="素材状态" onChange={e => { setPage(1); setFilters({ ...filters, status: e.target.value }); }}>{STATUSES.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>
         <select value={filters.visibility} aria-label="可见性" onChange={e => { setPage(1); setFilters({ ...filters, visibility: e.target.value }); }}>{VISIBILITIES.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>
         {activeFilter && <button type="button" className="btn small" onClick={() => { setPage(1); setSkuFilter(''); setFilters({ q: '', kind: '', tag: '', lang: '', market: '', status: '', visibility: '', folder: '' }); }}>清除筛选</button>}
         <span className="hint" style={{ marginLeft: 'auto' }} />
       </div>
 
+      {loading && <p className="hint" role="status">正在读取素材…</p>}
       {error && <p className="error-text mt8" role="alert">{error}</p>}
       {message && <p className="hint mt8" role="status">{message}</p>}
 

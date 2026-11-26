@@ -755,6 +755,8 @@ function createCmsStore(connectionString) {
         if (!old) fail('页面不存在', 404);
         if (old.rev !== input.revision) fail('页面草稿已被其他人更新，请重新加载', 409);
         if (!old.draft) fail('请先保存页面草稿');
+        const isShell = SITE_SHELL_PATHS.includes(old.path);
+        if(isShell&&!reviewActor)fail('公共模块必须通过六项发布预览，不能使用旧版直接发布',409);
         const review = reviewActor ? shellReview.approve(old,reviewActor,input.session,input.receipts) : null;
         const document = documentOf(old.draft);
         assertLegalReady(old.path,document,old.draftSeo);
@@ -783,6 +785,7 @@ function createCmsStore(connectionString) {
         const old = (await c.query(`SELECT ${columns},revision AS rev FROM site_pages WHERE id=$1 FOR UPDATE`, [id])).rows[0];
         if (!old) fail('页面不存在', 404);
         if (old.rev !== input.revision) fail('页面已更新，请重新加载', 409);
+        if(SITE_SHELL_PATHS.includes(old.path))fail('公共模块历史版本须先恢复为草稿，再完成六项预览发布',409);
         const snapshot = (await c.query('SELECT snapshot,seo,label FROM site_page_versions WHERE page_id=$1 AND version=$2 AND deleted_at IS NULL', [id, version])).rows[0];
         if (!snapshot) fail('历史版本不存在', 404);
         const next = (await c.query('SELECT COALESCE(max(version),0)+1 AS version FROM site_page_versions WHERE page_id=$1', [id])).rows[0].version;
@@ -885,6 +888,7 @@ function createCmsStore(connectionString) {
     async setStatus(id, status) {
       if (!['active', 'disabled'].includes(status)) fail('页面状态无效');
       const old = await row(id);
+      if(SITE_SHELL_PATHS.includes(old.path)&&status==='active'&&old.status!=='active'&&old.publishedVersion)fail('公共模块重新启用须经发布审核',409);
       if (old.pageType === 'home' && status === 'disabled') fail('官网首页不能停用');
       return (await pool.query('UPDATE site_pages SET status=$1,updated_by=$2,updated_at=now() WHERE id=$3 RETURNING id::text AS id,status', [status, currentActor(), id])).rows[0];
     },

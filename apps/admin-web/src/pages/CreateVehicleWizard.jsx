@@ -5,6 +5,7 @@ import {needsDraftIdentityRecovery,recoverDraftIdentity} from '../draft-identity
 import {buildVehicleSku} from '../sku.js';
 import { FieldLibDialog, ColorDictDialog } from '../Dialogs.jsx';
 import { ImagesTab } from './EditorPage.jsx';
+import AssetLibrary from './AssetLibrary.jsx';
 
 const VEHICLE_TYPE='EBI';
 const MODEL_RE=/^[A-Z0-9]{2,3}$/;
@@ -61,7 +62,7 @@ function BarcodeLabel({value}){
   </svg>;
 }
 
-export default function CreateVehicleWizard({meta,onBack,onCreated,workspaceKey,onWorkspaceDirtyChange,productId,onNotify}){
+export default function CreateVehicleWizard({meta,onBack,onCreated,workspaceKey,onWorkspaceDirtyChange,productId,onNotify,user,active=true}){
   const editing=Boolean(productId);
   const [draft,setDraft]=useState(null);
   const [baseline,setBaseline]=useState(null);
@@ -433,7 +434,7 @@ export default function CreateVehicleWizard({meta,onBack,onCreated,workspaceKey,
     </div>
 
     <div className="tabs">
-      {[['basic','产品信息'],['bom','工程 BOM 主档'],['compliance','认证与合规文件'],['factory','工厂官方网站信息']].map(([key,label])=>
+      {[['basic','产品信息'],['assets','原始素材库'],['bom','工程 BOM 主档'],['compliance','认证与合规文件'],['factory','工厂官方网站信息']].map(([key,label])=>
         <button type="button" key={key} className={'tab'+(tab===key?' active':'')} onClick={()=>setTab(key)}>{label}</button>)}
     </div>
 
@@ -596,6 +597,10 @@ export default function CreateVehicleWizard({meta,onBack,onCreated,workspaceKey,
       </div>
     </div>
     </>}
+
+    {tab==='assets'&&(sourceProduct && productId
+      ? <AssetLibrary key={productId} active={active} user={user} fixedProductId={productId} initialCategory="original"/>
+      : <div className="card"><div className="notice">请先保存车型，再上传与该车型绑定的原始素材。</div></div>)}
 
     {tab==='bom'&&(sourceProduct
       ? <VehicleBomPanel p={sourceProduct} meta={meta} onChanged={reloadSource} notify={notify}/>

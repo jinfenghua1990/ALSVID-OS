@@ -11,6 +11,18 @@ const assert = require('node:assert/strict');
 const { test } = require('node:test');
 const fs = require('node:fs');
 const path = require('node:path');
+const { catalogLayoutOf } = require('../cms');
+
+test('WEB-012: L03/L04 目录版式只接受真实配件上限和已接通服务路由', () => {
+  const normalized = catalogLayoutOf({ catalogLayout: {
+    sort: 'sales', categories: [], partProductIds: ['part-1'],
+    services: [{ key: 'test-ride', enabled: true, title: '预约试骑', description: '选择地点', buttonText: '查看地点' }],
+  } });
+  assert.equal(normalized.partProductIds[0], 'part-1');
+  assert.equal(normalized.services[0].key, 'test-ride');
+  assert.throws(() => catalogLayoutOf({ catalogLayout: { services: [{ key: 'warranty', title: '质保查询', buttonText: '查看' }] } }), /服务入口配置无效/);
+  assert.throws(() => catalogLayoutOf({ catalogLayout: { partProductIds: Array.from({ length: 51 }, (_, i) => `part-${i}`) } }), /最多 50 个/);
+});
 
 test('WEB-012: 分类列表页按 catalogLayout 分类导航与筛选', () => {
   const listingSrc = fs.readFileSync(path.join(__dirname, '..', '..', 'storefront', 'src', 'app', '[locale]', 'e-bikes', 'page.tsx'), 'utf-8');

@@ -81,7 +81,7 @@ test('WEB-010: publicPage 正确解析首页统一装修底座', async () => {
 test('WEB-010: Next.js 前台首页支持 CMS blocks 统一渲染与 SEO 自动适配', () => {
   const pageSrc = fs.readFileSync(path.join(__dirname, '..', '..', 'storefront', 'src', 'app', '[locale]', 'page.tsx'), 'utf-8');
   assert.ok(pageSrc.includes("getCmsPage(locale, '/')"), '首页应调用 getCmsPage 获取统一底座配置');
-  assert.ok(pageSrc.includes("<CmsBlocks blocks={cmsHome.blocks} locale={locale}/>"), '包含 CMS blocks 统一渲染输出');
+  assert.ok(pageSrc.includes('<CmsBlocks blocks={cmsHome.blocks} locale={locale} moduleIds={homepageModuleIds(cmsHome.blocks)}') && pageSrc.includes("assign('ALSVID-H01',['hero','carousel','video'])") && pageSrc.includes("assign('ALSVID-H02',['productGallery'])"), 'CMS blocks 统一渲染并映射首页模块定位 ID');
   assert.ok(pageSrc.includes("snapshotHtml ?"), '保留旧版 layoutSnapshot 平滑兜底');
 });
 

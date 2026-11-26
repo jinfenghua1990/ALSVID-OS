@@ -3,18 +3,27 @@ const shell=(id,name,kind)=>({id:'ALSVID-'+id,name,kind,scope:'shared',path:'/si
 const item=(id,name,scope='page')=>({id:'ALSVID-'+id,name,scope});
 export const SHELL_MODULES=[shell('G01','营销公告栏','announcement'),shell('G02','顶部导航栏','header'),item('G03','页面主体容器','structural'),shell('G04','公共页脚','footer')];
 export const PAGE_MODULES={
- home:[item('H01','首屏主视觉'),item('H02','四款车型宣传'),item('H03','核心技术与产品优势'),item('H04','骑行场景与品牌故事')],
+ home:[
+   item('G03-01','车型宣传单元 · 主推款'),
+   item('G03-02','车型宣传单元 · 第二款 / 场景款'),
+   item('G03-03','车型宣传单元 · 第三款 / 性能款'),
+   item('G03-04','矩阵式车型陈列 / 对比选车'),
+   item('G03-05','品牌故事与生态背书')
+ ],
  list:[item('L01','分类导航'),item('L02','整车展示与快速购买'),item('L03','配件与增值服务商品'),item('L04','服务与支持'),item('L05','车型对比')],
- detail:[item('P00','商品专属吸顶导航','product'),item('P01','车型选配与核心参数','product'),item('P01-01','交互式车型选配','product'),item('P01-02','四项核心参数','product'),item('P02','商品主视觉与营销','product'),item('P04','沉浸式产品图文','product'),item('P05','完整技术参数','product'),item('P06','包装清单','product'),item('P07','产品下载','product'),item('P08','常见问题','product'),item('P09','售后保障','product'),item('P10','配送服务','product')],
+ detail:[{...item('P00','商品专属吸顶导航','structural')},item('P01','车型选配与核心参数','product'),item('P01-01','交互式车型选配','product'),item('P01-02','四项核心参数','product'),item('P02','商品主视觉与营销','product'),item('P04','沉浸式产品图文','product'),item('P05','完整技术参数','product'),item('P06','包装清单','product'),item('P07','产品下载','product'),item('P08','常见问题','product'),item('P09','售后保障','product'),item('P10','配送服务','product')],
  transaction:[],
 };
+export const EDITABLE_PAGE_MODULES=[{id:'ALSVID-L01',name:'分类导航',scope:'page',editor:'catalog-layout',pageType:'product_template',path:'/products'}, {id:'ALSVID-L02',name:'整车展示与快速购买',scope:'page',editor:'catalog-layout',pageType:'product_template',path:'/products'}, {id:'ALSVID-L03',name:'配件与增值服务商品',scope:'page',editor:'catalog-layout',pageType:'product_template',path:'/products'}, {id:'ALSVID-L04',name:'服务与支持',scope:'page',editor:'catalog-layout',pageType:'product_template',path:'/products'},...PAGE_MODULES.home.map(module=>({...module,editor:'homepage-block',pageType:'home',path:'/'})),...PAGE_MODULES.detail.slice(1).map(module=>({...module,editor:'product-listing'}))];
 export const DESIGN_LOCALES=[['zh','中文'],['en','英文'],['de','德文']];
 export const DESIGN_DEVICES=[['desktop','PC'],['mobile','移动端']];
 export function modulesFor(page){
  if(!Object.hasOwn(PAGE_MODULES,page))return [];
- return [...SHELL_MODULES.slice(0,1),...(page==='detail'?[]:SHELL_MODULES.slice(1,2)),...(page==='detail'?PAGE_MODULES.detail.slice(0,1):[]),SHELL_MODULES[2],...(page==='detail'?PAGE_MODULES.detail.slice(1):PAGE_MODULES[page]),SHELL_MODULES[3]];
+ const modules=['home','list','detail'].includes(page)?PAGE_MODULES[page].map(module=>pageModule(module.id)||module):PAGE_MODULES[page];
+ return [...SHELL_MODULES.slice(0,1),...(page==='detail'?[]:SHELL_MODULES.slice(1,2)),...(page==='detail'?modules.slice(0,1):[]),SHELL_MODULES[2],...(page==='detail'?modules.slice(1):modules),SHELL_MODULES[3]];
 }
 export function shellModule(id){return SHELL_MODULES.find(m=>m.id===id&&m.kind)||null}
+export function pageModule(id){return EDITABLE_PAGE_MODULES.find(m=>m.id===id)||null}
 export function editorKey(id,locale){if(!shellModule(id)||!DESIGN_LOCALES.some(([code])=>code===locale))return null;return id+':'+locale}
 export function blankShell(kind){if(kind==='announcement')return {kind,enabled:false,text:'',href:''};if(kind==='header')return {kind,brand:'',links:[]};if(kind==='footer')return {kind,brand:'',groups:[]};throw Error('未知全局模块')}
 export function shellValue(page,kind){

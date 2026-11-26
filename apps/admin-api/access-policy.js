@@ -15,6 +15,7 @@ function apiAccessHook(auth,sessionToken){
   if(pathname.startsWith('/api/'))reply.header('Cache-Control','no-store');
   if(!pathname.startsWith('/api/')||pathname==='/api/health'||pathname.startsWith('/api/auth/'))return;
   if(req.routeOptions.config.publicCatalog===true&&['GET','HEAD'].includes(req.method)){await attachUser(req);return;}
+  if(req.routeOptions.config.publicLayoutReviewConfirm===true&&req.method==='POST')return;
   if(req.routeOptions.config.publicLocations===true&&['GET','HEAD'].includes(req.method)){await attachUser(req);return;}
   if(req.routeOptions.config.publicDealerApplication===true&&req.method==='POST')return;
   if(req.routeOptions.config.publicColourInterest===true&&req.method==='POST')return;

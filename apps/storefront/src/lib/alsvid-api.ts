@@ -13,6 +13,7 @@ export type CatalogProduct = {
   delivery?: string;
   warranty?: string;
   relatedAccessories?: { id: string; productId: string; slug: string; title: string; images: { id: string; url: string }[]; prices: { currency: string; unitPrice: string }[] }[];
+  fitments?: { model: string; title: string }[];
   languages: string[];
   images: { id: string; url: string }[];
   prices: { currency: string; unitPrice: string; referencePrice?: string|null }[];
@@ -49,7 +50,7 @@ export type ProductTemplateModules = {
   other: ProductModuleCopy;
 };
 // 「全部产品」列表页版式：分类导航 + 自动展示（按销量）。null = 未装修，维持系统默认渲染。
-export type CatalogLayout = { sort: 'sales' | 'default'; categories: { name: string; productIds: string[] }[] } | null;
+export type CatalogLayout = { sort: 'sales' | 'default'; categories: { name: string; productIds: string[] }[]; partProductIds: string[]; services: { key: 'test-ride' | 'service'; enabled: boolean; title: string; description: string; buttonText: string }[] } | null;
 
 export type Offer = { sku: string; spec: string; color: string; currency: string; unitPrice: string; referencePrice?:string|null; promotionEndsAt?:string|null; images?: {id:string;url:string}[] };
 export type ProductAvailability = { available: boolean | null; items?: { sku: string; available: boolean }[] };
@@ -123,10 +124,10 @@ async function getJsonLive<T>(path: string): Promise<T | null> {
   }
 }
 
-export async function getProducts(locale: Locale, sort?: 'sales') {
+export async function getProducts(locale: Locale, sort?: 'sales', kind?: 'vehicle' | 'part') {
   const items: CatalogProduct[] = [];
   for (let page = 1; page <= 100; page += 1) {
-    const result = await getJsonLive<{ items: CatalogProduct[]; hasMore: boolean }>(`/api/catalog/products?lang=${locale}&page=${page}${sort === 'sales' ? '&sort=sales' : ''}`);
+    const result = await getJsonLive<{ items: CatalogProduct[]; hasMore: boolean }>(`/api/catalog/products?lang=${locale}&page=${page}${sort === 'sales' ? '&sort=sales' : ''}${kind ? `&kind=${kind}` : ''}`);
     if (!result) break;
     items.push(...result.items);
     if (!result.hasMore) break;
@@ -212,6 +213,26 @@ export async function getPublicLocations(capability: 'sales' | 'service') {
 
 export async function getCmsProductTemplate(locale: Locale, productId = '') {
   return getJson<{ id: string; name: string; locale: string; isProductSpecific: boolean; seo: { title?: string; description?: string }; productLayout?: { gallery?: 'standard' | 'immersive' | 'mosaic' | 'columns'; specifications?: 'list' | 'table' | 'accordion'; reviews?: 'list' | 'cards' }; modules?: ProductTemplateModules; performance?: PerformanceConfig; performanceSpecs?: PerformanceSpec[]; masterSpecs?: PerformanceSpec[]; packageSpecs?: PerformanceSpec[]; downloads?: ProductDownload[]; catalogLayout?: CatalogLayout; blocks: CmsBlock[] }>(`/api/cms/product-template?locale=${locale}&productId=${encodeURIComponent(productId)}`);
+}
+
+export type ProductTemplateReviewPreview = {
+  template: Awaited<ReturnType<typeof getCmsProductTemplate>>;
+  receipt: string;
+  session: string;
+  locale: Locale;
+  device: 'desktop' | 'mobile';
+  draft: boolean;
+};
+
+export async function getProductTemplateReviewPreview(locale: Locale, productId: string, token: string) {
+  const query = new URLSearchParams({ locale, productId, token });
+  return getJsonLive<ProductTemplateReviewPreview>(`/api/cms/product-template-review-preview?${query.toString()}`);
+}
+
+export type StorefrontLayoutReviewPreview = { html:string; css:string; confirmationToken:string; session:string; locale:Locale; device:'desktop'|'mobile'; draft:boolean; scope:string; revision:number; version:number };
+export async function getStorefrontLayoutReviewPreview(locale:Locale,token:string){
+  const query=new URLSearchParams({locale,token});
+  return getJsonLive<StorefrontLayoutReviewPreview>(`/api/site/layout-draft/release-review-preview?${query.toString()}`);
 }
 
 export interface SharedModuleRef {

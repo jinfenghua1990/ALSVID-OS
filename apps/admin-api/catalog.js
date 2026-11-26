@@ -6,6 +6,7 @@ const { revalidateStorefront, revalidateStatus } = require('./storefront-revalid
 const { translateLayoutStrings, translateStatus } = require('./storefront-translate');
 const { loadGlossary, lookupMemory, saveMemory, glossarySummary } = require('./translation-memory');
 const { signPreviewToken, verifyPreviewToken } = require('./layout-preview-token');
+const storefrontLayoutReview = require('./storefront-layout-review');
 const traffic = require('./traffic');
 const sanitizeHtml = require('sanitize-html');
 const zlib = require('zlib');
@@ -216,7 +217,7 @@ function createCatalogStore(connectionString) {
     if (!locale) return null;
     const slug = row.slug || doc.seo?.slug;
     if (!slug) return null;
-    return { id: slug, productId: row.id, slug, kind: row.kind, model: doc.model, title: locale.title, description: locale.description, delivery: locale.delivery || '', warranty: locale.warranty || '', specifications: locale.specifications, detailBlocks: locale.detailBlocks || [], ...(locale.design?{design:locale.design}:{}), languages: Object.keys(doc.languages), images: doc.mediaIds.map(id => ({ id, url: `/api/catalog/products/${encodeURIComponent(row.id)}/images/${encodeURIComponent(id)}` })), prices: row.prices || [] };
+    return { id: slug, productId: row.id, slug, kind: row.kind, model: doc.model, title: locale.title, description: locale.description, delivery: locale.delivery || '', warranty: locale.warranty || '', specifications: locale.specifications, fitments: row.fitments || [], detailBlocks: locale.detailBlocks || [], ...(locale.design?{design:locale.design}:{}), languages: Object.keys(doc.languages), images: doc.mediaIds.map(id => ({ id, url: `/api/catalog/products/${encodeURIComponent(row.id)}/images/${encodeURIComponent(id)}` })), prices: row.prices || [] };
   }
   // 图文详情图片按来源给出可访问 URL：产品图库图片走商品图接口，素材库图片走 cms-media。
   async function detailImageUrls(productId, blocks) {
@@ -315,7 +316,7 @@ function createCatalogStore(connectionString) {
     for(const locale of LAYOUT_LOCALES){
       const snapshot=value[locale];
       if(!snapshot)continue;
-      const html=cleanPageHtml(layoutText(snapshot.html,`${locale} 页面 HTML`,2*1024*1024));
+      const html=cleanPageHtml(stripUntranslatedMarkers(layoutText(snapshot.html,`${locale} 页面 HTML`,2*1024*1024)));
       const css=layoutText(snapshot.css,`${locale} 页面样式`,2*1024*1024);
       if(!html||!String(html).trim())continue;
       out[locale]={html,css:css||''};
@@ -357,6 +358,37 @@ function createCatalogStore(connectionString) {
     const row=(await pool.query(`SELECT ${columns} FROM storefront_layout_drafts WHERE slug=$1`,['home'])).rows[0]||null;
     if(row&&!metaOnly){ row.html=unpackText(row.html); row.css=unpackText(row.css); }
     return row;
+  }
+  function normalizedLayoutReviewCandidate(input={},scope='all'){
+    if(scope==='all'){
+      const html=cleanPageHtml(stripUntranslatedMarkers(layoutText(input.html,'页面 HTML',2*1024*1024)||''));
+      const css=cleanPageCss(layoutText(input.css,'页面样式',2*1024*1024)||'');
+      return {html,css,locales:cleanLocaleSnapshots(input.locales)};
+    }
+    if(!LAYOUT_LOCALES.includes(scope))fail('发布范围无效');
+    const html=cleanPageHtml(stripUntranslatedMarkers(layoutText(input.html,'页面 HTML',2*1024*1024)||''));
+    const css=cleanPageCss(layoutText(input.css,'页面样式',2*1024*1024)||'');
+    return {html:scope==='zh'?html:'',css:scope==='zh'?css:'',locales:scope==='zh'?{}:{[scope]:{html,css}}};
+  }
+  async function startStorefrontLayoutReview(input={},actor){
+    const scope=String(input.scope||'all');
+    const row=(await pool.query('SELECT version,published FROM storefront_layout_drafts WHERE slug=$1',['home'])).rows[0];
+    if(!row)fail('云端还没有装修草稿，请先保存草稿再发布');
+    if(row.version!==input.expectedVersion)fail('云端装修草稿已更新，请重新读取后再审核',409);
+    const candidate=normalizedLayoutReviewCandidate(input,scope);
+    if(!candidate.html&&!Object.keys(candidate.locales).length)fail('当前草稿没有可预览的页面内容');
+    const raw=row.published&&typeof row.published==='object'?row.published:{};
+    const published={html:unpackText(raw.html||''),css:unpackText(raw.css||''),locales:{}};
+    for(const [locale,item] of Object.entries(raw.locales||{}))published.locales[locale]={html:unpackText(item?.html||''),css:unpackText(item?.css||'')};
+    return storefrontLayoutReview.start({revision:row.version,actor,scope,candidate,published});
+  }
+  async function storefrontLayoutReviewPreview(token){
+    const {ticket}=storefrontLayoutReview.read(token);
+    const row=(await pool.query('SELECT version FROM storefront_layout_drafts WHERE slug=$1',['home'])).rows[0];
+    if(!row||row.version!==ticket.revision)fail('草稿已修改，请重新开始预览',409);
+    const preview=storefrontLayoutReview.content(token);
+    const html=await decorateProductCards(cleanPageHtml(preview.html||''),ticket.locale);
+    return {...preview,html:cleanPageHtml(html),css:cleanPageCss(preview.css||''),version:ticket.revision};
   }
   function escapeHtml(value) {
     return String(value ?? '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
@@ -461,17 +493,15 @@ function createCatalogStore(connectionString) {
       const css=layoutText(input.css,'页面样式',2*1024*1024)||unpackText(old.css);
       if(!html||!String(html).trim())fail('当前草稿没有可发布的页面内容');
       const locales=cleanLocaleSnapshots(input.locales);
+      storefrontLayoutReview.approve({revision:old.version,actor:currentActor(),scope:'all',candidate:{html,css:cleanPageCss(css||''),locales},session:input.reviewSession,receipts:input.reviewReceipts});
       // 快照与正文都按需压缩存储，读取端 unpackText 透明还原
       const packedLocales={};
       for(const [code,entry] of Object.entries(locales||{})) packedLocales[code]={html:packText(entry?.html||''),css:packText(entry?.css||'')};
-      // 兜底：调用方没带 locales 时，绝不能把已发布的英/德快照抹成空。
-      // 只在这种少见路径上多读一次 published，正常发布（显式带 locales）不受影响。
-      if(input.locales===undefined||input.locales===null){
-        const prev=(await c.query('SELECT published FROM storefront_layout_drafts WHERE id=$1',[old.id])).rows[0]?.published;
-        const prevLocales=prev&&typeof prev==='object'?prev.locales:null;
-        if(prevLocales&&typeof prevLocales==='object'){
-          for(const [code,entry] of Object.entries(prevLocales)) if(!packedLocales[code]) packedLocales[code]=entry;
-        }
+      // 未纳入本次发布的语言保留当前正式快照；需要下线时走独立下线入口。
+      const prev=(await c.query('SELECT published FROM storefront_layout_drafts WHERE id=$1',[old.id])).rows[0]?.published;
+      const prevLocales=prev&&typeof prev==='object'?prev.locales:null;
+      if(prevLocales&&typeof prevLocales==='object'){
+        for(const [code,entry] of Object.entries(prevLocales)) if(!packedLocales[code]) packedLocales[code]=entry;
       }
       const releaseVersion=await nextLayoutVersion(c,old);
       const snapshot=JSON.stringify({html:packText(html),css:packText(css||''),version:releaseVersion,sourceDraftVersion:old.version,locales:packedLocales});
@@ -528,6 +558,8 @@ function createCatalogStore(connectionString) {
       const old=(await c.query('SELECT id,version,published,published_version AS "publishedVersion" FROM storefront_layout_drafts WHERE slug=$1 FOR UPDATE',['home'])).rows[0];
       if(!old)fail('云端还没有装修草稿，请先保存草稿再发布');
       if(old.version!==input.expectedVersion)fail('云端装修草稿已更新，请重新读取后再发布',409);
+      const candidate=normalizedLayoutReviewCandidate({html:rawHtml,css:rawCss},locale);
+      storefrontLayoutReview.approve({revision:old.version,actor:currentActor(),scope:locale,candidate,session:input.reviewSession,receipts:input.reviewReceipts});
       const snapshot=localeSnapshotOf(old.published);
       // 中文是源语言：它没发布过就先发中文，否则 /zh 会拿到空页面
       if(locale!=='zh'&&!unpackText(snapshot.html).trim())fail('请先发布中文首页，再发布其他语言');
@@ -822,6 +854,8 @@ function createCatalogStore(connectionString) {
     publishedStorefrontLayout,
     draftStorefrontLayout,
     publishStorefrontLayoutDraft,
+    startStorefrontLayoutReview,
+    storefrontLayoutReviewPreview,
     unpublishStorefrontLayout,
     // 按语言独立发布：中文/英文/德文各自上线、各自下线，互不牵连
     publishStorefrontLocale,
@@ -855,7 +889,7 @@ function createCatalogStore(connectionString) {
       // 销量=已付款/已发货/已送达订单的商品数量合计；无订单时 sold=0，顺序回退 p.id 保持稳定。
       const salesJoin=sort==='sales'?" LEFT JOIN LATERAL (SELECT COALESCE(sum(oi.quantity),0)::int AS sold FROM storefront_order_items oi JOIN storefront_orders o ON o.id=oi.order_id AND o.status IN ('paid','shipped','delivered') JOIN storefront_listing_skus ls ON ls.sku_uuid=oi.sku_uuid WHERE ls.listing_id=l.id) sales ON true":'';
       const orderBy=sort==='sales'?'sales.sold DESC,p.id':'p.id';
-      const rows = (await pool.query(`SELECT p.id,p.kind,l.published,l.slug,COALESCE(price.rows,'[]'::jsonb) AS prices FROM products p JOIN storefront_listings l ON l.product_uuid=p.entity_uuid AND l.channel='website' AND l.published IS NOT NULL LEFT JOIN LATERAL (SELECT jsonb_agg(jsonb_build_object('currency',offers.currency,'unitPrice',offers.unit_price,'referencePrice',offers.reference_price) ORDER BY offers.currency) AS rows FROM (SELECT DISTINCT ON (lp.currency) lp.currency,lp.unit_price::text AS unit_price,lp.reference_price::text AS reference_price FROM storefront_effective_listing_prices lp JOIN storefront_listing_skus ls ON ls.listing_id=lp.listing_id AND ls.sku_uuid=lp.sku_uuid JOIN skus s ON s.entity_uuid=ls.sku_uuid AND NOT s.disabled WHERE lp.listing_id=l.id AND lp.published ORDER BY lp.currency,lp.unit_price,lp.sku_uuid) offers) price ON true${salesJoin} WHERE p.status='启用' AND l.published->'languages' ? $1${filter} ORDER BY ${orderBy} LIMIT 25 OFFSET $2`, values)).rows;
+      const rows = (await pool.query(`SELECT p.id,p.kind,l.published,l.slug,COALESCE(price.rows,'[]'::jsonb) AS prices,COALESCE(fitments.rows,'[]'::jsonb) AS fitments FROM products p JOIN storefront_listings l ON l.product_uuid=p.entity_uuid AND l.channel='website' AND l.published IS NOT NULL LEFT JOIN LATERAL (SELECT jsonb_agg(jsonb_build_object('currency',offers.currency,'unitPrice',offers.unit_price,'referencePrice',offers.reference_price) ORDER BY offers.currency) AS rows FROM (SELECT DISTINCT ON (lp.currency) lp.currency,lp.unit_price::text AS unit_price,lp.reference_price::text AS reference_price FROM storefront_effective_listing_prices lp JOIN storefront_listing_skus ls ON ls.listing_id=lp.listing_id AND ls.sku_uuid=lp.sku_uuid JOIN skus s ON s.entity_uuid=ls.sku_uuid AND NOT s.disabled WHERE lp.listing_id=l.id AND lp.published ORDER BY lp.currency,lp.unit_price,lp.sku_uuid) offers) price ON true LEFT JOIN LATERAL (SELECT jsonb_agg(jsonb_build_object('model',v.model,'title',COALESCE(vl.published->'languages'->$1->>'title',v.name)) ORDER BY v.model) AS rows FROM fits f JOIN products v ON v.entity_uuid=f.vehicle_product_uuid JOIN storefront_listings vl ON vl.product_uuid=v.entity_uuid AND vl.channel='website' AND vl.published IS NOT NULL AND vl.published->'languages' ? $1 WHERE f.part_product_uuid=p.entity_uuid AND v.status='启用') fitments ON true${salesJoin} WHERE p.status='启用' AND l.published->'languages' ? $1${filter} ORDER BY ${orderBy} LIMIT 25 OFFSET $2`, values)).rows;
       return { items: rows.slice(0, 24).map(row => publicRow(row, lang)), hasMore: rows.length > 24 };
     },
     async get(slug, lang, options = {}) {
@@ -914,7 +948,8 @@ function createCatalogStore(connectionString) {
 }
 function registerCatalogRoutes(app, { catalog, objectStorage }) {
   function route(method, url, handler, isPublic = false, bodyLimit = 128 * 1024) {
-    app.route({ method, url, config: { publicCatalog: isPublic }, bodyLimit, handler: async (req, reply) => {
+    const publicLayoutReviewConfirm=method==='POST'&&url==='/api/site/layout-draft/release-review-confirm';
+    app.route({ method, url, config: { publicCatalog: isPublic, publicLayoutReviewConfirm }, bodyLimit, handler: async (req, reply) => {
       reply.header('Cache-Control', 'no-store');
       if (!catalog) return reply.code(503).send({ error: '产品目录暂时不可用' });
       try { return await handler(req, reply); }
@@ -958,6 +993,9 @@ function registerCatalogRoutes(app, { catalog, objectStorage }) {
   route('PUT','/api/site/layout-draft',req=>{if(req.user?.role!=='admin')fail('仅管理员可管理商城装修',403);return catalog.saveStorefrontLayoutDraft(req.body||{}).then(data=>({data}))},false,5*1024*1024);
   // 保存版本：草稿 + 快照一起落盘，不改线上（版本历史里 origin=manual）
   route('POST','/api/site/layout-draft/snapshot',req=>{if(req.user?.role!=='admin')fail('仅管理员可管理商城装修',403);return catalog.saveLayoutSnapshot(req.body||{}).then(data=>({data}))},false,5*1024*1024);
+  route('POST','/api/site/layout-draft/release-review',req=>{if(req.user?.role!=='admin')fail('仅管理员可发布商城装修',403);return catalog.startStorefrontLayoutReview(req.body||{},req.user.id).then(data=>({data}))},false,5*1024*1024);
+  route('GET','/api/site/layout-draft/release-review-preview',async(req,reply)=>{reply.header('Cache-Control','no-store');reply.header('X-Robots-Tag','noindex, nofollow');return catalog.storefrontLayoutReviewPreview(String(req.query?.token||''))},true);
+  route('POST','/api/site/layout-draft/release-review-confirm',req=>storefrontLayoutReview.confirm(String(req.body?.token||'')),true);
   route('POST','/api/site/layout-draft/publish',req=>{if(req.user?.role!=='admin')fail('仅管理员可发布商城装修',403);return catalog.publishStorefrontLayoutDraft(req.body||{}).then(data=>({data}))},false,5*1024*1024);
   route('POST','/api/site/layout-draft/unpublish',req=>{if(req.user?.role!=='admin')fail('仅管理员可发布商城装修',403);return catalog.unpublishStorefrontLayout()});
   // 单语言发布：只替换这一种语言的快照，其余语言保持线上原样

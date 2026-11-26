@@ -7,6 +7,7 @@ const { createPool } = require('./db-pool');
 const { currentActor } = require('./audit-context');
 const { isUuidv7, uuidv7 } = require('./uuidv7');
 const { findLegacyUsages } = require('./media-assets');
+const { thumbnailKey, makeThumbnail } = require('./asset-thumbnail');
 
 const CONTENT_TYPES = {
   'image/jpeg': { kind: 'image', max: 10 * 1024 * 1024 },
@@ -554,7 +555,10 @@ function createAssetLibraryStore(url, objectStorage) {
         await audit(client, 'asset.delete', `assets/${id}`, asset, null);
       });
       if (objectStorage) {
-        for (const key of unique([asset.objectKey, ...versions.map(row => row.object_key)])) await objectStorage.remove(key).catch(() => {});
+        for (const key of unique([asset.objectKey, ...versions.map(row => row.object_key)])) {
+          await objectStorage.remove(key).catch(() => {});
+          await objectStorage.remove(thumbnailKey(key)).catch(() => {});
+        }
       }
       return { ok: true };
     },
@@ -569,6 +573,23 @@ function createAssetLibraryStore(url, objectStorage) {
       }
       if (!objectStorage) fail('对象存储尚未配置', 503);
       return { asset: { ...asset, contentType, fileName }, object: await objectStorage.get(objectKey), objectKey };
+    },
+
+    async thumbnail(id, checksum) {
+      const asset = await load(id);
+      if (asset.kind !== 'image' || !['image/jpeg','image/png','image/webp','image/avif'].includes(asset.contentType)) fail('该素材不支持缩略图', 415);
+      if (checksum !== asset.checksum) fail('素材已更新，请重新加载', 409);
+      if (!objectStorage) fail('对象存储尚未配置', 503);
+      const key = thumbnailKey(asset.objectKey);
+      if (!await objectStorage.head(key)) {
+        const original = await objectStorage.get(asset.objectKey);
+        const source = Buffer.from(await original.Body.transformToByteArray());
+        const body = await makeThumbnail(source);
+        await objectStorage.put({ key, contentType: 'image/webp', body });
+        return { asset, body };
+      }
+      const object = await objectStorage.get(key);
+      return { asset, body: Buffer.from(await object.Body.transformToByteArray()) };
     },
 
     async publicHomeFile(id) {
@@ -691,6 +712,11 @@ function registerAssetLibraryRoutes(app, store) {
     reply.header('X-Content-Type-Options', 'nosniff').header('Cache-Control', 'private, max-age=86400');
     if (req.query.download === '1') reply.header('Content-Disposition', `attachment; filename*=UTF-8''${encodeURIComponent(result.asset.fileName || result.asset.id)}`);
     return reply.type(result.asset.contentType).send(result.object.Body);
+  });
+  route('GET', '/api/assets/:id/thumbnail', async (req, reply) => {
+    const result = await store.thumbnail(req.params.id, String(req.query.checksum || ''));
+    reply.header('X-Content-Type-Options', 'nosniff').header('Cache-Control', 'private, max-age=2592000, immutable');
+    return reply.type('image/webp').send(result.body);
   });
   route('POST', '/api/assets/upload', async (req, reply) => {
     const contentType = String(req.headers['content-type'] || '').split(';')[0].trim();

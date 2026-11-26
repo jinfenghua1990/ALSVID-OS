@@ -80,6 +80,10 @@ const nextConfig: NextConfig = {
       { source: '/service-locations', destination: '/de/dealers', permanent: true },
       { source: '/:locale/service-locations', destination: '/:locale/dealers', permanent: true },
 
+      // ── 企业信息 /about 统一对齐到品牌页 /brand ──
+      { source: '/about', destination: '/de/brand', permanent: true },
+      { source: '/:locale/about', destination: '/:locale/brand', permanent: true },
+
       // ── 配件杯架：本站已有独立内容页，旧站路径反向对齐过来 ──
       { source: '/explore/accessory-cup-holder', destination: '/de/explore/cup-holder', permanent: true },
       { source: '/:locale/explore/accessory-cup-holder', destination: '/:locale/explore/cup-holder', permanent: true },

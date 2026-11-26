@@ -4,6 +4,7 @@ import grapesjsZh from 'grapesjs/locale/zh';
 import 'grapesjs/dist/css/grapes.min.css';
 import { api } from '../api.js';
 import StorefrontLayoutVersions from './StorefrontLayoutVersions.jsx';
+import StorefrontLayoutReleaseReview from './StorefrontLayoutReleaseReview.jsx';
 import './storefront-builder.css';
 import { LAYOUT_LANGS, canvasStrings, translateHtml, localeDocument, coverageOf, nameLayers, migrateLegacyTranslations, translationValue, entryStatus } from '../storefront-i18n.js';
 
@@ -162,6 +163,7 @@ export default function StorefrontBuilderAdmin({ active = true, user, onDirtyCha
   const productLocale = 'de';
   // 各语言各自的线上状态（中文/英文/德文分别上线），null 表示还没读到
   const [localeStatus, setLocaleStatus] = useState(null);
+  const [releaseReview, setReleaseReview] = useState(null);
 
   useEffect(() => {
     if (!active || user?.role !== 'admin') return undefined;
@@ -475,7 +477,7 @@ export default function StorefrontBuilderAdmin({ active = true, user, onDirtyCha
     const locales = buildLocalesFrom(merged), codes = Object.keys(locales);
     const summary = codes.length
       ? '英文覆盖 ' + coverageOf(strings, merged.en) + '%，德文覆盖 ' + coverageOf(strings, merged.de) + '%。' + (autoNote ? '\n' + autoNote : '')
-      : '还没有任何英/德译文，本次只发布中文首页（英德站点继续用默认模板）。';
+      : '本次只发布中文首页；未纳入本次的语言保留当前正式版本（尚未发布的语言仍使用系统默认模板）。';
     if (!window.confirm('发布后，访客打开官网首页会立即看到当前装修效果。\n' + summary + '\n确定发布？')) return;
     setBusy(true); setError('');
     try {
@@ -487,24 +489,7 @@ export default function StorefrontBuilderAdmin({ active = true, user, onDirtyCha
         current = saved.data.version;
         setVersion(current); setDirty(false);
       }
-      const result = await api.publishStorefrontLayout({ expectedVersion: current, html: editor.getHtml(), css: editor.getCss(), locales });
-      setPublishedVersion(result.data.publishedVersion);
-      setPublishedAt(result.data.publishedAt || '');
-      // 生产同步结果：配置了就报线上版本号，没配置就说明只发布了本系统
-      const sync = result.data.productionSync;
-      const syncNote = sync?.ok
-        ? '已同步到线上 www.alsvidbike.com（线上版本 v' + (sync.productionVersion ?? '—') + '）。'
-        : sync?.skipped
-          ? sync.reason + '。'
-          : '同步线上失败：' + (sync?.reason || '未知原因') + '（可用「导入 / 导出 › 重试同步线上」补推）。';
-      // 新站 8091 的缓存刷新结果：与上面推旧站 V1.0 是两条独立通道，必须分别告知
-      const revalidate = result.data.storefrontRevalidate;
-      const revalidateNote = revalidate?.ok
-        ? '新站商城缓存已刷新（' + (revalidate.ms ?? 0) + 'ms），访客立即看到新版。'
-        : revalidate?.skipped
-          ? '未配置新站刷新：' + revalidate.reason + '。'
-          : '新站刷新失败：' + (revalidate?.reason || '未知原因') + '，缓存在 1 小时内自然过期。';
-      setNotice('已发布：本系统官网首页 /www/zh 已切换为当前装修版' + (codes.length ? '，' + codes.map(code => '/www/' + code).join('、') + ' 为同一版式的对应语言版本。' : '；英德站点仍用默认模板。') + ' 共 ' + strings.length + ' 条文案。' + (autoNote ? autoNote : '') + syncNote + revalidateNote);
+      setReleaseReview({scope:'all',body:{expectedVersion:current,html:editor.getHtml(),css:editor.getCss(),locales}});
     } catch (reason) {
       setError(reason.status === 409 ? '云端草稿已被其他人更新，请先重新读取再发布。' : reason.message || '发布失败');
     } finally { setBusy(false); }
@@ -541,7 +526,8 @@ export default function StorefrontBuilderAdmin({ active = true, user, onDirtyCha
     }
 
     const coverage = code === 'zh' ? 100 : coverageOf(strings, table);
-    if (!window.confirm('只发布' + label + '首页，其他语言线上不变。\n' + label + '覆盖率 ' + coverage + '%。' + (autoNote ? '\n' + autoNote : '') + '\n确定发布？')) return;
+    const force=code!=='zh'&&coverage<100&&window.confirm(label+'覆盖率 '+coverage+'%，仍有未翻译内容。预览后强制发布，未翻译处保留中文。继续吗？');
+    if(code!=='zh'&&coverage<100&&!force)return;
 
     setBusy(true); setError('');
     try {
@@ -552,22 +538,8 @@ export default function StorefrontBuilderAdmin({ active = true, user, onDirtyCha
         current = saved.data.version;
         setVersion(current); setDirty(false);
       }
-      const payload = { locale: code, html: translateHtml(editor.getHtml(), table), css: editor.getCss(), expectedVersion: current };
-      let result;
-      try {
-        result = await api.publishStorefrontLocale(payload);
-      } catch (reason) {
-        // 422 = 服务端门禁拦下的「还有未翻译节点」，允许用户确认后强制发布
-        if (reason.status === 422 && window.confirm(reason.message + '\n\n仍要强制发布吗？未翻译处会保留中文原文。')) {
-          result = await api.publishStorefrontLocale({ ...payload, force: true });
-        } else throw reason;
-      }
-      setPublishedVersion(result.data.publishedVersion);
-      setPublishedAt(result.data.publishedAt || '');
-      await refreshLocaleStatus();
-      const revalidate = result.data.storefrontRevalidate;
-      const revalidateNote = revalidate?.ok ? '新站缓存已刷新（' + (revalidate.ms ?? 0) + 'ms）。' : (revalidate?.skipped ? '' : '缓存刷新失败，1 小时内自然过期。');
-      setNotice('已发布' + label + '首页（线上 v' + (result.data.publishedVersion ?? '—') + '，覆盖率 ' + coverage + '%）。' + (autoNote ? autoNote : '') + revalidateNote);
+      const payload = { html: translateHtml(editor.getHtml(), table), css: editor.getCss(), expectedVersion: current, force };
+      setReleaseReview({scope:code,body:payload,label,coverage,autoNote});
     } catch (reason) {
       setError(reason.status === 409 ? '云端草稿已被其他人更新，请先重新读取再发布。' : (reason.message || '发布失败'));
     } finally { setBusy(false); }
@@ -982,5 +954,6 @@ export default function StorefrontBuilderAdmin({ active = true, user, onDirtyCha
       <aside className="storefront-editor__right"><div className="storefront-editor__panelhead"><strong>样式设置</strong><span>选中元素后编辑</span></div><div className="storefront-editor__styles" ref={stylesRef} /></aside>
     </div>
     <p className="storefront-editor__footer" role="status">{notice}</p>
+    {releaseReview&&<StorefrontLayoutReleaseReview request={releaseReview} onClose={()=>setReleaseReview(null)} onPublished={async data=>{setPublishedVersion(data.publishedVersion);setPublishedAt(data.publishedAt||'');setReleaseReview(null);if(releaseReview.scope!=='all')await refreshLocaleStatus();setNotice(releaseReview.scope==='all'?'发布已完成。'+(data.storefrontRevalidate?.ok?'前台缓存刷新成功。':'前台缓存刷新未确认，请查看发布状态。'):'已发布'+releaseReview.label+'首页（线上 v'+(data.publishedVersion??'—')+'，覆盖率 '+releaseReview.coverage+'%）。'+(releaseReview.autoNote||'')+(data.storefrontRevalidate?.ok?'新站缓存已刷新。':'缓存刷新尚未确认。'))}}/>}
   </section>;
 }

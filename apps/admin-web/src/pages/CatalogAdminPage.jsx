@@ -9,7 +9,6 @@ import ShopPricingPage from './ShopPricingPage.jsx';
 import StorefrontPageAdmin from './StorefrontPageAdmin.jsx';
 import StorefrontListingsAdmin from './StorefrontListingsAdmin.jsx';
 import UnifiedDesignWorkspace from './UnifiedDesignWorkspace.jsx';
-import ShopDesignWorkspace from './ShopDesignWorkspace.jsx';
 import SeoTrafficCenter from './SeoTrafficCenter.jsx';
 import PaymentProviders from './PaymentProviders.jsx';
 import ModuleLedger from './ModuleLedger.jsx';
@@ -61,17 +60,8 @@ export default function CatalogAdminPage({ user, active = true, workspaceKey, on
     {isEditorWindow ? editorHeader : <ShopPageHead />}
     <Suspense fallback={<p className="hint">正在载入装修工作区…</p>}><StorefrontBuilderAdmin active={active} user={user} onDirtyChange={setBuilderDirty} onClose={isEditorWindow ? closeEditorWindow : undefined}/></Suspense>
   </>;
-  if (section === 'design' && pageView === 'builder') return <>
-    <ShopPageHead actions={<button type="button" className="btn small" onClick={() => setPageView('design')}>← 返回店铺装修</button>} />
-    <Suspense fallback={<p className="hint">正在载入装修工作区…</p>}><StorefrontBuilderAdmin active={active} user={user} onDirtyChange={setBuilderDirty} onClose={isEditorWindow ? closeEditorWindow : undefined}/></Suspense>
-  </>;
-  if (section === 'design' && pageView === 'cms') return <>
-    <ShopPageHead actions={<button type="button" className="btn small" onClick={() => setPageView('design')}>← 返回店铺装修</button>} />
-    <CmsPageManager active={active} user={user} openPageId={editingPage} onDirtyChange={setCmsDirty} onBack={() => { setPageView('design'); setEditingPage(''); }} />
-  </>;
-  // 店铺装修工作区：页面 TAB + 语言 TAB + 版本历史 + 真实页面预览
-  if (section === 'unified-design') return <UnifiedDesignWorkspace active={active} user={user} onOpenEditor={onOpenDesignEditor}/>;
-  if (section === 'design') return <ShopDesignWorkspace active={active} user={user} onSectionChange={onSectionChange} />;
+  // 店铺装修统一工作区
+  if (section === 'unified-design' || section === 'design') return <UnifiedDesignWorkspace active={active} user={user} onOpenEditor={onOpenDesignEditor}/>;
   if (section === 'orders') return <div className="shop-work">
     <ShopPageHead />
     <StorefrontOrdersAdmin active={active} onDirtyChange={setOrdersDirty} onGotoReviews={()=>onSectionChange?.('reviews')}/>

@@ -49,6 +49,8 @@ async function assetsAll(params = {}) {
 export const api = {
   startShellReview: (id,revision) => req('POST',`/api/cms/pages/${encodeURIComponent(id)}/release-review`,{revision}),
   publishReviewedShell: (id,body) => req('POST',`/api/cms/pages/${encodeURIComponent(id)}/review-publish`,body),
+  startProductTemplateReview: (id,body) => req('POST',`/api/cms/pages/${encodeURIComponent(id)}/product-template-review`,body),
+  publishReviewedCmsPage: (id,body) => req('POST',`/api/cms/pages/${encodeURIComponent(id)}/review-publish`,body),
   systemConnections: () => req('GET','/api/system/connections'),
   meta: () => req('GET', '/api/meta'),
   procurement: () => req('GET','/api/procurement'),
@@ -94,7 +96,7 @@ export const api = {
   createServiceCenter: body => req('POST','/api/service-centers',body),
   updateServiceCenter: (id,body) => req('PATCH',`/api/service-centers/${encodeURIComponent(id)}`,body),
   catalogHomepage: lang => req('GET',`/api/catalog/homepage?lang=${encodeURIComponent(lang)}`),
-  catalogProducts: (lang,page=1) => req('GET',`/api/catalog/products?lang=${encodeURIComponent(lang)}&page=${page}`),
+  catalogProducts: (lang,page=1,kind='') => req('GET',`/api/catalog/products?lang=${encodeURIComponent(lang)}&page=${page}${kind?`&kind=${encodeURIComponent(kind)}`:''}`),
   // 商品发布到官网（catalog_publications）：草稿 → 发布 → 下架
   productPublication: id => req('GET',`/api/products/${encodeURIComponent(id)}/publication`),
   saveProductPublication: (id,body) => req('PUT',`/api/products/${encodeURIComponent(id)}/publication`,body),
@@ -109,6 +111,7 @@ export const api = {
   saveStorefrontLayoutDraft: body => req('PUT','/api/site/layout-draft',body),
   saveLayoutSnapshot: body => req('POST','/api/site/layout-draft/snapshot',body),
   publishStorefrontLayout: body => req('POST','/api/site/layout-draft/publish',body),
+  startStorefrontLayoutReview: body => req('POST','/api/site/layout-draft/release-review',body),
   unpublishStorefrontLayout: () => req('POST','/api/site/layout-draft/unpublish',{}),
   // 单语言发布/下线：只动这一种语言，其余语言线上不变
   publishStorefrontLocale: body => req('POST','/api/site/layout-draft/publish-locale',body),
@@ -202,6 +205,7 @@ export const api = {
   addAssetLink: (id, body) => req('POST', `/api/assets/${encodeURIComponent(id)}/links`, body),
   removeAssetLink: linkId => req('DELETE', `/api/assets/links/${encodeURIComponent(linkId)}`),
   assetUrl: (id, { version = '', download = false } = {}) => `/api/assets/${encodeURIComponent(id)}/file${version ? `?version=${encodeURIComponent(version)}` : download ? '?download=1' : ''}`,
+  assetThumbnailUrl: (id, checksum) => `/api/assets/${encodeURIComponent(id)}/thumbnail?checksum=${encodeURIComponent(checksum || '')}`,
   cmsPages: ({type='',locale='',q='',path=''}={}) => req('GET',`/api/cms/pages?type=${encodeURIComponent(type)}&locale=${encodeURIComponent(locale)}&q=${encodeURIComponent(q)}&path=${encodeURIComponent(path)}`),
   cmsPage: id => req('GET',`/api/cms/pages/${encodeURIComponent(id)}`),
   createCmsPage: body => req('POST','/api/cms/pages',body),

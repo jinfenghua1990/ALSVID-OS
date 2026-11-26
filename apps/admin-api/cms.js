@@ -5,6 +5,7 @@ const { revalidateStorefront } = require('./storefront-revalidate');
 const refreshCms = () => revalidateStorefront(['storefront-cms','storefront-products','storefront-layout']);
 const { currentActor } = require('./audit-context');
 const shellReview = require('./shell-release-review');
+const productTemplateReview = require('./product-template-review');
 const { isUuidv7, uuidv7 } = require('./uuidv7');
 
 const LANGUAGES = ['zh', 'en', 'de'];
@@ -283,7 +284,13 @@ function catalogLayoutOf(input) {
     if (ids.length > 50 || ids.some(id => typeof id !== 'string' || !id.trim() || id.length > 160)) fail('分类关联商品无效（每个分类最多 50 个）');
     return { name: text(row.name, 80, true), productIds: [...new Set(ids.map(id => id.trim()))] };
   });
-  return { sort: value.sort === 'default' ? 'default' : 'sales', categories: cleanCategories };
+  const partProductIds = Array.isArray(value.partProductIds) ? value.partProductIds : [];
+  if (partProductIds.length > 50 || partProductIds.some(id => typeof id !== 'string' || !id.trim() || id.length > 160)) fail('配件展示商品选择无效（最多 50 个）');
+  const services = Array.isArray(value.services) ? value.services : [];
+  if (services.length > 2 || services.some(item => !item || typeof item !== 'object' || !['test-ride','service'].includes(item.key))) fail('服务入口配置无效');
+  if (new Set(services.map(item => item.key)).size !== services.length) fail('服务入口不能重复');
+  const cleanServices = services.map(item => ({ key: item.key, enabled: item.enabled === true, title: text(item.title, 120, true), description: text(item.description, 500), buttonText: text(item.buttonText, 60, true) }));
+  return { sort: value.sort === 'default' ? 'default' : 'sales', categories: cleanCategories, partProductIds: [...new Set(partProductIds.map(id => id.trim()))], services: cleanServices };
 }
 const SITE_SHELL_PATHS = ['/site-shell/announcement','/site-shell/header','/site-shell/footer'];
 function siteShellOf(value) {
@@ -755,7 +762,9 @@ function createCmsStore(connectionString) {
         if (!old) fail('页面不存在', 404);
         if (old.rev !== input.revision) fail('页面草稿已被其他人更新，请重新加载', 409);
         if (!old.draft) fail('请先保存页面草稿');
-        const review = shellReview.requireReviewedRelease(old,reviewActor,input);
+        const review = old.pageType === 'product_template'
+          ? productTemplateReview.requireReviewedRelease(old, reviewActor, input)
+          : shellReview.requireReviewedRelease(old,reviewActor,input);
         const document = documentOf(old.draft);
         assertLegalReady(old.path,document,old.draftSeo);
         assertShellDocument(old.path,old.pageType,document);
@@ -912,7 +921,7 @@ function createCmsStore(connectionString) {
     async publicPage(locale, path, options = {}) {
       if (!LANGUAGES.includes(locale)) fail('语言无效');
       const normalized = normalizePath(path);
-      const { version = null, draft = false } = options;
+      const { version = null, draft = false, pageId = '', expectedRevision = null } = options;
       const isHome = normalized === '/';
       // 首页可能为 home 类型且 locale='*' 或对应语言
       const isShell=SITE_SHELL_PATHS.includes(normalized);
@@ -958,7 +967,9 @@ function createCmsStore(connectionString) {
       });
       // 草稿预览：仅后台装修工作区使用（路由层已校验管理员身份）
       if (draft) {
-        const data = (await pool.query("SELECT id::text AS id,page_name AS \"name\",draft AS document,draft_seo AS seo,(path=$2) AS \"isProductSpecific\" FROM site_pages WHERE page_type='product_template' AND locale=$1 AND status='active' AND draft IS NOT NULL AND (path=$2 OR path NOT LIKE '/products/%') ORDER BY (path=$2) DESC,updated_at DESC LIMIT 1", [locale, productPath])).rows[0];
+        const data = pageId
+          ? (await pool.query("SELECT id::text AS id,page_name AS \"name\",draft AS document,draft_seo AS seo,(path=$3) AS \"isProductSpecific\" FROM site_pages WHERE id=$1 AND locale=$2 AND page_type='product_template' AND status='active' AND draft IS NOT NULL AND revision=$4", [pageId, locale, productPath, expectedRevision])).rows[0]
+          : (await pool.query("SELECT id::text AS id,page_name AS \"name\",draft AS document,draft_seo AS seo,(path=$2) AS \"isProductSpecific\" FROM site_pages WHERE page_type='product_template' AND locale=$1 AND status='active' AND draft IS NOT NULL AND (path=$2 OR path NOT LIKE '/products/%') ORDER BY (path=$2) DESC,updated_at DESC LIMIT 1", [locale, productPath])).rows[0];
         return data ? payload(data.document || {}, data) : null;
       }
       // 历史版本预览：读取该版本快照，不动当前线上内容
@@ -1165,6 +1176,29 @@ function registerCmsRoutes(app, cms) {
     if(page.revision!==req.body?.revision)fail('草稿已修改，请重新加载',409);
     return shellReview.start(page,req.user.id);
   });
+  route('POST', '/api/cms/pages/:id/product-template-review', async req => {
+    const page = await cms.get(req.params.id);
+    if (page.revision !== req.body?.revision) fail('草稿已修改，请重新加载', 409);
+    return productTemplateReview.start(page, req.user.id, {
+      previewScope: req.body?.previewScope,
+      productId: req.body?.productId,
+    });
+  });
+  route('GET', '/api/cms/product-template-review-preview', async (req, reply) => {
+    reply.header('Cache-Control', 'no-store');
+    reply.header('X-Robots-Tag', 'noindex, nofollow');
+    const ticket = productTemplateReview.read(req.query.token);
+    const locale = String(req.query.locale || '');
+    const productId = String(req.query.productId || '');
+    if (locale !== ticket.locale || (ticket.previewScope === 'product' && productId !== ticket.productId) || (ticket.previewScope === 'listing' && productId)) fail('预览凭证与当前页面不匹配', 403);
+    const page = await cms.get(ticket.id);
+    const template = ticket.draft
+      ? await cms.publicProductTemplate(locale, productId, { draft: true, pageId: ticket.id, expectedRevision: ticket.revision })
+      : await cms.publicProductTemplate(locale, productId);
+    if (ticket.draft && !template) fail('草稿已修改，请重新开始预览', 409);
+    const receipt = productTemplateReview.rendered(ticket, page);
+    return { template, receipt, session: ticket.session, locale, device: ticket.device, draft: ticket.draft };
+  }, true);
   route('GET', '/api/cms/shell-review-preview', async (req,reply) => {
     reply.header('Cache-Control','no-store');
     reply.header('X-Robots-Tag','noindex, nofollow');
@@ -1212,4 +1246,4 @@ function registerCmsRoutes(app, cms) {
   }, true);
 }
 
-module.exports = { createCmsStore, registerCmsRoutes, publicProductSpecifications, siteShellOf, assertShellDocument, performanceOf, performanceSpecifications };
+module.exports = { createCmsStore, registerCmsRoutes, publicProductSpecifications, siteShellOf, assertShellDocument, performanceOf, performanceSpecifications, catalogLayoutOf };

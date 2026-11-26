@@ -18,6 +18,7 @@
     "@fastify/static": "^7.0.4",
     "fastify": "^4.28.1",
     "pg": "^8.23.1",
-    "sanitize-html": "^2.18.2"
+    "sanitize-html": "^2.18.2",
+    "sharp": "^0.35.5"
   }
 }

@@ -4,10 +4,11 @@ import { CmsBlocks } from '@/components/cms-blocks';
 import { ProductPurchaseSection } from '@/components/product-purchase-section';
 import { ProductPageNav } from '@/components/product-page-nav';
 import { ImmersiveScene } from '@/components/immersive-scene';
-import { absoluteApiUrl, getAvailability, getCmsProductTemplate, getOffers, getProduct, getReviews, publicApiUrl, publicAssetUrl, type Locale, type ProductModuleBanner, type ProductModuleCopy, type PerformanceConfig, type PerformanceSpec, siteUrl } from '@/lib/alsvid-api';
+import { ProductTemplateReviewConfirm } from '@/components/product-template-review-confirm';
+import { absoluteApiUrl, getAvailability, getCmsProductTemplate, getOffers, getProduct, getProductTemplateReviewPreview, getReviews, publicApiUrl, publicAssetUrl, type Locale, type ProductModuleBanner, type ProductModuleCopy, type PerformanceConfig, type PerformanceSpec, siteUrl } from '@/lib/alsvid-api';
 import { UI } from '@/lib/ui-text';
 
-type Props = { params: Promise<{ locale: Locale; slug: string }>; searchParams?: Promise<{configure?:string}> };
+type Props = { params: Promise<{ locale: Locale; slug: string }>; searchParams?: Promise<{configure?:string;reviewToken?:string;parent?:string}> };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { locale, slug } = await params;
@@ -26,13 +27,21 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function ProductPage({ params, searchParams }: Props) {
   const { locale, slug } = await params;
+  const query = await searchParams;
   const product = await getProduct(slug, locale);
   if (!product || product.kind !== 'vehicle') notFound();
-  const [allOffers, availability, reviews, template] = await Promise.all([getOffers(product.slug, locale), getAvailability(product.slug, locale), getReviews(product.productId), getCmsProductTemplate(locale, product.productId)]);
+  const [allOffers, availability, reviews, reviewPreview] = await Promise.all([
+    getOffers(product.slug, locale),
+    getAvailability(product.slug, locale),
+    getReviews(product.productId),
+    query?.reviewToken && query.parent ? getProductTemplateReviewPreview(locale, product.productId, query.reviewToken) : Promise.resolve(null),
+  ]);
+  if (query?.reviewToken && !reviewPreview) return <main role="alert" style={{ padding: 32 }}>审核预览凭证无效或已失效，请回到装修工作台重新开始审核。</main>;
+  const template = reviewPreview?.template ?? await getCmsProductTemplate(locale, product.productId);
   const offers = allOffers.filter(offer => offer.currency === 'EUR');
   const design=product.design;
   const visible=(id:string)=>design?.visibility?.[id]!==false;
-  const configure=(await searchParams)?.configure==='1';
+  const configure=query?.configure==='1';
   const showPurchase=design?.purchaseVisible!==false||configure;
   const purchaseHref=showPurchase?'#product-purchase':`/${locale}/e-bikes/${encodeURIComponent(product.slug)}?configure=1#product-purchase`;
   const visual=design?.visual;
@@ -122,6 +131,7 @@ export default async function ProductPage({ params, searchParams }: Props) {
         {(reviews?.items || []).slice(0, reviewsConfig.limit).map(review => <article className="review" key={review.id}><strong>{'★'.repeat(review.rating)}{'☆'.repeat(5-review.rating)}</strong><p>{review.content}</p>{review.reply && <p className="review-reply">{UI.brandReply[locale]} {review.reply}</p>}</article>)}
       </section>}
       {copyModules.map(({key,id,row}) => <section className="product-business-module product-standard-module" key={key} data-module-id={id} data-module={key}><h2>{row.title || (key==='returns'?UI.returns[locale]:UI.other[locale])}</h2><p>{row.body}</p></section>)}
+      {reviewPreview && query?.parent && <ProductTemplateReviewConfirm {...reviewPreview} parentOrigin={query.parent}/>}
     </main>
   );
 }

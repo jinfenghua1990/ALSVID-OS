@@ -46,7 +46,7 @@ const shortName = p => {
 };
 
 function Thumb({ asset }) {
-  if (asset.kind === 'image') return <img src={api.assetUrl(asset.id)} alt={asset.label || asset.fileName || '素材图片'} loading="lazy" />;
+  if (asset.kind === 'image') return <img src={api.assetThumbnailUrl(asset.id, asset.checksum)} alt={asset.label || asset.fileName || '素材图片'} loading="lazy" decoding="async" />;
   if (asset.kind === 'video') return <span className="shop-media__kind">视频 · {formatSize(asset.sizeBytes)}</span>;
   return <span className="shop-media__kind">文档 · {formatSize(asset.sizeBytes)}</span>;
 }

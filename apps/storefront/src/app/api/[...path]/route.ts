@@ -48,6 +48,8 @@ const PUBLIC_RULES: Rule[] = [
   { method: 'GET', pattern: /^\/api\/cms\/product-template$/ },
   { method: 'GET', pattern: /^\/api\/site\/reviews$/ },
   { method: 'GET', pattern: /^\/api\/site\/layout$/ },
+  { method: 'GET', pattern: /^\/api\/site\/layout-draft\/release-review-preview$/ },
+  { method: 'POST', pattern: /^\/api\/site\/layout-draft\/release-review-confirm$/ },
   { method: 'POST', pattern: /^\/api\/dealer-applications$/ },
   { method: 'POST', pattern: /^\/api\/public\/fc1-reservation$/ },
   { method: 'POST', pattern: /^\/api\/public\/fc1-colour-interest$/ },

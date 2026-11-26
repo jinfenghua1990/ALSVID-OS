@@ -27,5 +27,14 @@ export function localizeSnapshotLinks(html: string, locale: Locale): string {
 // 注入前的唯一入口：剥外壳 + 链接本地化。
 export function prepareLayoutSnapshot(html: string, locale: Locale): string {
   if (!html) return '';
-  return localizeSnapshotLinks(stripSiteChrome(html), locale);
+  return localizeSnapshotLinks(stripSiteChrome(html), locale)
+    .replace(/<section\b(?=[^>]*\bdata-home-carousel="true")[^>]*>/i, tag => addModuleId(tag, 'ALSVID-H01'))
+    .replace(/<section\b(?=[^>]*\bid="folding")[^>]*>/i, tag => addModuleId(tag, 'ALSVID-G03-02'))
+    .replace(/<section\b(?=[^>]*\bid="platforms")[^>]*>/i, tag => addModuleId(tag, 'ALSVID-H02'))
+    .replace(/<section\b(?=[^>]*\bid="tech")[^>]*>/i, tag => addModuleId(tag, 'ALSVID-H03'))
+    .replace(/<section\b(?=[^>]*\bid="about")[^>]*>/i, tag => addModuleId(tag, 'ALSVID-H04'));
+}
+
+function addModuleId(tag: string, id: string): string {
+  return /\bdata-module-id\s*=/.test(tag) ? tag : tag.replace(/>$/, ` data-module-id="${id}">`);
 }

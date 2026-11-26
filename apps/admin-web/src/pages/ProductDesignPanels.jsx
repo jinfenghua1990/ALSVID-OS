@@ -69,11 +69,11 @@ export function useCmsDocument(row, enabled = true) {
   return { page, doc, setDoc, dirty, busy, error, save, publish, reload: load };
 }
 
-function SaveBar({ dirty, busy, error, onSave, onPublish, publishedVersion, hint }) {
+function SaveBar({ dirty, busy, error, onSave, onPublish, publishedVersion, hint, publishEnabled = true, publishLabel }) {
   return <div className="sdp__bar">
     <span className="sdp__status">{publishedVersion ? `线上版本 v${publishedVersion}` : '尚未发布'}{dirty ? ' · 有未保存修改' : ''}</span>
     <button type="button" className="btn small" disabled={!dirty || busy} onClick={onSave}>{busy ? '处理中…' : '保存草稿'}</button>
-    <button type="button" className="btn small primary" disabled={busy || dirty} onClick={onPublish}>发布</button>
+    <button type="button" className="btn small primary" disabled={!publishEnabled || busy || dirty} onClick={onPublish}>{publishLabel || (publishEnabled ? '发布' : '发布审核待接入')}</button>
     {hint && <span className="hint">{hint}</span>}
     {error && <span className="error-text">{error}</span>}
   </div>;
@@ -200,18 +200,60 @@ function CopyEditor({ title, value, onChange, defaultTitle }) {
   </section>;
 }
 
-export function CatalogLayoutPanel({ row, locale, products, publishedMap, onPublished, notify }) {
-  const { doc, setDoc, dirty, busy, error, save, publish } = useCmsDocument(row);
+export function CatalogLayoutPanel({ moduleId, row, locale, products, publishedMap, onPublished, notify, publishEnabled = true, onDirtyChange, onReview }) {
+  const { page, doc, setDoc, dirty, busy, error, save } = useCmsDocument(row);
+  useEffect(()=>{onDirtyChange?.(dirty||busy);return()=>onDirtyChange?.(false)},[dirty,busy,onDirtyChange]);
   if (!doc) return <p className="sdw__tip">{error || '正在读取版式配置…'}</p>;
   const enabled = doc.catalogLayout != null;
-  const layout = doc.catalogLayout || { sort: 'sales', categories: [] };
+  const layout = doc.catalogLayout || { sort: 'sales', categories: [], partProductIds: [], services: [] };
   const patch = next => setDoc({ ...doc, catalogLayout: next });
   const publishedVehicles = products.filter(p => p.kind === 'vehicle' && p.status === '启用' && publishedMap.has(p.id));
+  const publishedParts = products.filter(p => p.kind === 'part' && p.status === '启用' && publishedMap.has(p.id));
+  const serviceDefaults = {
+    'test-ride': { title: { zh: '预约试骑', en: 'Book a test ride', de: 'Probefahrt buchen' }, description: { zh: '查找可预约的试骑地点。', en: 'Find a location offering test rides.', de: 'Finden Sie einen Standort für Probefahrten.' }, buttonText: { zh: '查找地点', en: 'Find a location', de: 'Standort finden' } },
+    service: { title: { zh: '维修与服务申请', en: 'Repair and service', de: 'Reparatur und Service' }, description: { zh: '登录后提交车辆服务申请并跟进处理状态。', en: 'Sign in to request vehicle service and track its status.', de: 'Melden Sie sich an, um Service anzufragen und den Status zu verfolgen.' }, buttonText: { zh: '进入服务中心', en: 'Open service center', de: 'Servicebereich öffnen' } },
+  };
+  const serviceEntries = layout.services || [];
   const doSave = async () => { if (await save()) notify('列表页版式草稿已保存'); };
-  const doPublish = async () => { if (await publish()) { notify('列表页版式已发布'); onPublished?.(); } };
+  const doPublish = () => { if (page) onReview?.(page); };
   return <div className="sdp">
-    <SaveBar dirty={dirty} busy={busy} error={error} onSave={doSave} onPublish={doPublish} publishedVersion={row.publishedVersion}/>
-    <section className="sdp__module">
+    <SaveBar dirty={dirty} busy={busy} error={error} onSave={doSave} onPublish={doPublish} publishedVersion={row.publishedVersion} publishEnabled={publishEnabled && !!onReview} publishLabel="发布前检查" hint={onReview ? '发布前将核对三种语言和两种设备的真实列表页。' : '该模块须接入六项审核后才能发布。'}/>
+    {moduleId === 'ALSVID-L02' ? <section className="sdp__module" data-module-id="ALSVID-L02">
+      <header><strong>整车展示顺序</strong><span className="hint">商品与报价实时读取现有商品资料</span></header>
+      <label className="sdp__field">默认排序<select value={layout.sort} onChange={e => patch({ ...layout, sort: e.target.value })}><option value="sales">按销量</option><option value="default">按商品默认顺序</option></select></label>
+      <p className="hint">列表、型号、图片、SKU、库存、价格和快速购买使用现有商品及交易数据；装修器不复制这些资料。</p>
+    </section> : moduleId === 'ALSVID-L03' ? <section className="sdp__module" data-module-id="ALSVID-L03">
+      <header><strong>选择要展示的已发布配件</strong><span className="hint">最多 50 项</span></header>
+      <p className="hint">商品、价格、SKU 与快速购买读取现有已发布商品；未选择的配件不在本区展示。</p>
+      {publishedParts.length ? <label className="sdp__field">官网已发布配件<select multiple size={8} value={layout.partProductIds||[]} onChange={e=>patch({ ...layout, partProductIds:[...e.target.selectedOptions].slice(0,50).map(o=>o.value) })}>{publishedParts.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}</select></label> : <p className="hint">当前语言暂无已发布配件。请先在商品列表发布配件商品。</p>}
+      {(layout.partProductIds||[]).length>=50&&<p className="hint">已达到 50 项上限。</p>}
+    </section> : moduleId === 'ALSVID-L04' ? <section className="sdp__module" data-module-id="ALSVID-L04">
+      <header><strong>服务与支持入口</strong><span className="hint">只提供当前已存在的业务路由</span></header>
+      <p className="hint">试骑读取已公开网点；维修服务进入现有账户服务申请。未接入的技术支持、质保查询和网点目录不会作为可用入口展示。</p>
+      {Object.entries(serviceDefaults).map(([key, defaults])=>{
+        const entry=serviceEntries.find(item=>item.key===key);
+        return <div className="sdp__category" key={key}>
+          <label className="sdp__check"><input type="checkbox" checked={Boolean(entry?.enabled)} onChange={e=>patch({...layout,services:e.target.checked?[...serviceEntries,{key,enabled:true,...Object.fromEntries(Object.entries(defaults).map(([field,values])=>[field,values[locale]]))}]:serviceEntries.filter(item=>item.key!==key)})}/> {key==='test-ride'?'试骑预约（/test-ride）':'维修与服务申请（/account/service）'}</label>
+          {entry&&<><label className="sdp__field">标题<input maxLength={120} value={entry.title} onChange={e=>patch({...layout,services:serviceEntries.map(item=>item.key===key?{...item,title:e.target.value}:item)})}/></label><label className="sdp__field">说明<textarea rows={2} maxLength={500} value={entry.description} onChange={e=>patch({...layout,services:serviceEntries.map(item=>item.key===key?{...item,description:e.target.value}:item)})}/></label><label className="sdp__field">按钮文字<input maxLength={60} value={entry.buttonText} onChange={e=>patch({...layout,services:serviceEntries.map(item=>item.key===key?{...item,buttonText:e.target.value}:item)})}/></label></>}
+        </div>;
+      })}
+    </section> : moduleId === 'ALSVID-L01' ? <section className="sdp__module" data-module-id="ALSVID-L01">
+      <header><strong>分类导航</strong><span className="hint">最多 20 个分类</span></header>
+      {!enabled && <><p className="hint">当前只有固定的“全部产品”入口。配置分类时沿用同一份列表页模板。</p><button type="button" className="btn small" onClick={() => patch(layout)}>配置分类</button></>}
+      {enabled && <>
+      {layout.categories.map((category, index) => <div className="sdp__category" key={index}>
+        <div className="sdp__category-head">
+          <input value={category.name} maxLength={80} placeholder="分类名称" onChange={e => patch({ ...layout, categories: layout.categories.map((row, i) => i === index ? { ...row, name: e.target.value } : row) })}/>
+          <button type="button" className="btn small" disabled={busy} onClick={() => patch({ ...layout, categories: layout.categories.filter((_, i) => i !== index) })}>删除</button>
+        </div>
+        <select multiple size={6} value={category.productIds} onChange={e => patch({ ...layout, categories: layout.categories.map((row, i) => i === index ? { ...row, productIds: [...e.target.selectedOptions].map(o => o.value) } : row) })}>
+          {publishedVehicles.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+        </select>
+        {!publishedVehicles.length && <p className="hint">当前语言（{locale}）暂无已发布整车，先去「商品列表」发布商品。</p>}
+      </div>)}
+      <button type="button" className="btn small" disabled={layout.categories.length >= 20} onClick={() => patch({ ...layout, categories: [...layout.categories, { name: '', productIds: [] }] })}>＋ 添加分类</button>
+      </>}
+    </section> : <section className="sdp__module">
       <header><strong>启用装修版式</strong></header>
       <label className="sdp__check"><input type="checkbox" checked={enabled} onChange={e => patch(e.target.checked ? { sort: 'sales', categories: [] } : null)}/> 分类导航 + 产品自动展示</label>
       <label className="sdp__field">展示顺序
@@ -220,8 +262,8 @@ export function CatalogLayoutPanel({ row, locale, products, publishedMap, onPubl
           <option value="default">默认顺序</option>
         </select>
       </label>
-    </section>
-    {enabled && <section className="sdp__module">
+    </section>}
+    {(!moduleId || moduleId === 'ALSVID-L01') && enabled && !moduleId && <section className="sdp__module">
       <header><strong>分类导航</strong><span className="hint">最多 20 个</span></header>
       {layout.categories.map((category, index) => <div className="sdp__category" key={index}>
         <div className="sdp__category-head">
@@ -265,7 +307,7 @@ function SceneFields({row,onChange,images,videos,visual=false}) {
  </div>;
 }
 
-export function StandardDetailPanel({ locale, products, publishedMap, productId }) {
+export function StandardDetailPanel({ locale, products, publishedMap, productId, moduleId, publishEnabled = true, onDirtyChange, onListingChange }) {
   const [listing, setListing] = useState(null);
   const [doc, setDoc] = useState(null);
   const [baseline, setBaseline] = useState('');
@@ -292,6 +334,11 @@ export function StandardDetailPanel({ locale, products, publishedMap, productId 
       .finally(() => { if (alive) setLoading(false); });
     return () => { alive = false; };
   }, [productId]);
+  useEffect(() => { onListingChange?.(listing || null); }, [listing, onListingChange]);
+  useEffect(() => {
+    onDirtyChange?.(Boolean(doc && JSON.stringify(doc) !== baseline) || busy);
+    return () => onDirtyChange?.(false);
+  }, [doc, baseline, busy, onDirtyChange]);
   if (!productId) return <p className="sdw__tip">先在左侧选择要装修的商品。</p>;
   if (loading) return <p className="sdw__tip">正在读取商品发布内容…</p>;
   if (error) return <p className="error-text" role="alert">{error}</p>;
@@ -345,9 +392,14 @@ export function StandardDetailPanel({ locale, products, publishedMap, productId 
   };
   const blockImageOptions = [...productImages.map((image, index) => ({ id: image.id, label: `商品图 ${index + 1}${image.label ? ` · ${image.label}` : ''}` })), ...assets.map(asset => ({ id: asset.id, label: `素材库 · ${asset.label || asset.fileName || asset.id}` }))];
   const imagePreview = id => productImages.some(image => image.id === id) ? `/api/products/${encodeURIComponent(productId)}/media/${encodeURIComponent(id)}` : api.assetUrl(id);
+  const showAll = !moduleId;
+  const showP01 = showAll || ['ALSVID-P01','ALSVID-P01-01','ALSVID-P01-02'].includes(moduleId);
+  const showP02 = showAll || moduleId === 'ALSVID-P02';
+  const showP04 = showAll || moduleId === 'ALSVID-P04';
+  const showOther = id => showAll || moduleId === `ALSVID-${id}`;
   return <div className="sdp">
-    <SaveBar dirty={dirty} busy={busy} error={error} onSave={doSave} onPublish={doPublish} publishedVersion={listing.published ? 1 : null}/>
-    <section className="sdp__module sdp__gallery">
+    <SaveBar dirty={dirty} busy={busy} error={error} onSave={doSave} onPublish={doPublish} publishEnabled={publishEnabled} publishedVersion={listing.published ? 1 : null}/>
+    {showP02 && <section className="sdp__module sdp__gallery">
       <header className="sdg__head">
         <div className="sdg__head-main">
           <strong>① 商品主图 / 图片图库</strong>
@@ -393,11 +445,11 @@ export function StandardDetailPanel({ locale, products, publishedMap, productId 
       </div>
 
       <p className="sdg__tip">只保存素材引用与展示顺序，不会删除原始素材，也不影响 SKU 与库存。</p>
-    </section>
+    </section>}
     {localeDoc&&<>
-      <section className="sdp__module"><header><strong>P01-01 车型选配</strong><span className="hint">产品取数</span></header><label className="sdp__check"><input type="checkbox" checked={design.purchaseVisible} onChange={e=>patchDesign({purchaseVisible:e.target.checked})}/>详情页显示车型选配</label><label className="sdp__check"><input type="checkbox" checked={design.coreVisible} onChange={e=>patchDesign({coreVisible:e.target.checked})}/>P01-02 显示四项参数</label><label className="sdp__field">选配与核心参数背景<input type="color" value={design.background} onChange={e=>patchDesign({background:e.target.value})}/></label></section>
-      <section className="sdp__module"><header><strong>P02 商品主视觉与营销</strong><span className="hint">车型独立装修</span></header><label className="sdp__check"><input type="checkbox" checked={design.visibility.P02!==false} onChange={e=>toggleVisibility('P02',e.target.checked)}/> 显示</label><SceneFields visual row={design.visual||{mediaType:'image',imageId:mediaIds[0]||'',title:localeDoc.title}} images={blockImageOptions} videos={videos} onChange={visual=>patchDesign({visual})}/><label className="sdp__check"><input type="checkbox" checked={!!design.visual?.marketingEnabled} onChange={e=>patchDesign({visual:{mediaType:'image',imageId:mediaIds[0]||'',...design.visual,marketingEnabled:e.target.checked}})}/> 启用营销</label>{design.visual?.marketingEnabled&&<><label className="sdp__field">营销文案<input value={design.visual.marketingText||''} onChange={e=>patchDesign({visual:{...design.visual,marketingText:e.target.value}})}/></label><label className="sdp__field">购买按钮<input value={design.visual.buttonText||''} onChange={e=>patchDesign({visual:{...design.visual,buttonText:e.target.value}})}/></label></>}</section>
-      <section className="sdp__module"><header><strong>P04 沉浸式产品详情</strong><span className="hint">车型独立装修</span></header>
+      {showP01&&<section className="sdp__module" data-module-id={moduleId||'ALSVID-P01-01'}><header><strong>P01 车型选配与核心参数</strong><span className="hint">产品取数</span></header><label className="sdp__check"><input type="checkbox" checked={design.purchaseVisible} onChange={e=>patchDesign({purchaseVisible:e.target.checked})}/>详情页显示车型选配</label><label className="sdp__check"><input type="checkbox" checked={design.coreVisible} onChange={e=>patchDesign({coreVisible:e.target.checked})}/>P01-02 显示四项参数</label><label className="sdp__field">选配与核心参数背景<input type="color" value={design.background} onChange={e=>patchDesign({background:e.target.value})}/></label>{moduleId==='ALSVID-P01-02'&&<p className="hint">四项参数来自整车主档；此处控制显示，字段配置沿用现有产品参数维护。</p>}</section>}
+      {showP02&&<section className="sdp__module" data-module-id="ALSVID-P02"><header><strong>P02 商品主视觉与营销</strong><span className="hint">车型独立装修</span></header><label className="sdp__check"><input type="checkbox" checked={design.visibility.P02!==false} onChange={e=>toggleVisibility('P02',e.target.checked)}/> 显示</label><SceneFields visual row={design.visual||{mediaType:'image',imageId:mediaIds[0]||'',title:localeDoc.title}} images={blockImageOptions} videos={videos} onChange={visual=>patchDesign({visual})}/><label className="sdp__check"><input type="checkbox" checked={!!design.visual?.marketingEnabled} onChange={e=>patchDesign({visual:{mediaType:'image',imageId:mediaIds[0]||'',...design.visual,marketingEnabled:e.target.checked}})}/> 启用营销</label>{design.visual?.marketingEnabled&&<><label className="sdp__field">营销文案<input value={design.visual.marketingText||''} onChange={e=>patchDesign({visual:{...design.visual,marketingText:e.target.value}})}/></label><label className="sdp__field">购买按钮<input value={design.visual.buttonText||''} onChange={e=>patchDesign({visual:{...design.visual,buttonText:e.target.value}})}/></label></>}</section>}
+      {showP04&&<section className="sdp__module" data-module-id="ALSVID-P04"><header><strong>P04 沉浸式产品详情</strong><span className="hint">车型独立装修</span></header>
       <p className="hint">首个子模块建议全幅整车图。子模块支持透明素材、文字叠加、滚动交互；最多 200 段。</p>
       <label className="sdp__check"><input type="checkbox" checked={design.visibility.P04!==false} onChange={e=>toggleVisibility('P04',e.target.checked)}/> 显示</label>
       {detailBlocks.map((block,index)=><section className="sdp__module" key={index} draggable onDragStart={e=>e.dataTransfer.setData('text/plain',String(index))} onDragOver={e=>e.preventDefault()} onDrop={e=>{e.preventDefault();const raw=e.dataTransfer.getData('text/plain');if(!raw)return;const from=Number(raw);if(!Number.isInteger(from)||from<0||from>=detailBlocks.length||from===index)return;const next=[...detailBlocks];next.splice(index,0,next.splice(from,1)[0]);patchDetail(next)}}>
@@ -406,8 +458,8 @@ export function StandardDetailPanel({ locale, products, publishedMap, productId 
         <SceneFields row={block} images={blockImageOptions} videos={videos} onChange={next=>patchDetail(detailBlocks.map((x,i)=>i===index?next:x))}/>
         <div className="sdp__block-ops"><button type="button" className="btn small" disabled={index===0} onClick={()=>{const n=[...detailBlocks];[n[index-1],n[index]]=[n[index],n[index-1]];patchDetail(n)}}>↑</button><button type="button" className="btn small" disabled={index===detailBlocks.length-1} onClick={()=>{const n=[...detailBlocks];[n[index],n[index+1]]=[n[index+1],n[index]];patchDetail(n)}}>↓</button><button type="button" className="btn small" disabled={detailBlocks.length>=200} onClick={()=>patchDetail([...detailBlocks.slice(0,index+1),{...block},...detailBlocks.slice(index+1)])}>复制</button><button type="button" className="btn small" onClick={()=>patchDetail(detailBlocks.filter((_,i)=>i!==index))}>删除</button></div>
       </section>)}
-      <div className="sdp__block-add"><button type="button" className="btn small" disabled={detailBlocks.length>=200||!blockImageOptions.length} onClick={()=>patchDetail([...detailBlocks,{type:'image',imageId:blockImageOptions[0].id,fit:'cover'}])}>＋ 图片</button><button type="button" className="btn small" disabled={detailBlocks.length>=200||!videos.length} onClick={()=>patchDetail([...detailBlocks,{type:'video',videoId:videos[0].id}])}>＋ 视频</button><button type="button" className="btn small" disabled={detailBlocks.length>=200} onClick={()=>patchDetail([...detailBlocks,{type:'text',text:''}])}>＋ 文字</button></div></section>
-      {[['P05','完整技术参数'],['P06','包装清单'],['P07','产品下载'],['P08','常见问题'],['P09','售后保障'],['P10','配送服务']].map(([id,name])=><section className="sdp__module" key={id}><header><strong>{id} {name}</strong><span className="hint">{id==='P08'?'车型独立配置':'产品取数'}</span></header><label className="sdp__check"><input type="checkbox" checked={design.visibility[id]!==false} onChange={e=>toggleVisibility(id,e.target.checked)}/> 显示</label>
+      <div className="sdp__block-add"><button type="button" className="btn small" disabled={detailBlocks.length>=200||!blockImageOptions.length} onClick={()=>patchDetail([...detailBlocks,{type:'image',imageId:blockImageOptions[0].id,fit:'cover'}])}>＋ 图片</button><button type="button" className="btn small" disabled={detailBlocks.length>=200||!videos.length} onClick={()=>patchDetail([...detailBlocks,{type:'video',videoId:videos[0].id}])}>＋ 视频</button><button type="button" className="btn small" disabled={detailBlocks.length>=200} onClick={()=>patchDetail([...detailBlocks,{type:'text',text:''}])}>＋ 文字</button></div></section>}
+      {[['P05','完整技术参数'],['P06','包装清单'],['P07','产品下载'],['P08','常见问题'],['P09','售后保障'],['P10','配送服务']].filter(([id])=>showOther(id)).map(([id,name])=><section className="sdp__module" key={id} data-module-id={`ALSVID-${id}`}><header><strong>{id} {name}</strong><span className="hint">{id==='P08'?'车型独立配置':'产品取数'}</span></header><label className="sdp__check"><input type="checkbox" checked={design.visibility[id]!==false} onChange={e=>toggleVisibility(id,e.target.checked)}/> 显示</label>
       {id==='P08'?<>{design.faq.map((item,i)=><div key={i}><label className="sdp__field">问题<input value={item.question} onChange={e=>patchDesign({faq:design.faq.map((x,j)=>j===i?{...x,question:e.target.value}:x)})}/></label><label className="sdp__field">回答<textarea value={item.answer} onChange={e=>patchDesign({faq:design.faq.map((x,j)=>j===i?{...x,answer:e.target.value}:x)})}/></label><button className="btn small" type="button" onClick={()=>patchDesign({faq:design.faq.filter((_,j)=>j!==i)})}>删除</button></div>)}<button className="btn small" type="button" disabled={design.faq.length>=50} onClick={()=>patchDesign({faq:[...design.faq,{question:'',answer:''}]})}>＋ 问题</button></>:id==='P09'||id==='P10'?<p className="hint">读取当前商品的{id==='P09'?'质保':'配送'}资料：{(id==='P09'?localeDoc.warranty:localeDoc.delivery)||'尚未填写，请在商品资料维护'}</p>:<p className="hint">{id==='P05'?'读取整车主档公开参数':id==='P06'?'读取整车主档包装字段；未匹配则隐藏':'读取车型关联、已公开发布的 PDF 文件'}</p>}
       </section>)}
     </>}

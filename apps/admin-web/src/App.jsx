@@ -468,7 +468,7 @@ export default function App({ user, onLogout }) {
             {page.type==='test-rides'&&<TestRidesAdmin active={item.key===activeViewKey} user={user}/>}
             {page.type==='colour-interest'&&<ColourInterestAdmin active={item.key===activeViewKey} user={user}/>}
             {page.type==='owner-leads'&&<OwnerLeadsPage active={item.key===activeViewKey} user={user}/>}
-            {page.type==='marketing-center'&&<MarketingCenterPage section={page.section||'coupons'}/>}
+            {page.type==='marketing-center'&&<MarketingCenterPage section={page.section||'coupons'} active={item.key===activeViewKey} user={user}/>}
             {page.type==='public-locations'&&<PublicLocationsAdmin active={item.key===activeViewKey} user={user}/>}
             {page.type==='service'&&page.section!=='customers'&&<ServicePage active={item.key===activeViewKey} user={user} section={page.section||serviceSection} onSectionChange={next=>{setServiceSection(next);setView({type:'service',section:next})}}/>}
             {pageDomain==='settings'&&<div className="tabs"><button className={'tab'+(page.type==='accounts'?' active':'')} onClick={()=>setView({type:'accounts'})}>内部账号</button><button className={'tab'+(page.type==='portal-admin'?' active':'')} onClick={()=>setView({type:'portal-admin'})}>门户账号与车辆授权</button>{user.role==='admin'&&<button className={'tab'+(page.type==='audit'?' active':'')} onClick={()=>setView({type:'audit'})}>操作审计</button>}<button className={'tab'+(page.type==='system-connections'?' active':'')} onClick={()=>setView({type:'system-connections'})}>连接状态</button><button className={'tab'+(page.type==='rules'?' active':'')} onClick={()=>setView({type:'rules'})}>规则与接口</button></div>}

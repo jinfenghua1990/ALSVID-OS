@@ -1,6 +1,6 @@
 import React,{useEffect,useState} from 'react';
 import {api} from '../api.js';
-import {blankShell,shellValue,shellModule,DESIGN_LOCALES,DESIGN_DEVICES} from './design-module-registry.js';
+import {shellValue,shellModule,DESIGN_LOCALES,DESIGN_DEVICES} from './design-module-registry.js';
 import './unified-design.css';
 function LinkFields({rows,onChange,disabled}){
  const patch=(i,value)=>onChange(rows.map((row,j)=>j===i?{...row,...value}:row));

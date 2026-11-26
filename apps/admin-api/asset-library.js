@@ -270,10 +270,17 @@ function createAssetLibraryStore(url, objectStorage) {
     async folders(query = {}) {
       const category = query.category ? oneOf(query.category, CATEGORIES, '素材分类无效') : '';
       const view = assetViewFilter(query.assetView);
+      const values = category ? [category] : [];
       const filters = [category ? 'category=$1' : '', view].filter(Boolean);
+      if (query.productId) {
+        values.push(String(query.productId).trim().slice(0,200));
+        filters.push(`EXISTS (SELECT 1 FROM asset_links pl WHERE pl.asset_id=media_assets.id AND pl.target_type='product' AND pl.target_id=${values.length})`);
+      }
+      if (query.scope === 'shared') filters.push(`(folder='${SHARED_ROOT}' OR folder LIKE '${SHARED_ROOT}/%')`);
+      else if (query.scope === 'unclassified') filters.push(`NOT EXISTS (SELECT 1 FROM asset_links ul WHERE ul.asset_id=media_assets.id AND ul.target_type='product') AND NOT (folder='${SHARED_ROOT}' OR folder LIKE '${SHARED_ROOT}/%')`);
       const rows = (await pool.query(
         `SELECT folder,count(*)::int AS total FROM media_assets ${filters.length ? 'WHERE '+filters.join(' AND ') : ''} GROUP BY folder ORDER BY folder`,
-        category ? [category] : []
+        values
       )).rows;
       return { items: rows };
     },
@@ -619,7 +626,7 @@ function createAssetLibraryStore(url, objectStorage) {
   async function mergeReused(existing, { label, folder, tags, langs, markets }) {
     const merged = {
       label: existing.label || label,
-      folder: existing.folder || folder,
+      folder: existing.folder || (folder.startsWith('原始素材/') ? '' : folder),
       tags: unique([...(existing.tags || []), ...tags]),
       langs: unique([...(existing.langs || []), ...langs]),
       markets: unique([...(existing.markets || []), ...markets]),

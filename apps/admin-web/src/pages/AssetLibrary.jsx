@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { api } from '../api.js';
 
 const CATEGORIES = [['product', '产品素材'], ['marketing', '营销素材'], ['page', '页面素材']];
+const MARKETING_FOLDERS = ['社交媒体', '广告投放', '品牌宣传', '展会活动', 'AI 生成', '其他'];
 const KINDS = [['', '全部类型'], ['image', '图片'], ['video', '视频'], ['other', '文档']];
 const STATUSES = [['', '全部状态'], ['draft', '草稿'], ['published', '已发布'], ['archived', '已归档']];
 const VISIBILITIES = [['', '全部可见性'], ['public', '对外公开'], ['internal', '仅内部']];
@@ -85,7 +86,7 @@ export default function AssetLibrary({ active = true, user, initialCategory = 'p
   const [skuOptions, setSkuOptions] = useState([]);
   const [uploadMeta, setUploadMeta] = useState({
     files: [], productIds: [], shared: false, usage: 'hero', sku: '',
-    label: '', tags: '', langs: '', markets: '', visibility: 'public', status: 'published',
+    label: '', tags: '', langs: '', markets: '', folder: '', visibility: 'public', status: 'published',
   });
   const loadVersion = useRef(0);
   const fileRef = useRef(null);
@@ -179,6 +180,8 @@ export default function AssetLibrary({ active = true, user, initialCategory = 'p
       productIds: isProductView && selection.type === 'product' && selection.id ? [selection.id] : [],
       shared: isProductView && selection.type === 'shared',
       sku: '',
+      folder: !isProductView && filters.folder !== '__none__' ? filters.folder : '',
+      ...(category === 'marketing' ? { visibility: 'internal', status: 'draft' } : { visibility: 'public', status: 'published' }),
     }));
     setUploadOpen(true);
   };
@@ -210,7 +213,7 @@ export default function AssetLibrary({ active = true, user, initialCategory = 'p
   const doUpload = async () => {
     const files = uploadMeta.files;
     if (!files.length) { setError('请先选择要上传的文件'); return; }
-    if (!uploadMeta.productIds.length && !uploadMeta.shared && !uploadMeta.sku) {
+    if (isProductView && !uploadMeta.productIds.length && !uploadMeta.shared && !uploadMeta.sku) {
       setError('请选择关联产品，或勾选「通用素材」'); return;
     }
     setUploading(true); setError(''); setMessage('');
@@ -221,14 +224,13 @@ export default function AssetLibrary({ active = true, user, initialCategory = 'p
       try {
         const result = await api.uploadAsset(file, {
           category,
-          usage: uploadMeta.usage,
-          shared: uploadMeta.shared,
+          ...(isProductView ? { usage: uploadMeta.usage, shared: uploadMeta.shared } : { folder: uploadMeta.folder.trim() }),
           label: uploadMeta.label.trim(),
           tags: textToList(uploadMeta.tags),
           langs: textToList(uploadMeta.langs),
           markets: textToList(uploadMeta.markets),
-          visibility: uploadMeta.visibility,
-          status: uploadMeta.status,
+          visibility: category === 'marketing' ? 'internal' : uploadMeta.visibility,
+          status: category === 'marketing' ? 'draft' : uploadMeta.status,
         });
         if (result.reused) reused++; else saved++;
         const assetId = result.id;
@@ -246,7 +248,7 @@ export default function AssetLibrary({ active = true, user, initialCategory = 'p
         }
       } catch (e) { failures.push(`${file.name}：${e.message}`); }
     }
-    setMessage(`上传完成：新增 ${saved} 个${reused ? `，复用 ${reused} 个已有素材（同一文件不重复存储）` : ''}，建立关联 ${linked} 条${failures.length ? `；失败 ${failures.length} 项` : ''}。`);
+    setMessage(`上传完成：新增 ${saved} 个${reused ? `，复用 ${reused} 个已有素材（不重复存储，保留其原分类，可切换分类查找）` : ''}，建立关联 ${linked} 条${failures.length ? `；失败 ${failures.length} 项` : ''}。`);
     if (failures.length) setError(failures.join('；'));
     setUploadOpen(false);
     setUploadMeta(current => ({ ...current, files: [] }));
@@ -293,10 +295,12 @@ export default function AssetLibrary({ active = true, user, initialCategory = 'p
         visibility: form.visibility,
         status: form.status,
         category: form.category,
-        usage: form.usage,
-        shared: form.shared,
+        ...(form.category === 'product' ? { usage: form.usage, shared: form.shared } : { folder: form.folder.trim() }),
       };
-      if (!form.usage && !form.shared) body.folder = '';
+      if (form.category === 'product' && !form.usage && !form.shared) body.folder = '';
+      if (form.category === 'marketing' && form.status === 'published' && form.visibility === 'public' && (detail.status !== 'published' || detail.visibility !== 'public')) {
+        if (!window.confirm('确认已人工检查素材内容及使用授权，允许对外使用？此操作不会自动发布到社交平台。')) return;
+      }
       const updated = await api.updateAsset(detail.id, body);
       setDetail(current => ({ ...current, ...updated }));
       setMessage('素材信息已保存。');
@@ -458,7 +462,7 @@ export default function AssetLibrary({ active = true, user, initialCategory = 'p
       </div>
 
       {error && <p className="error-text mt8" role="alert">{error}</p>}
-      {message && <p className="hint mt8" role="status" />}
+      {message && <p className="hint mt8" role="status">{message}</p>}
 
       {!rows.length && !loading && <div className={'shop-media__drop' + (dragOver ? ' is-over' : '')}>
         <div className="shop-media__drop-icon">+</div>
@@ -475,7 +479,7 @@ export default function AssetLibrary({ active = true, user, initialCategory = 'p
               <strong className="shop-media__name" title={asset.fileName}>{asset.label || asset.fileName || '未命名素材'}</strong>
               <UsageBadges asset={asset} />
               <RefLine asset={asset} />
-              {asset.folder && <div className="hint" style={{ fontSize: 11 }} title={asset.folder} />}
+              {asset.folder && <div className="hint" style={{ fontSize: 11 }} title={asset.folder}>{asset.folder}</div>}
             </div>
             <div className="shop-media__ops">
               <button type="button" className="btn small" onClick={() => openDetail(asset.id)}>详情</button>
@@ -539,13 +543,15 @@ export default function AssetLibrary({ active = true, user, initialCategory = 'p
           </div>}
         </>}
 
+        {category === 'marketing' && <p className="hint">新营销素材先保存为内部草稿；人工检查后在素材详情中设置为已发布、对外公开。可通过分类切换复用同库素材。</p>}
+        {!isProductView && <div className="field mt8"><label>素材目录</label><input list="asset-upload-folders" value={uploadMeta.folder} maxLength={160} placeholder="选择或输入目录" onChange={e => setUploadMeta({ ...uploadMeta, folder: e.target.value })}/><datalist id="asset-upload-folders">{[...new Set([...(category === 'marketing' ? MARKETING_FOLDERS : []), ...folders.map(item => item.folder).filter(Boolean)])].map(folder => <option key={folder} value={folder}/>)}</datalist></div>}
         <div className="form-grid mt8" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(160px,1fr))' }}>
           <div className="field"><label>素材名称</label><input value={uploadMeta.label} maxLength={200} placeholder="留空则使用文件名" onChange={e => setUploadMeta({ ...uploadMeta, label: e.target.value })} /></div>
           <div className="field"><label>标签（逗号分隔）</label><input value={uploadMeta.tags} onChange={e => setUploadMeta({ ...uploadMeta, tags: e.target.value })} /></div>
           <div className="field"><label>语言（逗号分隔）</label><input value={uploadMeta.langs} placeholder="de, en, fr" onChange={e => setUploadMeta({ ...uploadMeta, langs: e.target.value })} /></div>
           <div className="field"><label>市场（逗号分隔）</label><input value={uploadMeta.markets} placeholder="DE, AT, FR" onChange={e => setUploadMeta({ ...uploadMeta, markets: e.target.value })} /></div>
-          <div className="field"><label>可见性</label><select value={uploadMeta.visibility} onChange={e => setUploadMeta({ ...uploadMeta, visibility: e.target.value })}><option value="public">对外公开</option><option value="internal">仅内部</option></select></div>
-          <div className="field"><label>状态</label><select value={uploadMeta.status} onChange={e => setUploadMeta({ ...uploadMeta, status: e.target.value })}><option value="published">已发布</option><option value="draft">草稿</option><option value="archived">已归档</option></select></div>
+          <div className="field"><label>可见性</label><select disabled={category === 'marketing'} value={uploadMeta.visibility} onChange={e => setUploadMeta({ ...uploadMeta, visibility: e.target.value })}><option value="public">对外公开</option><option value="internal">仅内部</option></select></div>
+          <div className="field"><label>状态</label><select disabled={category === 'marketing'} value={uploadMeta.status} onChange={e => setUploadMeta({ ...uploadMeta, status: e.target.value })}><option value="published">已发布</option><option value="draft">草稿</option><option value="archived">已归档</option></select></div>
         </div>
 
         <div className="al-modal__foot">
@@ -593,6 +599,7 @@ export default function AssetLibrary({ active = true, user, initialCategory = 'p
               <option value="">未分类</option>
               {USAGES.filter(([key]) => key !== 'uncategorized').map(([key, label]) => <option key={key} value={key}>{label}</option>)}
             </select></div>}
+            {form.category !== 'product' && <div className="field"><label>素材目录</label><input disabled={!canEdit} value={form.folder} maxLength={160} onChange={e => setForm({ ...form, folder: e.target.value })}/></div>}
             <div className="field"><label>标签（逗号分隔）</label><input disabled={!canEdit} value={form.tags} onChange={e => setForm({ ...form, tags: e.target.value })} /></div>
             <div className="field"><label>语言（逗号分隔）</label><input disabled={!canEdit} value={form.langs} onChange={e => setForm({ ...form, langs: e.target.value })} /></div>
             <div className="field"><label>市场（逗号分隔）</label><input disabled={!canEdit} value={form.markets} onChange={e => setForm({ ...form, markets: e.target.value })} /></div>

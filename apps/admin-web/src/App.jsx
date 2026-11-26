@@ -24,6 +24,7 @@ const ProductionAttachmentsPage = lazy(() => import('./pages/ProductionAttachmen
 const FinancePage = lazy(() => import('./pages/FinancePage.jsx'));
 const DealerChannelPage = lazy(() => import('./pages/DealerChannelPage.jsx'));
 const ServiceRequestsAdmin = lazy(() => import('./pages/ServiceRequestsAdmin.jsx'));
+const UnifiedDesignEditor = lazy(() => import('./pages/UnifiedDesignEditor.jsx'));
 const CatalogAdminPage = lazy(() => import('./pages/CatalogAdminPage.jsx'));
 const PortalAdminPage = lazy(() => import('./pages/PortalAdminPage.jsx'));
 const TestRidesAdmin = lazy(() => import('./pages/TestRidesAdmin.jsx'));
@@ -61,11 +62,11 @@ const SHOP_NAV = [
   { title: '概览', items: [{ key: 'overview', label: '商城概览' }, { key: 'module-ledger', label: '模块台账' }] },
   { title: '流量运营', items: [{ key: 'seo-traffic', label: 'SEO 与流量中心' }] },
   { title: '商品管理', items: [{ key: 'products', label: '商品列表' }, { key: 'pricing', label: '价格设置' }, { key: 'media', label: '素材库' }] },
-  { title: '店铺装修', items: [{ key: 'design', label: '店铺装修' }, { key: 'product-design', label: '商品装修' }, { key: 'pages', label: '页面管理' }] },
+  { title: '店铺装修', items: [{ key: 'unified-design', label: '统一装修工作台' }, { key: 'design', label: '店铺装修（旧版）' }, { key: 'product-design', label: '商品装修' }, { key: 'pages', label: '页面管理' }] },
   { title: '交易管理', items: [{ key: 'orders', label: '订单管理' }, { key: 'payments', label: '线上支付' }, { key: 'reviews', label: '评价管理' }] },
 ];
 
-const SHOP_SECTION_TITLES = { overview: '商城概览', 'module-ledger': '模块台账', 'seo-traffic': 'SEO 与流量中心', traffic: '流量', payments: '线上支付', products: '商品列表', 'product-design': '商品装修', pricing: '价格设置', design: '店铺装修', 'home-design': '首页装修', homepage: '首页装修', pages: '页面管理', media: '素材库', orders: '订单管理', reviews: '评价管理' };
+const SHOP_SECTION_TITLES = { overview: '商城概览', 'module-ledger': '模块台账', 'seo-traffic': 'SEO 与流量中心', traffic: '流量', payments: '线上支付', products: '商品列表', 'product-design': '商品装修', pricing: '价格设置', design: '店铺装修（旧版）', 'unified-design':'统一装修工作台', 'home-design': '首页装修', homepage: '首页装修', pages: '页面管理', media: '素材库', orders: '订单管理', reviews: '评价管理' };
 const MARKETING_SECTIONS = [['overview', '市场概览'], ['ads', '站外推广'], ['materials', '营销素材'], ['ai', 'AI 内容生成'], ['channels', '推广渠道管理'], ['social', '社交媒体管理'], ['publishing', '内容发布管理'], ['brand', '品牌推广'], ['coupons', '优惠券管理'], ['referrals', '推荐返利'], ['messaging', '消息与触达']];
 
 // 侧栏二级导航图标：与顶栏同一线性语言（24 网格 / 1.5 描边）
@@ -131,6 +132,7 @@ function viewTitle(view) {
   if (view.type === 'service') return ({customers:'车主档案',vin:'车辆绑定与归属',repair:'维修工单',fit:'配件适配',substitute:'配件替代',centers:'服务网点'})[view.section] || '售后服务';
   if (view.type === 'owner-leads') return '试骑与线索';
   if (view.type === 'marketing-center') return (Object.fromEntries(MARKETING_SECTIONS)[view.section || 'overview']) || '市场部';
+  if (view.type === 'design-module-editor') return (view.moduleId||'装修模块')+' · '+(view.locale||'');
   if (view.type === 'catalog') return SHOP_SECTION_TITLES[view.section || 'overview'] || '商城';
   if (view.type === 'test-rides') return '试骑意向';
   if (view.type === 'colour-interest') return '颜色偏好';
@@ -474,7 +476,7 @@ export default function App({ user, onLogout }) {
             {page.type==='audit'&&user.role==='admin'&&<AuditPage active={item.key===activeViewKey}/>}
             {page.type==='rules'&&<RulesApiPage/>}
             {page.type==='system-connections'&&user.role==='admin'&&<SystemConnectionsPage/>}
-            {(page.type==='production'||page.type==='production-overview')&&<ProductionPage section={page.type==='production-overview'?'overview':'orders'} active={item.key===activeViewKey} user={user} onNavigate={navigateBusinessView} onOpenDelivery={orderId=>setView({type:'deliveries',orderId})}/>}{page.type==='logistics'&&<LogisticsTrackingPage active={item.key===activeViewKey}/>}{(page.type==='sales-orders'||page.type==='sales-orders-overview')&&<SalesOrderPage active={item.key===activeViewKey} user={user} section={page.type==='sales-orders-overview'?'overview':'orders'} orderId={page.orderId} onNavigate={navigateBusinessView}/>}{page.type==='finance'&&<FinancePage active={item.key===activeViewKey}/>}{page.type==='catalog'&&<CatalogAdminPage active={item.key===activeViewKey} section={page.section||'overview'} pageQuery={page.pageQuery||''} pageId={page.pageId||''} productId={page.productId||''} user={user} workspaceKey={item.key} onWorkspaceDirtyChange={updateWorkspaceDirty} onSectionChange={(next,extra)=>setView({type:'catalog',section:next,...(extra||{})})} onOpenProduct={id=>setView({type:'editor',id,fromKind:'vehicle'})} onCreateProduct={kind=>{setDomain('product');setView({type:'create',kind:kind||'vehicle'})}}/>}
+            {(page.type==='production'||page.type==='production-overview')&&<ProductionPage section={page.type==='production-overview'?'overview':'orders'} active={item.key===activeViewKey} user={user} onNavigate={navigateBusinessView} onOpenDelivery={orderId=>setView({type:'deliveries',orderId})}/>}{page.type==='logistics'&&<LogisticsTrackingPage active={item.key===activeViewKey}/>}{(page.type==='sales-orders'||page.type==='sales-orders-overview')&&<SalesOrderPage active={item.key===activeViewKey} user={user} section={page.type==='sales-orders-overview'?'overview':'orders'} orderId={page.orderId} onNavigate={navigateBusinessView}/>}{page.type==='finance'&&<FinancePage active={item.key===activeViewKey}/>}{page.type==='design-module-editor'&&<UnifiedDesignEditor moduleId={page.moduleId} locale={page.locale} user={user} workspaceKey={item.key} onWorkspaceDirtyChange={updateWorkspaceDirty} onBack={()=>setView({type:'catalog',section:'unified-design'})}/>}{page.type==='catalog'&&<CatalogAdminPage active={item.key===activeViewKey} section={page.section||'overview'} pageQuery={page.pageQuery||''} pageId={page.pageId||''} productId={page.productId||''} user={user} workspaceKey={item.key} onWorkspaceDirtyChange={updateWorkspaceDirty} onOpenDesignEditor={(moduleId,locale)=>setView({type:'design-module-editor',id:moduleId+':'+locale,moduleId,locale})} onSectionChange={(next,extra)=>setView({type:'catalog',section:next,...(extra||{})})} onOpenProduct={id=>setView({type:'editor',id,fromKind:'vehicle'})} onCreateProduct={kind=>{setDomain('product');setView({type:'create',kind:kind||'vehicle'})}}/>}
             {page.type==='procurement'&&<ProcurementPage active={item.key===activeViewKey} user={user}/>}
             {page.type==='inventory'&&<WarehouseLogisticsPage section="stock" active={item.key===activeViewKey} user={user}/>}{page.type==='assets'&&<VehicleAssetPage active={item.key===activeViewKey}/>}{page.type==='inventory-outbound'&&<InventoryLedgerWorkspace active={item.key===activeViewKey} user={user}/>}{page.type==='inventory-ledger'&&<InventoryLedgerWorkspace active={item.key===activeViewKey} user={user}/>}{page.type==='shipping-rate-templates'&&<ShippingRateTemplates active={item.key===activeViewKey} user={user}/>}{page.type==='warehouse-settings'&&<WarehouseLogisticsPage section="warehouses" active={item.key===activeViewKey} user={user}/>}{page.type==='factories'&&<FactoriesPage active={item.key===activeViewKey} user={user}/>}{(page.type==='deliveries'||page.type==='materials')&&<ProductionPage active={item.key===activeViewKey} user={user}/>}{page.type==='attachments'&&<ProductionAttachmentsPage active={item.key===activeViewKey} user={user}/>}
             {page.type==='placeholder'&&<div className="card placeholder"><div className="placeholder-mark">{DOMAINS.find(d=>d.key===page.domain)?.icon}</div><h2 /><p>该业务域已纳入 ALSVID V2.0 一级架构，当前阶段先建设内部产品管理。</p><span className="hint" /></div>}

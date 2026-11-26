@@ -1170,7 +1170,7 @@ function registerCmsRoutes(app, cms) {
     const source=ticket.locale===page.locale?{siteShell:page.draft.siteShell}:await cms.publicPage(ticket.locale,page.path);
     return {locale:ticket.locale,device:ticket.device,kind:page.draft.siteShell.kind,config:source?.siteShell||null,draft:ticket.locale===page.locale,session:ticket.session,receipt};
   },true);
-  route('POST', '/api/cms/pages/:id/review-publish', req => cms.publish(req.params.id,req.body||{},req.user.id));
+  route('POST', '/api/cms/pages/:id/review-publish', req => {if(!req.user?.id)fail('管理员身份无效',403);return cms.publish(req.params.id,req.body||{},req.user.id)});
   route('GET', '/api/cms/pages/:id/versions', req => cms.versions(req.params.id));
   route('POST', '/api/cms/pages/:id/rollback', req => cms.rollback(req.params.id, req.body || {}));
   route('POST', '/api/cms/pages/:id/versions/:version/restore-draft', req => cms.restoreDraft(req.params.id, { version: req.params.version, revision: Number(req.body?.revision) }));

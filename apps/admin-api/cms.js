@@ -4,6 +4,7 @@ const { createPool } = require('./db-pool');
 const { revalidateStorefront } = require('./storefront-revalidate');
 const refreshCms = () => revalidateStorefront(['storefront-cms','storefront-products','storefront-layout']);
 const { currentActor } = require('./audit-context');
+const shellReview = require('./shell-release-review');
 const { isUuidv7, uuidv7 } = require('./uuidv7');
 
 const LANGUAGES = ['zh', 'en', 'de'];
@@ -745,7 +746,7 @@ function createCmsStore(connectionString) {
         throw error;
       } finally { c.release(); }
     },
-    async publish(id, input = {}) {
+    async publish(id, input = {}, reviewActor = null) {
       if (!Number.isSafeInteger(input.revision) || input.revision < 0) fail('请先加载最新页面');
       const c = await pool.connect();
       try {
@@ -754,15 +755,17 @@ function createCmsStore(connectionString) {
         if (!old) fail('页面不存在', 404);
         if (old.rev !== input.revision) fail('页面草稿已被其他人更新，请重新加载', 409);
         if (!old.draft) fail('请先保存页面草稿');
+        const review = shellReview.requireReviewedRelease(old,reviewActor,input);
         const document = documentOf(old.draft);
         assertLegalReady(old.path,document,old.draftSeo);
         assertShellDocument(old.path,old.pageType,document);
         if (old.pageType !== 'product_template' && !document.siteShell && !document.blocks.some(block => block.visible !== false)) fail('页面至少需要一个可见组件才能发布');
         await validateAssets(c, document);
+        if(review&&old.status==='disabled')await c.query("UPDATE site_pages SET status='active' WHERE id=$1",[id]);
         const next = (await c.query('SELECT COALESCE(max(version),0)+1 AS version FROM site_page_versions WHERE page_id=$1', [id])).rows[0].version;
         await c.query('INSERT INTO site_page_versions(page_id,version,snapshot,seo,label,created_by) VALUES($1,$2,$3,$4,$5,$6)', [id, next, JSON.stringify(document), JSON.stringify(old.draftSeo || {}), old.draftLabel || null, currentActor()]);
         const after = (await c.query(`UPDATE site_pages SET published=$1,published_seo=$2,published_revision=revision+1,published_version=$3,revision=revision+1,updated_by=$4,updated_at=now() WHERE id=$5 RETURNING ${columns}`, [JSON.stringify(document), JSON.stringify(old.draftSeo || {}), next, currentActor(), id])).rows[0];
-        await c.query('INSERT INTO audit_log(actor,action,target,before_json,after_json) VALUES($1,$2,$3,$4,$5)', [currentActor(), 'cms.page.publish', `site-pages/${id}`, JSON.stringify({ publishedVersion: old.publishedVersion, revision: old.rev }), JSON.stringify({ publishedVersion: next, revision: after.revision })]);
+        await c.query('INSERT INTO audit_log(actor,action,target,before_json,after_json) VALUES($1,$2,$3,$4,$5)', [currentActor(), 'cms.page.publish', `site-pages/${id}`, JSON.stringify({ publishedVersion: old.publishedVersion, revision: old.rev }), JSON.stringify({ publishedVersion: next, revision: after.revision, ...(review?{review}: {}) })]);
         await c.query('COMMIT');
         return {...after,storefrontRevalidate:await refreshCms()};
       } catch (error) { await c.query('ROLLBACK').catch(() => {}); throw error; } finally { c.release(); }
@@ -781,6 +784,7 @@ function createCmsStore(connectionString) {
         const old = (await c.query(`SELECT ${columns},revision AS rev FROM site_pages WHERE id=$1 FOR UPDATE`, [id])).rows[0];
         if (!old) fail('页面不存在', 404);
         if (old.rev !== input.revision) fail('页面已更新，请重新加载', 409);
+        if(SITE_SHELL_PATHS.includes(old.path))fail('公共模块历史版本须先恢复为草稿，再完成六项预览发布',409);
         const snapshot = (await c.query('SELECT snapshot,seo,label FROM site_page_versions WHERE page_id=$1 AND version=$2 AND deleted_at IS NULL', [id, version])).rows[0];
         if (!snapshot) fail('历史版本不存在', 404);
         const next = (await c.query('SELECT COALESCE(max(version),0)+1 AS version FROM site_page_versions WHERE page_id=$1', [id])).rows[0].version;
@@ -883,8 +887,10 @@ function createCmsStore(connectionString) {
     async setStatus(id, status) {
       if (!['active', 'disabled'].includes(status)) fail('页面状态无效');
       const old = await row(id);
+      if(SITE_SHELL_PATHS.includes(old.path)&&status==='active')fail('公共模块重新启用须经发布审核',409);
       if (old.pageType === 'home' && status === 'disabled') fail('官网首页不能停用');
-      return (await pool.query('UPDATE site_pages SET status=$1,updated_by=$2,updated_at=now() WHERE id=$3 RETURNING id::text AS id,status', [status, currentActor(), id])).rows[0];
+      const updated=(await pool.query('UPDATE site_pages SET status=$1,revision=revision+1,updated_by=$2,updated_at=now() WHERE id=$3 RETURNING id::text AS id,status', [status, currentActor(), id])).rows[0];
+      return {...updated,storefrontRevalidate:await refreshCms()};
     },
     async remove(id) {
       const c = await pool.connect();
@@ -1154,6 +1160,21 @@ function registerCmsRoutes(app, cms) {
   route('GET', '/api/cms/pages/:id', req => cms.get(req.params.id));
   route('PUT', '/api/cms/pages/:id/draft', req => cms.saveDraft(req.params.id, req.body || {}));
   route('POST', '/api/cms/pages/:id/publish', req => cms.publish(req.params.id, req.body || {}));
+  route('POST', '/api/cms/pages/:id/release-review', async req => {
+    const page=await cms.get(req.params.id);
+    if(page.revision!==req.body?.revision)fail('草稿已修改，请重新加载',409);
+    return shellReview.start(page,req.user.id);
+  });
+  route('GET', '/api/cms/shell-review-preview', async (req,reply) => {
+    reply.header('Cache-Control','no-store');
+    reply.header('X-Robots-Tag','noindex, nofollow');
+    const ticket=shellReview.read(req.query.token);
+    const page=await cms.get(ticket.id);
+    const receipt=shellReview.rendered(ticket,page);
+    const source=ticket.locale===page.locale?{siteShell:page.draft.siteShell}:await cms.publicPage(ticket.locale,page.path);
+    return {locale:ticket.locale,device:ticket.device,kind:page.draft.siteShell.kind,config:source?.siteShell||null,draft:ticket.locale===page.locale,session:ticket.session,receipt};
+  },true);
+  route('POST', '/api/cms/pages/:id/review-publish', req => {if(!req.user?.id)fail('管理员身份无效',403);return cms.publish(req.params.id,req.body||{},req.user.id)});
   route('GET', '/api/cms/pages/:id/versions', req => cms.versions(req.params.id));
   route('POST', '/api/cms/pages/:id/rollback', req => cms.rollback(req.params.id, req.body || {}));
   route('POST', '/api/cms/pages/:id/versions/:version/restore-draft', req => cms.restoreDraft(req.params.id, { version: req.params.version, revision: Number(req.body?.revision) }));

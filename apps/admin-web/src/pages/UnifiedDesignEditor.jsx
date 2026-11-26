@@ -1,7 +1,8 @@
 import React,{useEffect,useState} from 'react';
 import {api} from '../api.js';
-import {shellValue,shellModule,DESIGN_LOCALES,DESIGN_DEVICES} from './design-module-registry.js';
+import {shellValue,shellModule,DESIGN_LOCALES} from './design-module-registry.js';
 import './unified-design.css';
+import ShellReleaseReview from './ShellReleaseReview.jsx';
 function LinkFields({rows,onChange,disabled}){
  const patch=(i,value)=>onChange(rows.map((row,j)=>j===i?{...row,...value}:row));
  return <div className="udw-links">{rows.map((row,i)=><div className="udw-link-row" key={i}><input aria-label="链接名称" maxLength={80} value={row.label} onChange={e=>patch(i,{label:e.target.value})} placeholder="链接名称" disabled={disabled}/><input aria-label="链接地址" maxLength={500} value={row.href} onChange={e=>patch(i,{href:e.target.value})} placeholder="/de/e-bikes 或 https://..." disabled={disabled}/><button className="btn small" type="button" disabled={disabled} onClick={()=>onChange(rows.filter((_,j)=>j!==i))}>移除</button></div>)}<div><button className="btn small" type="button" disabled={disabled||rows.length>=12} onClick={()=>onChange([...rows,{label:'',href:''}])}>添加链接</button></div></div>
@@ -29,7 +30,7 @@ export default function UnifiedDesignEditor({moduleId,locale,user,workspaceKey,o
  if(user?.role!=='admin'||!module||!DESIGN_LOCALES.some(([code])=>code===locale))return <p role="alert">无有效编辑权限或模块。</p>;
  return <div className="udw-edit">
    <header className="udw-top"><div><h2>{module.name}</h2><small>{moduleId} · {DESIGN_LOCALES.find(([code])=>code===locale)?.[1]} · 全站共享</small></div><div className="udw-tabs"><button className="btn" onClick={onBack}>返回工作台</button><button className="btn" disabled={!value||busy||loading||(!dirty&&!!page)} onClick={save}>保存草稿</button><button className="btn primary" disabled={!page||dirty||busy||loading} onClick={()=>setReview(true)}>发布前检查</button></div></header>
-   <div className="hint">{page?.publishedVersion?'正式 v'+page.publishedVersion:'尚未发布'}{dirty?' · 有未保存修改':''} · 当前编辑器仅开放草稿与历史恢复，正式发布将在真实预览与服务端校验接通后启用。</div>
+   <div className="hint">{page?.publishedVersion?'正式 v'+page.publishedVersion:'尚未发布'}{dirty?' · 有未保存修改':''} · 保存草稿后，完成六项真实预览确认即可发布当前语言。</div>
    {error&&<p role="alert" className="error-text">{error}</p>}{notice&&<p role="status">{notice}</p>}
    {loading?<p>正在读取…</p>:!value?<button className="btn" onClick={()=>setAttempt(n=>n+1)}>重新读取</button>:<>
    <form onSubmit={save}><fieldset disabled={busy} style={{border:0,padding:0,margin:0,display:'grid',gap:12}}>
@@ -40,7 +41,7 @@ export default function UnifiedDesignEditor({moduleId,locale,user,workspaceKey,o
    </>}
    </fieldset></form>
    <section className="udw-review"><h3>历史版本</h3>{versions.length?versions.map(v=><div className="udw-top" key={v.version}><span>v{v.version} · {v.label||'发布版本'} · {v.createdAt||''}</span><button className="btn small" disabled={busy||dirty} onClick={()=>void restore(v.version)}>载入为草稿</button></div>):<p className="hint">暂无历史发布版本</p>}</section>
-   {review&&<section className="udw-review"><div className="udw-top"><h3>发布前检查 · 六项预览</h3><button className="btn primary" disabled title="真实草稿渲染及服务端确认未接通">确认发布</button></div><p role="status">草稿已保存。以下六项尚未执行真实页面预览，不允许标记为通过。</p><div className="udw-review-grid">{DESIGN_LOCALES.flatMap(([code,label])=>DESIGN_DEVICES.map(([device,name])=><div key={code+device}>{label} {name} · 待接入</div>))}</div></section>}
+   {review&&page&&<ShellReleaseReview key={page.id+':'+page.revision} page={page} onClose={()=>setReview(false)} onPublished={async updated=>{setDoc(updated);setNotice(updated.storefrontRevalidate?.ok?'发布已保存，前台缓存刷新成功。':'发布已保存；前台缓存刷新尚未确认，请独立检查。');try{setVersions(await api.cmsVersions(updated.id))}catch(e){setError(e.message)}}}/>}
    </>}
  </div>
 }

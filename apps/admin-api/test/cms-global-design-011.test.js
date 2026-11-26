@@ -23,11 +23,14 @@ test('WEB-011: globals.css 声明集中设计系统令牌 (Design Tokens)', () =
 
 test('WEB-011: storefront layout.tsx 集中管理 Header、Footer 与三语法律条款', () => {
   const layoutSrc = fs.readFileSync(path.join(__dirname, '..', '..', 'storefront', 'src', 'app', '[locale]', 'layout.tsx'), 'utf-8');
-  assert.ok(layoutSrc.includes('<SiteHeader'), '集中管理 SiteHeader 导航');
-  assert.ok(layoutSrc.includes('site-footer'), '集中管理 site-footer 页脚');
-  assert.ok(layoutSrc.includes('impressum'), '包含三语法定信息 (impressum)');
-  assert.ok(layoutSrc.includes('datenschutz'), '包含三语法定信息 (datenschutz)');
-  assert.ok(layoutSrc.includes('agb'), '包含三语法定信息 (agb)');
+  const previewSrc=fs.readFileSync(path.join(__dirname,'..','..','storefront','src','app','design-preview','page.tsx'),'utf-8');
+  const shellSrc=fs.readFileSync(path.join(__dirname,'..','..','storefront','src','components','site-shell-frame.tsx'),'utf-8');
+  assert.ok(layoutSrc.includes('<SiteShellFrame')&&previewSrc.includes('<SiteShellFrame'),'正式与审核预览使用同一个外壳');
+  assert.ok(shellSrc.includes('<SiteHeader'), '集中管理 SiteHeader 导航');
+  assert.ok(shellSrc.includes('site-footer'), '集中管理 site-footer 页脚');
+  assert.ok(shellSrc.includes('impressum'), '包含三语法定信息 (impressum)');
+  assert.ok(shellSrc.includes('datenschutz'), '包含三语法定信息 (datenschutz)');
+  assert.ok(shellSrc.includes('agb'), '包含三语法定信息 (agb)');
 });
 
 console.log('✅ WEB-011 验证通过');

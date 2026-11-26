@@ -47,6 +47,8 @@ async function assetsAll(params = {}) {
 }
 
 export const api = {
+  startShellReview: (id,revision) => req('POST',`/api/cms/pages/${encodeURIComponent(id)}/release-review`,{revision}),
+  publishReviewedShell: (id,body) => req('POST',`/api/cms/pages/${encodeURIComponent(id)}/review-publish`,body),
   systemConnections: () => req('GET','/api/system/connections'),
   meta: () => req('GET', '/api/meta'),
   procurement: () => req('GET','/api/procurement'),

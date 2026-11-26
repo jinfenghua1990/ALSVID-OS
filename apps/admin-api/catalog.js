@@ -63,13 +63,45 @@ function text(value, max, required = false) {
   if (typeof value !== 'string' || value.length > max || (required && !value.trim())) fail('发布内容格式或长度无效');
   return value.trim();
 }
+function enumValue(value, values, fallback) {return values.includes(value)?value:fallback;}
+function colorValue(value,fallback){return typeof value==='string'&&/^#[0-9a-f]{6}$/i.test(value)?value:fallback;}
+function bounded(value,min,max,fallback){const n=Number(value??fallback);return Number.isFinite(n)?Math.min(max,Math.max(min,n)):fallback;}
+function sceneOptions(row){
+  return {hidden:row.hidden===true,title:text(row.title??'',180),subtitle:text(row.subtitle??'',240),caption:text(row.caption??'',2000),
+    background:enumValue(row.background,['inherit','solid','gradient','image'],'inherit'),backgroundColor:colorValue(row.backgroundColor,'#171717'),backgroundEnd:colorValue(row.backgroundEnd,'#303030'),backgroundImageId:text(row.backgroundImageId??'',160),
+    textColor:colorValue(row.textColor,'#ffffff'),fontSize:bounded(row.fontSize,20,100,48),textPosition:enumValue(row.textPosition,['top-left','top-center','top-right','center-left','center','center-right','bottom-left','bottom-center','bottom-right'],'bottom-center'),
+    mediaPosition:enumValue(row.mediaPosition,['left','center','right','top','bottom'],'center'),fit:enumValue(row.fit,['contain','cover'],'cover'),scale:bounded(row.scale,50,150,100),
+    animation:enumValue(row.animation,['fade','zoom-in','zoom-out','slide','focus','sticky','none'],'fade'),trigger:bounded(row.trigger,0,80,20),duration:bounded(row.duration,100,2000,600),scrollLinked:row.scrollLinked===true,hold:bounded(row.hold,0,200,0)};
+}
+function designOf(value){
+  const row=value&&typeof value==='object'&&!Array.isArray(value)?value:{};
+  const faq=Array.isArray(row.faq)?row.faq:[];
+  if(faq.length>50)fail('常见问题最多50项');
+  const flags=row.visibility||{};
+  const result={purchaseVisible:row.purchaseVisible!==false,coreVisible:row.coreVisible!==false,background:colorValue(row.background,'#eaeae6'),visibility:Object.fromEntries(['P02','P04','P05','P06','P07','P08','P09','P10'].map(k=>[k,flags[k]!==false])),faq:faq.map(x=>({question:text(x?.question??'',200,true),answer:text(x?.answer??'',2000,true)}))};
+  if(row.visual&&typeof row.visual==='object'){const v=row.visual;result.visual={...sceneOptions(v),mediaType:enumValue(v.mediaType,['image','video'],'image'),imageId:text(v.imageId??'',160),videoId:text(v.videoId??'',160),marketingEnabled:v.marketingEnabled===true,marketingText:text(v.marketingText??'',240),buttonText:text(v.buttonText??'',60)};}
+  return result;
+}
+function designMediaIds(document,kind){
+  return [...new Set(Object.values(document.languages||{}).flatMap(loc=>{
+    const v=loc.design?.visual;
+    return [...(loc.detailBlocks||[]).flatMap(b=>kind==='video'?[b.type==='video'?b.videoId:'']:[b.type==='image'?b.imageId:'',b.backgroundImageId]),...(kind==='video'?[v?.videoId]:[v?.imageId,v?.backgroundImageId])].filter(Boolean);
+  }))];
+}
+async function validateDesignVideos(client,document){
+  const ids=designMediaIds(document,'video');if(!ids.length)return;
+  const rows=(await client.query("SELECT id::text AS id FROM media_assets WHERE id::text=ANY($1::text[]) AND kind='video' AND category='page'",[ids])).rows;
+  if(rows.length!==ids.length)fail('所选视频不存在，请从素材空间重新选择');
+}
 function detailBlocksOf(value) {
   if (value == null) return [];
-  if (!Array.isArray(value) || value.length > 50) fail('图文详情最多 50 段');
+  if (!Array.isArray(value) || value.length > 200) fail('图文详情最多 200 段');
   return value.map(row => {
     if (!row || typeof row !== 'object' || Array.isArray(row)) fail('图文详情格式无效');
-    if (row.type === 'image') return { type: 'image', imageId: text(row.imageId, 160, true), alt: text(row.alt ?? '', 160) };
-    if (row.type === 'text') return { type: 'text', text: text(row.text, 2000, true) };
+    const options=sceneOptions(row);
+    if (row.type === 'image') return { type: 'image', imageId: text(row.imageId, 160, true), alt: text(row.alt ?? '', 160), ...options };
+    if (row.type === 'video') return { type: 'video', videoId: text(row.videoId,160,true), ...options };
+    if (row.type === 'text') return { type: 'text', text: text(row.text, 2000, true), ...options };
     return fail('图文详情类型无效');
   });
 }
@@ -85,6 +117,7 @@ function documentOf(input) {
       delivery: text(value.delivery ?? '', 2000), warranty: text(value.warranty ?? '', 2000),
       specifications: value.specifications.map(row => ({ label: text(row?.label, 80, true), value: text(row?.value, 500, true) })),
       detailBlocks: detailBlocksOf(value.detailBlocks),
+      ...(value.design==null?{}:{design:designOf(value.design)}),
     };
   }
   if (!Object.keys(languages).length) fail('请至少填写一种语言的产品名称');
@@ -137,7 +170,8 @@ function createCatalogStore(connectionString) {
     for (const locale of Object.values(document.languages || {})) {
       for (const block of locale.detailBlocks || []) if (block.type === 'image' && block.imageId) detailImageIds.push(block.imageId);
     }
-    const ids = [...new Set([...document.mediaIds, ...detailImageIds])];
+    await validateDesignVideos(client,document);
+    const ids = [...new Set([...document.mediaIds, ...detailImageIds,...designMediaIds(document,'image')])];
     if (!ids.length) return;
     const legacy = (await client.query("SELECT id FROM product_media WHERE product_id=$1 AND id=ANY($2::text[]) AND content_type IN ('image/jpeg','image/png','image/webp','image/avif')", [id, ids])).rows;
     const legacyIds = new Set(legacy.map(row => row.id));
@@ -182,14 +216,14 @@ function createCatalogStore(connectionString) {
     if (!locale) return null;
     const slug = row.slug || doc.seo?.slug;
     if (!slug) return null;
-    return { id: slug, productId: row.id, slug, kind: row.kind, model: doc.model, title: locale.title, description: locale.description, delivery: locale.delivery || '', warranty: locale.warranty || '', specifications: locale.specifications, detailBlocks: locale.detailBlocks || [], languages: Object.keys(doc.languages), images: doc.mediaIds.map(id => ({ id, url: `/api/catalog/products/${encodeURIComponent(row.id)}/images/${encodeURIComponent(id)}` })), prices: row.prices || [] };
+    return { id: slug, productId: row.id, slug, kind: row.kind, model: doc.model, title: locale.title, description: locale.description, delivery: locale.delivery || '', warranty: locale.warranty || '', specifications: locale.specifications, detailBlocks: locale.detailBlocks || [], ...(locale.design?{design:locale.design}:{}), languages: Object.keys(doc.languages), images: doc.mediaIds.map(id => ({ id, url: `/api/catalog/products/${encodeURIComponent(row.id)}/images/${encodeURIComponent(id)}` })), prices: row.prices || [] };
   }
   // 图文详情图片按来源给出可访问 URL：产品图库图片走商品图接口，素材库图片走 cms-media。
   async function detailImageUrls(productId, blocks) {
-    const ids = [...new Set((blocks || []).filter(block => block.type === 'image').map(block => block.imageId))];
-    if (!ids.length) return blocks || [];
+    const ids = [...new Set((blocks || []).flatMap(b=>[b.type==='image'?b.imageId:'',b.backgroundImageId]).filter(Boolean))];
     const legacy = new Set((await pool.query('SELECT id FROM product_media WHERE product_id=$1 AND id=ANY($2::text[])', [productId, ids])).rows.map(r => r.id));
-    return blocks.map(block => block.type === 'image' ? { ...block, url: legacy.has(block.imageId) ? `/api/catalog/products/${encodeURIComponent(productId)}/images/${encodeURIComponent(block.imageId)}` : `/api/public/cms-media/${encodeURIComponent(block.imageId)}` } : block);
+    const url=id=>id?(legacy.has(id)?`/api/catalog/products/${encodeURIComponent(productId)}/images/${encodeURIComponent(id)}`:`/api/public/cms-media/${encodeURIComponent(id)}`):'';
+    return (blocks||[]).map(b=>({...b,...(b.type==='image'?{url:url(b.imageId)}:b.type==='video'&&b.videoId?{url:`/api/public/cms-media/${encodeURIComponent(b.videoId)}`}:{}),backgroundUrl:url(b.backgroundImageId)}));
   }
   async function relatedAccessories(productId, lang) {
     const rows = (await pool.query(`SELECT p.id,p.kind,l.published,l.slug,COALESCE(price.rows,'[]'::jsonb) AS prices
@@ -833,7 +867,9 @@ function createCatalogStore(connectionString) {
       const row = (await pool.query(`SELECT p.id,p.kind,l.published,l.slug,${doc} AS document FROM storefront_listings l JOIN products p ON p.entity_uuid=l.product_uuid WHERE l.channel='website' AND ${doc} IS NOT NULL AND l.published IS NOT NULL AND (l.slug=$1 OR p.id=$1 OR BTRIM(LOWER(p.specs->>'_seoProductId'))=$1) AND p.status='启用' AND ${doc}->'languages' ? $2 ORDER BY CASE WHEN l.slug=$1 THEN 0 WHEN p.id=$1 THEN 1 ELSE 2 END LIMIT 1`, [slug,lang])).rows[0];
       if (!row) return null;
       const product = publicRow({ ...row, published: row.document }, lang);
-      return { ...product, detailBlocks: await detailImageUrls(row.id, product.detailBlocks), relatedAccessories: row.kind === 'vehicle' ? await relatedAccessories(row.id, lang) : [] };
+      const visual=product.design?.visual;
+      const visualMedia=visual?(await detailImageUrls(row.id,[{...visual,type:visual.mediaType}]))[0]:null;
+      return { ...product, ...(product.design?{design:{...product.design,...(visualMedia?{visual:visualMedia}:{})}}:{}), detailBlocks: await detailImageUrls(row.id, product.detailBlocks), relatedAccessories: row.kind === 'vehicle' ? await relatedAccessories(row.id, lang) : [] };
     },
     async offers(slug,lang) {return (await pool.query(`SELECT s.code AS sku,s.spec,s.color_code AS color,lp.currency,lp.unit_price::text AS "unitPrice",lp.reference_price::text AS "referencePrice",lp.promotion_ends_at AS "promotionEndsAt",COALESCE(sku_media.images,'[]'::jsonb) AS images FROM storefront_listings l JOIN products p ON p.entity_uuid=l.product_uuid JOIN storefront_listing_skus ls ON ls.listing_id=l.id JOIN skus s ON s.entity_uuid=ls.sku_uuid JOIN storefront_effective_listing_prices lp ON lp.listing_id=l.id AND lp.sku_uuid=s.entity_uuid LEFT JOIN LATERAL (SELECT jsonb_agg(jsonb_build_object('id',ma.id::text,'url','/api/public/sku-media/'||ma.id::text) ORDER BY al.sort_order,ma.id) AS images FROM asset_links al JOIN media_assets ma ON ma.id=al.asset_id WHERE al.target_type='sku' AND al.target_id=s.code AND al.channel IN ('product','storefront') AND al.role IN ('hero','gallery') AND ma.visibility='public' AND ma.status='published' AND ma.content_type IN ('image/jpeg','image/png','image/webp','image/avif')) sku_media ON true WHERE l.channel='website' AND (l.slug=$1 OR p.id=$1 OR BTRIM(LOWER(p.specs->>'_seoProductId'))=$1) AND l.published IS NOT NULL AND p.status='启用' AND l.published->'languages' ? $2 AND lp.published AND NOT s.disabled ORDER BY s.code,lp.currency`,[slug,lang])).rows;},
     async availability(slug,lang) {
@@ -1068,4 +1104,4 @@ function registerCatalogRoutes(app, { catalog, objectStorage }) {
     return { data: await traffic.techAudit(origin) };
   });
 }
-module.exports = { createCatalogStore, registerCatalogRoutes, documentOf, PAGE_SANITIZE_OPTIONS };
+module.exports = { createCatalogStore, registerCatalogRoutes, documentOf, PAGE_SANITIZE_OPTIONS, designMediaIds, validateDesignVideos };

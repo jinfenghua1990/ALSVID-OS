@@ -15,7 +15,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const cmsSource = fs.readFileSync(path.join(__dirname, '..', 'cms.js'), 'utf-8');
-const adminSource = fs.readFileSync(path.join(__dirname, '..', '..', 'client', 'src', 'pages', 'CmsPageManager.jsx'), 'utf-8');
+const adminSource = fs.readFileSync(path.join(__dirname, '..', '..', 'admin-web', 'src', 'pages', 'CmsPageManager.jsx'), 'utf-8');
 
 // ========== 1. PRODUCT_CONTENT_BLOCKS 守卫 ==========
 test('WEB-005: PRODUCT_CONTENT_BLOCKS 包含内容组件但不含 specs/productGallery', () => {

@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '../api.js';
 import { seoProductIdOf } from '../product-identity.js';
+import SiteShellPanel from './SiteShellPanel.jsx';
 import { CatalogLayoutPanel, StandardDetailPanel, GlobalModulesPanel, useCmsDocument } from './ProductDesignPanels.jsx';
 
 // 店铺装修工作区：页面 TAB + 工具条 + 左侧按版本模块操作 + 右侧全铺开真实预览。
@@ -22,7 +23,21 @@ function fmt(value) {
 // 内部 UUID（p-bfaf74b1-…）只用于接口调用，不该出现在装修左列当身份展示。
 // 取值规则统一收在 product-identity.js，商城运营各页共用同一套。
 
-export default function ShopDesignWorkspace({ active = true, user, onSectionChange }) {
+const REGIONS=[['announcement','ALSVID-G01','营销公告栏','按需启用'],['header','ALSVID-G02','顶部导航栏','全站共享'],['body','ALSVID-G03','页面主体内容','按页面独立装修'],['footer','ALSVID-G04','底部页脚','全站共享']];
+export default function ShopDesignWorkspace(props){
+ const [region,setRegion]=useState('body'),[shellDirty,setShellDirty]=useState(false);
+ const choose=key=>{if(key===region)return;if(shellDirty&&!window.confirm('当前区域仍有未保存修改或操作正在处理，确定离开？'))return;setRegion(key);};
+ return <div className="sdw">
+ <div style={{display:'grid',gridTemplateColumns:'minmax(160px, 200px) minmax(0, 1fr)',gap:12,alignItems:'start'}}>
+ <aside aria-label="官网四大装修区域" className="sdw__panel" style={{padding:12,display:'grid',gap:8}}>
+ <h3 style={{margin:'4px 0'}}>官网装修区域</h3>
+ {REGIONS.map(([key,id,label,desc])=><button key={key} type="button" aria-pressed={region===key} className={'gmp__item'+(region===key?' is-active':'')} style={{display:'grid',textAlign:'left',gap:4,padding:12,minHeight:key==='body'?100:64}} onClick={()=>choose(key)}><strong>{label}</strong><small>{id} · {desc}</small></button>)}
+ <small>编号仅在后台显示，消费者不可见。</small>
+ </aside>
+ <div style={{minWidth:0}}>{region==='body'?<PageDesignWorkspace {...props}/>:<SiteShellPanel key={region} kind={region} onDirtyChange={setShellDirty}/>}</div>
+ </div></div>;
+}
+function PageDesignWorkspace({ active = true, user, onSectionChange }) {
   const [pages, setPages] = useState([]);
   const [layout, setLayout] = useState(null);
   const [pageKey, setPageKey] = useState('/');
@@ -371,7 +386,7 @@ export default function ShopDesignWorkspace({ active = true, user, onSectionChan
   return <div className="sdw">
     {/* 顶部一行：标题 + 页面 TAB（产品的「全部产品 / 商品详情页」与其它页面同级同排） */}
     <div className="sdw__top">
-      <h2 className="sdw__title">店铺装修</h2>
+      <h2 className="sdw__title">页面主体装修 · ALSVID-G03</h2>
       <nav className="sdw__pages" role="tablist" aria-label="官网页面">
         {pageTabs.flatMap(tab => tab.type === 'product_template'
           ? [

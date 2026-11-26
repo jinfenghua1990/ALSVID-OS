@@ -231,6 +231,28 @@ function copyModuleOf(value) {
   const row = value && typeof value === 'object' && !Array.isArray(value) ? value : {};
   return { enabled: row.enabled === true, title: text(row.title ?? '', 180), body: text(row.body ?? '', 4000) };
 }
+const PERFORMANCE_DEFAULT_FIELDS = ["@weight","@range","@frame","@folded"];
+const PERFORMANCE_ALIASES = {"@weight":["weight","net_weight","bike_weight","vehicle_weight","total_weight","整车重量","整车净重","净重","车重"],"@range":["range","max_range","range_km","range_max","续航","续航里程","最大续航","最大续航里程","助力续航","助力续航里程"],"@frame":["frame_material","frame_material_type","车架材质","车架材料"],"@folded":["folded_size","folding_size","folded_dimensions","folding_dimensions","折叠尺寸","折叠后尺寸","折叠体积尺寸"]};
+function performanceOf(value) {
+  const row = value && typeof value === 'object' && !Array.isArray(value) ? value : {};
+  const codes = row.fieldCodes ?? PERFORMANCE_DEFAULT_FIELDS;
+  if (!Array.isArray(codes) || codes.length !== 4 || new Set(codes).size !== 4 || codes.some(code => typeof code !== 'string' || (!PERFORMANCE_DEFAULT_FIELDS.includes(code) && !/^[a-z0-9_]{1,80}$/.test(code)))) fail('P03 必须选择四个不重复的参数字段');
+  return { showParameters: row.showParameters !== false, fieldCodes: [...codes], mediaType: row.mediaType === 'video' ? 'video' : 'image', imageId: assetId(row.imageId ?? ''), videoId: assetId(row.videoId ?? ''), headline: text(row.headline, 180), alignment: ['left','center','right'].includes(row.alignment) ? row.alignment : 'center' };
+}
+function performanceSpecifications(product, fields, locale, config) {
+  if (!product || !config.showParameters) return [];
+  const applicable = fields.filter(f => f.enabled && f.shopVisible && f.level === 'product' && (!f.templates?.length || f.templates.includes(product.productType)));
+  const used = new Set();
+  return config.fieldCodes.flatMap(key => {
+    const aliases = PERFORMANCE_ALIASES[key];
+    const matches = aliases ? applicable.filter(f => aliases.includes(f.code) || aliases.includes(f.nameZh)) : applicable.filter(f => f.code === key);
+    const field = matches.length === 1 ? matches[0] : null;
+    if (!field || used.has(field.code)) return [];
+    const rows = publicProductSpecifications(product, [field], locale, [field.code]);
+    if (rows.length) used.add(field.code);
+    return rows;
+  });
+}
 function modulesOf(input) {
   const value = input.modules == null ? {} : input.modules;
   if (typeof value !== 'object' || Array.isArray(value)) fail('商品详情模块配置无效');
@@ -240,6 +262,7 @@ function modulesOf(input) {
   return {
     marketing: bannerModuleOf(value.marketing),
     reserved3: bannerModuleOf(value.reserved3),
+    ...(value.performance == null ? {} : { performance: performanceOf(value.performance) }),
     reserved4: bannerModuleOf(value.reserved4),
     reviews: { enabled: reviews.enabled !== false, limit, style: reviews.style === 'cards' ? 'cards' : 'list' },
     returns: copyModuleOf(value.returns),
@@ -260,6 +283,32 @@ function catalogLayoutOf(input) {
     return { name: text(row.name, 80, true), productIds: [...new Set(ids.map(id => id.trim()))] };
   });
   return { sort: value.sort === 'default' ? 'default' : 'sales', categories: cleanCategories };
+}
+const SITE_SHELL_PATHS = ['/site-shell/announcement','/site-shell/header','/site-shell/footer'];
+function siteShellOf(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) fail('全局装修配置无效');
+  const safeLink = raw => {
+    const v=link(raw);
+    if (v && (v.includes('\\') || /\s/.test(v))) fail('链接不能含空格或反斜线');
+    return v;
+  };
+  const links = rows => items(rows ?? [], 12, [['label',80,true],['href',500,true]]).map(row=>({label:row.label,href:safeLink(row.href)}));
+  if(value.kind==='announcement') return {kind:value.kind,enabled:value.enabled===true,text:text(value.text,300),href:safeLink(value.href ?? '')};
+  if(value.kind==='header') return {kind:value.kind,brand:text(value.brand,40),links:links(value.links)};
+  if(value.kind==='footer'){
+    const groups=value.groups??[];
+    if(!Array.isArray(groups)||groups.length>6)fail('页脚最多六组导航');
+    return {kind:value.kind,brand:text(value.brand,120),groups:groups.map(group=>{
+      if(!group||typeof group!=='object'||Array.isArray(group))fail('页脚分组无效');
+      return {title:text(group.title,80,true),links:links(group.links)};
+    })};
+  }
+  fail('全局装修区域无效');
+}
+function assertShellDocument(path,pageType,document){
+  if(SITE_SHELL_PATHS.includes(path)){
+    if(pageType!=='shared_module'||document.siteShell?.kind!==path.split('/').pop()||document.blocks.length)fail('全局区域必须使用对应的独立共享配置');
+  }else if(document.siteShell)fail('全局配置不能写入普通页面');
 }
 function documentOf(input) {
   if (!input || typeof input !== 'object' || Array.isArray(input) || !Array.isArray(input.blocks)) fail('页面草稿格式无效');
@@ -287,7 +336,7 @@ function documentOf(input) {
         appliedAt: text(input.templateMeta.appliedAt, 40),
       }
     : undefined;
-  return { blocks, productLayout, modules: modulesOf(input), catalogLayout: catalogLayoutOf(input), ...(templateMeta ? { templateMeta } : {}) };
+  return { blocks, productLayout, modules: modulesOf(input), catalogLayout: catalogLayoutOf(input), ...(templateMeta ? { templateMeta } : {}), ...(input.siteShell ? {siteShell:siteShellOf(input.siteShell)} : {}) };
 }
 function seoOf(input) {
   if (input == null) return { title: '', description: '' };
@@ -373,6 +422,8 @@ function createCmsStore(connectionString) {
       const imageId = document.modules?.[key]?.imageId;
       if (imageId) images.push(imageId);
     }
+    if (document.modules?.performance?.imageId) images.push(document.modules.performance.imageId);
+    if (document.modules?.performance?.videoId) videos.push(document.modules.performance.videoId);
     if (images.length) {
       const rows = (await client.query("SELECT id::text AS id FROM media_assets WHERE id::text=ANY($1::text[]) AND kind='image'", [images])).rows;
       if (rows.length !== new Set(images).size) fail('所选素材不存在或不是图片，请重新选择');
@@ -387,6 +438,16 @@ function createCmsStore(connectionString) {
     const data = (await pool.query(`SELECT ${columns} FROM site_pages WHERE id=$1`, [id])).rows[0];
     if (!data) fail('页面不存在', 404);
     return data;
+  }
+  async function loadDesignData(productId, locale, config) {
+    if (!productId) return {performanceSpecs:[],masterSpecs:[],packageSpecs:[],downloads:[]};
+    const product = (await pool.query(`SELECT p.specs,p.product_type AS "productType" FROM products p JOIN storefront_listings l ON l.product_uuid=p.entity_uuid AND l.channel='website' AND l.published IS NOT NULL WHERE (p.id::text=$1 OR l.slug=$1) AND p.kind='vehicle' AND p.status='启用' AND p.deleted_at IS NULL AND l.published->'languages' ? $2 LIMIT 1`, [productId, locale])).rows[0];
+    if (!product) return {performanceSpecs:[],masterSpecs:[],packageSpecs:[],downloads:[]};
+    const fields = (await pool.query(`SELECT code,name_zh AS "nameZh",name_en AS "nameEn",name_de AS "nameDe",unit,level,templates,shop_visible AS "shopVisible",enabled FROM fields WHERE enabled=true AND shop_visible=true AND level='product' ORDER BY code`)).rows;
+    const masterSpecs=publicProductSpecifications(product,fields,locale);
+    const packageCodes=new Set(fields.filter(f=>['package_contents','packing_list','package_list','box_contents','packaging_contents','included_accessories'].includes(f.code)||['包装清单','包装内容','随车附件','包装内含','装箱清单'].includes(f.nameZh)).map(f=>f.code));
+    const downloads=(await pool.query(`SELECT DISTINCT ma.id::text AS id,ma.file_name AS "fileName",ma.label,ma.size_bytes AS "sizeBytes" FROM asset_links al JOIN media_assets ma ON ma.id=al.asset_id JOIN products p ON (al.target_id=p.id::text OR al.target_id=p.entity_uuid::text) JOIN storefront_listings l ON l.product_uuid=p.entity_uuid AND l.channel='website' AND l.published IS NOT NULL WHERE (p.id::text=$1 OR l.slug=$1) AND p.kind='vehicle' AND p.status='启用' AND p.deleted_at IS NULL AND l.published->'languages' ? $2 AND al.target_type='product' AND al.role IN ('certificate','drawing','detail','package') AND ma.visibility='public' AND ma.status='published' AND ma.content_type='application/pdf' ORDER BY ma.file_name LIMIT 50`,[productId,locale])).rows.map(m=>({id:m.id,title:m.label||m.fileName,fileName:m.fileName,sizeBytes:Number(m.sizeBytes)||0,downloadUrl:`/api/public/cms-media/${encodeURIComponent(m.id)}`}));
+    return {performanceSpecs:performanceSpecifications(product,fields,locale,config),masterSpecs,packageSpecs:masterSpecs.filter(row=>packageCodes.has(row.code)),downloads};
   }
   async function enrich(blocks, locale, contextProductId = '') {
     // 共享模块引用解析 (follow, pinned, independent)
@@ -626,7 +687,7 @@ function createCmsStore(connectionString) {
   }
   return {
     async list(query = {}) {
-      const filters = ["page_type IN ('home','product_template','custom')"], values = [];
+      const filters = [query.type === 'shared_module' || query.type === 'page_template' ? "page_type IN ('shared_module','page_template')" : "page_type IN ('home','product_template','custom')"], values = [];
       if (query.type) { if (!['home', ...PAGE_TYPES].includes(query.type)) fail('页面类型无效'); values.push(query.type); filters.push(`page_type=$${values.length}`); }
       if (query.locale) { if (!LANGUAGES.includes(query.locale)) fail('语言无效'); values.push(query.locale); filters.push(`locale=$${values.length}`); }
       if (query.path) { values.push(normalizePath(query.path)); filters.push(`path=$${values.length}`); }
@@ -643,6 +704,7 @@ function createCmsStore(connectionString) {
       const locale = input.locale;
       if (!LANGUAGES.includes(locale)) fail('语言无效');
       const path = normalizePath(input.path), name = text(input.name, 120, true), document = documentOf(input.draft || { blocks: [] }), seo = seoOf(input.seo);
+      assertShellDocument(path,input.pageType,document);
       const c = await pool.connect();
       try {
         await c.query('BEGIN');
@@ -671,7 +733,8 @@ function createCmsStore(connectionString) {
         if (old.rev !== input.revision) fail('页面草稿已被其他人更新，请重新加载', 409);
         await validateAssets(c, document);
         const name = input.name === undefined ? old.name : text(input.name, 120, true);
-        const path = old.pageType === 'home' || old.pageType === 'product_template' && old.path.startsWith('/products/') ? old.path : normalizePath(input.path === undefined ? old.path : input.path);
+        const path = old.pageType === 'home' || SITE_SHELL_PATHS.includes(old.path) || old.pageType === 'product_template' && old.path.startsWith('/products/') ? old.path : normalizePath(input.path === undefined ? old.path : input.path);
+        assertShellDocument(path,old.pageType,document);
         const after = (await c.query(`UPDATE site_pages SET page_name=$1,path=$2,draft=$3,draft_seo=$4,revision=revision+1,updated_by=$5,updated_at=now() WHERE id=$6 RETURNING ${columns}`, [name, path, JSON.stringify(document), JSON.stringify(seo), currentActor(), id])).rows[0];
         await c.query('INSERT INTO audit_log(actor,action,target,before_json,after_json) VALUES($1,$2,$3,$4,$5)', [currentActor(), 'cms.page.save', `site-pages/${id}`, JSON.stringify({ revision: old.rev }), JSON.stringify({ revision: after.revision })]);
         await c.query('COMMIT');
@@ -693,7 +756,8 @@ function createCmsStore(connectionString) {
         if (!old.draft) fail('请先保存页面草稿');
         const document = documentOf(old.draft);
         assertLegalReady(old.path,document,old.draftSeo);
-        if (old.pageType !== 'product_template' && !document.blocks.some(block => block.visible !== false)) fail('页面至少需要一个可见组件才能发布');
+        assertShellDocument(old.path,old.pageType,document);
+        if (old.pageType !== 'product_template' && !document.siteShell && !document.blocks.some(block => block.visible !== false)) fail('页面至少需要一个可见组件才能发布');
         await validateAssets(c, document);
         const next = (await c.query('SELECT COALESCE(max(version),0)+1 AS version FROM site_page_versions WHERE page_id=$1', [id])).rows[0].version;
         await c.query('INSERT INTO site_page_versions(page_id,version,snapshot,seo,label,created_by) VALUES($1,$2,$3,$4,$5,$6)', [id, next, JSON.stringify(document), JSON.stringify(old.draftSeo || {}), old.draftLabel || null, currentActor()]);
@@ -741,6 +805,7 @@ function createCmsStore(connectionString) {
         const snap = (await c.query('SELECT snapshot,seo FROM site_page_versions WHERE page_id=$1 AND version=$2 AND deleted_at IS NULL', [id, version])).rows[0];
         if (!snap) fail('历史版本不存在或已删除', 404);
         const document = documentOf(snap.snapshot);
+        assertShellDocument(old.path,old.pageType,document);
         await validateAssets(c, document);
         const after = (await c.query(`UPDATE site_pages SET draft=$1,draft_seo=$2,revision=revision+1,updated_by=$3,updated_at=now() WHERE id=$4 RETURNING ${columns}`, [JSON.stringify(document), JSON.stringify(snap.seo || {}), currentActor(), id])).rows[0];
         await c.query('INSERT INTO audit_log(actor,action,target,before_json,after_json) VALUES($1,$2,$3,$4,$5)', [currentActor(), 'cms.page.restore_draft', `site-pages/${id}`, JSON.stringify({ revision: old.rev, draftHasContent: Boolean(old.draft) }), JSON.stringify({ revision: after.revision, restoredFrom: version })]);
@@ -844,7 +909,8 @@ function createCmsStore(connectionString) {
       const { version = null, draft = false } = options;
       const isHome = normalized === '/';
       // 首页可能为 home 类型且 locale='*' 或对应语言
-      const typeFilter = isHome ? "page_type IN ('home','custom')" : "page_type='custom'";
+      const isShell=SITE_SHELL_PATHS.includes(normalized);
+      const typeFilter = isShell ? "page_type='shared_module'" : isHome ? "page_type IN ('home','custom')" : "page_type='custom'";
       const localeFilter = isHome ? "(locale=$1 OR locale='*')" : "locale=$1";
 
       // 草稿预览：仅后台装修工作区使用（路由层已校验管理员身份）
@@ -852,7 +918,7 @@ function createCmsStore(connectionString) {
         const d = (await pool.query(`SELECT id::text AS id,page_name AS "name",draft,draft_seo AS seo FROM site_pages WHERE ${typeFilter} AND ${localeFilter} AND path=$2 AND status='active' ORDER BY (locale=$1) DESC, updated_at DESC LIMIT 1`, [locale, normalized])).rows[0];
         if (!d) return null;
         const blocks = Array.isArray(d.draft?.blocks) ? d.draft.blocks : [];
-        return { id: d.id, name: d.name, locale, path: normalized, seo: d.seo || {}, blocks: await enrich(blocks, locale), preview: 'draft' };
+        return { id: d.id, name: d.name, locale, path: normalized, seo: d.seo || {}, blocks: await enrich(blocks, locale), ...(isShell?{siteShell:d.draft?.siteShell||null}:{}), preview: 'draft' };
       }
       // 历史版本预览：读取该版本快照，不动当前线上内容
       if (version) {
@@ -860,11 +926,11 @@ function createCmsStore(connectionString) {
         if (!v) return null;
         const snapshot = v.snapshot || {};
         const blocks = Array.isArray(snapshot.blocks) ? snapshot.blocks : [];
-        return { id: v.id, name: v.name, locale, path: normalized, seo: v.seo || {}, blocks: await enrich(blocks, locale), preview: `v${v.version}` };
+        return { id: v.id, name: v.name, locale, path: normalized, seo: v.seo || {}, blocks: await enrich(blocks, locale), ...(isShell?{siteShell:snapshot.siteShell||null}:{}), preview: `v${v.version}` };
       }
       const data = (await pool.query(`SELECT id::text AS id,page_name AS "name",published,published_seo AS seo FROM site_pages WHERE ${typeFilter} AND ${localeFilter} AND path=$2 AND status='active' AND published IS NOT NULL ORDER BY (locale=$1) DESC, updated_at DESC LIMIT 1`, [locale, normalized])).rows[0];
       if (!data) return null;
-      return { id: data.id, name: data.name, locale, path: normalized, seo: data.seo || {}, blocks: await enrich(Array.isArray(data.published?.blocks) ? data.published.blocks : [], locale) };
+      return { id: data.id, name: data.name, locale, path: normalized, seo: data.seo || {}, blocks: await enrich(Array.isArray(data.published?.blocks) ? data.published.blocks : [], locale), ...(isShell?{siteShell:data.published?.siteShell||null}:{}) };
     },
     async publicSitemap() {
       return (await pool.query("SELECT locale,path FROM site_pages WHERE page_type='custom' AND status='active' AND published IS NOT NULL AND path IS NOT NULL ORDER BY locale,path")).rows;
@@ -878,6 +944,8 @@ function createCmsStore(connectionString) {
         id: data.id, name: data.name, locale, isProductSpecific: data.isProductSpecific, seo: data.seo || {},
         productLayout: document.productLayout || { gallery: 'standard', specifications: 'list', reviews: 'list' },
         modules: document.modules || DEFAULT_PRODUCT_MODULES,
+        performance: performanceOf(document.modules?.performance),
+        ...(await loadDesignData(productId, locale, performanceOf(document.modules?.performance))),
         catalogLayout: document.catalogLayout || null,
         blocks: await enrich(Array.isArray(document.blocks) ? document.blocks : [], locale, productId),
         preview: draft ? 'draft' : version ? `v${version}` : undefined,
@@ -1123,4 +1191,4 @@ function registerCmsRoutes(app, cms) {
   }, true);
 }
 
-module.exports = { createCmsStore, registerCmsRoutes, publicProductSpecifications };
+module.exports = { createCmsStore, registerCmsRoutes, publicProductSpecifications, siteShellOf, assertShellDocument, performanceOf, performanceSpecifications };

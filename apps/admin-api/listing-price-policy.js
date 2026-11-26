@@ -5,11 +5,13 @@ function date(value){if(typeof value!=='string'||!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2
 function normalizePrice(input,now=new Date()){
  if(typeof input.sku!=='string'||!input.sku||input.sku.length>80||!['EUR','CNY'].includes(input.currency)||!Number.isSafeInteger(input.revision)||input.revision<1)fail('SKU、币种或版本无效');
  const unitPrice=amount(input.unitPrice);
+ if(Number(unitPrice)<=0)fail('正常商品售价必须大于零；赠品由服务端营销权益单独计算');
  let promotion=null;
  if(input.promotion!=null){
   const p=input.promotion;
   if(typeof p!=='object'||Array.isArray(p))fail('活动配置无效');
   const salePrice=amount(p.salePrice),startsAt=date(p.startsAt),endsAt=date(p.endsAt);
+  if(Number(salePrice)<=0)fail('普通促销价必须大于零；100%赠品折扣仅由服务端赠品权益生成');
   if(Number(salePrice)>=Number(unitPrice)||Date.parse(endsAt)<=Date.parse(startsAt)||Date.parse(endsAt)<=now.getTime())fail('活动价必须低于售价，结束时间必须晚于开始及当前时间');
   let referencePrice=null,referenceEvidence=null;
   if(p.referencePrice!=null&&p.referencePrice!==''){

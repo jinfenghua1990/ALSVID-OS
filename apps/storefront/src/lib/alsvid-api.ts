@@ -17,7 +17,8 @@ export type CatalogProduct = {
   images: { id: string; url: string }[];
   prices: { currency: string; unitPrice: string; referencePrice?: string|null }[];
   specifications: { label: string; value: string }[];
-  detailBlocks?: { type: 'image' | 'text'; imageId?: string; alt?: string; text?: string; url?: string }[];
+  detailBlocks?: ProductScene[];
+  design?: ProductDesign | null;
 };
 
 // 商品详情页 8 模块中的全局模块配置（②营销 ③④预留 ⑥评价开关 ⑦退换货 ⑧其他）。
@@ -32,10 +33,16 @@ export type ProductModuleBanner = {
   text: string;
   theme: { background: 'none' | 'soft' | 'dark'; spacing: 'compact' | 'normal' | 'loose'; imageRatio: 'wide' | 'square' | 'auto'; buttonStyle: 'solid' | 'outline' | 'text' };
 };
+export type ProductScene = {type:'image'|'text'|'video';imageId?:string;videoId?:string;url?:string;alt?:string;text?:string;hidden?:boolean;title?:string;subtitle?:string;caption?:string;background?:'inherit'|'solid'|'gradient'|'image';backgroundColor?:string;backgroundEnd?:string;backgroundUrl?:string;backgroundImageId?:string;textColor?:string;fontSize?:number;textPosition?:string;mediaPosition?:string;fit?:'contain'|'cover';scale?:number;animation?:string;trigger?:number;duration?:number;scrollLinked?:boolean;hold?:number};
+export type ProductDesign = {purchaseVisible:boolean;coreVisible:boolean;background:string;visibility:Record<string,boolean>;faq:{question:string;answer:string}[];visual?:ProductScene & {mediaType:'image'|'video';marketingEnabled:boolean;marketingText:string;buttonText:string}};
+export type ProductDownload = {id:string;title:string;fileName:string;sizeBytes:number;downloadUrl:string};
+export type PerformanceConfig = {showParameters:boolean;fieldCodes:string[];mediaType:'image'|'video';imageId:string;videoId:string;headline:string;alignment:'left'|'center'|'right'};
+export type PerformanceSpec = {code:string;label:string;value:string;unit:string};
 export type ProductModuleCopy = { enabled: boolean; title: string; body: string };
 export type ProductTemplateModules = {
   marketing: ProductModuleBanner;
   reserved3: ProductModuleBanner;
+  performance?: PerformanceConfig;
   reserved4: ProductModuleBanner;
   reviews: { enabled: boolean; limit: number; style: 'list' | 'cards' };
   returns: ProductModuleCopy;
@@ -180,6 +187,16 @@ export async function getPreviewLayout(locale: Locale, token: string) {
   }
 }
 
+export type ShellLink={label:string;href:string};
+export type SiteAnnouncementConfig={kind:'announcement';enabled:boolean;text:string;href:string};
+export type SiteHeaderConfig={kind:'header';brand:string;links:ShellLink[]};
+export type SiteFooterConfig={kind:'footer';brand:string;groups:{title:string;links:ShellLink[]}[]};
+type SiteShellConfig=SiteAnnouncementConfig|SiteHeaderConfig|SiteFooterConfig;
+export async function getSiteShell(locale:Locale){
+  const get=(kind:string)=>getJson<{siteShell?:SiteShellConfig}>(`/api/cms/pages/public?locale=${locale}&path=${encodeURIComponent('/site-shell/'+kind)}`);
+  const [a,h,f]=await Promise.all([get('announcement'),get('header'),get('footer')]);
+  return {announcement:a?.siteShell?.kind==='announcement'?a.siteShell:null,header:h?.siteShell?.kind==='header'?h.siteShell:null,footer:f?.siteShell?.kind==='footer'?f.siteShell:null};
+}
 export async function getCmsPage(locale: Locale, path: string) {
   return getJson<{ id: string; name: string; locale: string; path: string; seo: { title?: string; description?: string }; blocks: CmsBlock[] }>(`/api/cms/pages/public?locale=${locale}&path=${encodeURIComponent(path)}`);
 }
@@ -194,7 +211,7 @@ export async function getPublicLocations(capability: 'sales' | 'service') {
 }
 
 export async function getCmsProductTemplate(locale: Locale, productId = '') {
-  return getJson<{ id: string; name: string; locale: string; isProductSpecific: boolean; seo: { title?: string; description?: string }; productLayout?: { gallery?: 'standard' | 'immersive' | 'mosaic' | 'columns'; specifications?: 'list' | 'table' | 'accordion'; reviews?: 'list' | 'cards' }; modules?: ProductTemplateModules; catalogLayout?: CatalogLayout; blocks: CmsBlock[] }>(`/api/cms/product-template?locale=${locale}&productId=${encodeURIComponent(productId)}`);
+  return getJson<{ id: string; name: string; locale: string; isProductSpecific: boolean; seo: { title?: string; description?: string }; productLayout?: { gallery?: 'standard' | 'immersive' | 'mosaic' | 'columns'; specifications?: 'list' | 'table' | 'accordion'; reviews?: 'list' | 'cards' }; modules?: ProductTemplateModules; performance?: PerformanceConfig; performanceSpecs?: PerformanceSpec[]; masterSpecs?: PerformanceSpec[]; packageSpecs?: PerformanceSpec[]; downloads?: ProductDownload[]; catalogLayout?: CatalogLayout; blocks: CmsBlock[] }>(`/api/cms/product-template?locale=${locale}&productId=${encodeURIComponent(productId)}`);
 }
 
 export interface SharedModuleRef {

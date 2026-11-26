@@ -2,7 +2,7 @@
 
 const { createPool } = require('./db-pool');
 const { currentActor } = require('./audit-context');
-const { documentOf } = require('./catalog');
+const { documentOf, designMediaIds, validateDesignVideos } = require('./catalog');
 const { isUuidv7, uuidv7 } = require('./uuidv7');
 const { normalizeSeoProductId } = require('./seo-product-id');
 const { revalidateStorefront } = require('./storefront-revalidate');
@@ -75,7 +75,8 @@ function createStorefrontListingStore(url,{onPublicationChanged=()=>{}}={}) {
         fail(`SEO 商品 ID 由产品主档统一维护（当前为 ${masterSeoId}），请在产品编辑页修改；此处 URL 会自动跟随`);
       }
       const detailImageIds=[...new Set(Object.values(candidate.document.languages||{}).flatMap(loc=>(loc.detailBlocks||[]).filter(block=>block.type==='image').map(block=>block.imageId)))];
-      const allImageIds=[...new Set([...candidate.document.mediaIds,...detailImageIds])];
+      await validateDesignVideos(c,candidate.document);
+      const allImageIds=[...new Set([...candidate.document.mediaIds,...detailImageIds,...designMediaIds(candidate.document,'image')])];
       const media=(await c.query("SELECT id FROM product_media WHERE product_id=$1 AND id=ANY($2::text[]) AND content_type IN ('image/jpeg','image/png','image/webp','image/avif')",[product.id,allImageIds])).rows;
       const legacyIds=new Set(media.map(row=>row.id)),assetIds=allImageIds.filter(mediaId=>!legacyIds.has(mediaId));
       const assets=assetIds.length?(await c.query("SELECT id::text AS id FROM media_assets WHERE id::text=ANY($1::text[]) AND kind='image' AND content_type IN ('image/jpeg','image/png','image/webp','image/avif')",[assetIds])).rows:[];
@@ -135,7 +136,8 @@ function createStorefrontListingStore(url,{onPublicationChanged=()=>{}}={}) {
     if(!before.skus.length)fail('请选择至少一个可销售 SKU');
     const masterId=normalizeSeoProductId(master.specs?._seoProductId);
     if(doc.seo?.slug!==before.slug||(before.channel==='website'&&masterId&&masterId!==before.slug))fail('历史 URL 与当前商品不一致，禁止回滚',409);
-    const ids=[...new Set([...doc.mediaIds,...Object.values(doc.languages||{}).flatMap(loc=>(loc.detailBlocks||[]).filter(b=>b.type==='image').map(b=>b.imageId))])];
+    await validateDesignVideos(c,doc);
+    const ids=[...new Set([...doc.mediaIds,...designMediaIds(doc,'image')])];
     const legacy=(await c.query("SELECT id FROM product_media WHERE product_id=$1 AND id=ANY($2::text[]) AND content_type IN ('image/jpeg','image/png','image/webp','image/avif')",[before.productId,ids])).rows;
     const remaining=ids.filter(id=>!legacy.some(row=>row.id===id));
     const assets=remaining.length?(await c.query("SELECT id::text AS id FROM media_assets WHERE id::text=ANY($1::text[]) AND kind='image' AND content_type IN ('image/jpeg','image/png','image/webp','image/avif')",[remaining])).rows:[];

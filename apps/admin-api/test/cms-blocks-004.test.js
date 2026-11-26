@@ -217,7 +217,7 @@ test('WEB-004: cms-blocks.tsx 包含 image/carousel/divider/spacer 渲染', () =
 });
 
 test('WEB-004: CmsPageManager PALETTE_GROUPS 注册四个组件', () => {
-  const src = fs.readFileSync(path.join(__dirname, '..', '..', 'client', 'src', 'pages', 'CmsPageManager.jsx'), 'utf-8');
+  const src = fs.readFileSync(path.join(__dirname, '..', '..', 'admin-web', 'src', 'pages', 'CmsPageManager.jsx'), 'utf-8');
   assert.ok(src.includes("key: 'image'"), 'Admin 缺少 image 组件注册');
   assert.ok(src.includes("key: 'carousel'"), 'Admin 缺少 carousel 组件注册');
   assert.ok(src.includes("key: 'divider'"), 'Admin 缺少 divider 组件注册');

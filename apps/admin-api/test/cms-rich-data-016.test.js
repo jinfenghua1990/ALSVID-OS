@@ -360,7 +360,7 @@ test('WEB-016: 前台 Storefront 与 Admin 代码均完整支持 4 大业务数�
   assert.ok(cmsBlocksSrc.includes("componentKey === 'accessories'"), 'Storefront 应渲染 accessories 适配配件模块');
   assert.ok(cmsBlocksSrc.includes("componentKey === 'manuals'"), 'Storefront 应渲染 manuals 说明书下载模块');
 
-  const adminPaletteSrc = fs.readFileSync(path.join(__dirname, '..', '..', 'client', 'src', 'pages', 'CmsPageManager.jsx'), 'utf-8');
+  const adminPaletteSrc = fs.readFileSync(path.join(__dirname, '..', '..', 'admin-web', 'src', 'pages', 'CmsPageManager.jsx'), 'utf-8');
   assert.ok(adminPaletteSrc.includes("key: 'comparison'"), 'Admin 模块库应包含车型对比');
   assert.ok(adminPaletteSrc.includes("key: 'accessories'"), 'Admin 模块库应包含适配配件');
   assert.ok(adminPaletteSrc.includes("key: 'reviews'"), 'Admin 模块库应包含车主评价');

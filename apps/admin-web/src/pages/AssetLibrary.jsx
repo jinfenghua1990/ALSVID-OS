@@ -95,6 +95,8 @@ export default function AssetLibrary({ active = true, user, initialCategory = 'p
 
   const products = index?.products || [];
   const isProductView = category === 'product';
+  const isMarketingView = category === 'marketing';
+  const supportsProductLink = isProductView || isMarketingView;
   const usageCounts = useMemo(() => {
     if (!isProductView) return {};
     if (selection.type === 'product') return products.find(item => item.id === selection.id)?.usages || {};
@@ -112,14 +114,14 @@ export default function AssetLibrary({ active = true, user, initialCategory = 'p
 
   const query = useMemo(() => {
     const q = { category, ...filters, folder: filters.folder === '__none__' ? '' : filters.folder, unfiled: filters.folder === '__none__' ? '1' : '', page, pageSize: PAGE_SIZE };
+    if (supportsProductLink && selection.type === 'product' && selection.id) q.productId = selection.id;
     if (isProductView) {
-      if (selection.type === 'product' && selection.id) q.productId = selection.id;
       else if (selection.type === 'shared') q.scope = 'shared';
       else if (selection.type === 'unclassified') q.scope = 'unclassified';
       if (usage !== 'all') q.usage = usage;
     }
     return q;
-  }, [category, filters, page, isProductView, selection, usage]);
+  }, [category, filters, page, isProductView, supportsProductLink, selection, usage]);
 
   const load = useCallback(async () => {
     if (!active) return;
@@ -177,7 +179,7 @@ export default function AssetLibrary({ active = true, user, initialCategory = 'p
     setUploadMeta(current => ({
       ...current,
       files: files || [],
-      productIds: isProductView && selection.type === 'product' && selection.id ? [selection.id] : [],
+      productIds: supportsProductLink && selection.type === 'product' && selection.id ? [selection.id] : [],
       shared: isProductView && selection.type === 'shared',
       sku: '',
       folder: !isProductView && filters.folder !== '__none__' ? filters.folder : '',
@@ -213,7 +215,7 @@ export default function AssetLibrary({ active = true, user, initialCategory = 'p
   const doUpload = async () => {
     const files = uploadMeta.files;
     if (!files.length) { setError('请先选择要上传的文件'); return; }
-    if (isProductView && !uploadMeta.productIds.length && !uploadMeta.shared && !uploadMeta.sku) {
+    if (supportsProductLink && !uploadMeta.productIds.length && !uploadMeta.shared) {
       setError('请选择关联产品，或勾选「通用素材」'); return;
     }
     setUploading(true); setError(''); setMessage('');
@@ -236,7 +238,7 @@ export default function AssetLibrary({ active = true, user, initialCategory = 'p
         const assetId = result.id;
         for (const productId of uploadMeta.productIds) {
           try {
-            await api.addAssetLink(assetId, { targetType: 'product', targetId: productId, role: USAGE_ROLE[uploadMeta.usage] || 'gallery', channel: 'product', sortOrder: 0 });
+            await api.addAssetLink(assetId, { targetType: 'product', targetId: productId, role: isMarketingView ? 'gallery' : (USAGE_ROLE[uploadMeta.usage] || 'gallery'), channel: 'product', sortOrder: 0 });
             linked++;
           } catch (e) { if (e.status !== 409) failures.push(`${file.name} 关联产品失败：${e.message}`); }
         }
@@ -355,7 +357,7 @@ export default function AssetLibrary({ active = true, user, initialCategory = 'p
     if (!detail || !linkPicker) return;
     setDetailError('');
     try {
-      await api.addAssetLink(detail.id, { targetType: 'product', targetId: linkPicker, role: USAGE_ROLE[form?.usage] || 'gallery', channel: 'product', sortOrder: 0 });
+      await api.addAssetLink(detail.id, { targetType: 'product', targetId: linkPicker, role: detail.category === 'marketing' ? 'gallery' : (USAGE_ROLE[form?.usage] || 'gallery'), channel: 'product', sortOrder: 0 });
       setLinkPicker('');
       setMessage('已关联到所选产品。');
       await openDetail(detail.id);
@@ -443,6 +445,7 @@ export default function AssetLibrary({ active = true, user, initialCategory = 'p
         {canEdit && <button type="button" className="btn small primary" onClick={() => openUpload([])}>上传素材</button>}
       </div>
 
+      {isMarketingView && <div className="shop-media__toolbar"><label>关联车型 <select value={selection.type === 'product' ? selection.id : ''} onChange={e => selectNode(e.target.value ? {type:'product',id:e.target.value} : {type:'all',id:''})}><option value="">全部车型及通用素材</option>{products.map(item => <option key={item.id} value={item.id}>{shortName(item)}</option>)}</select></label></div>}
       {isProductView && <div className="al-tabs">
         <button type="button" className={'al-tab' + (usage === 'all' ? ' is-active' : '')} onClick={() => switchUsage('all')}>全部<em>{Object.values(usageCounts).reduce((a, b) => a + b, 0) || (selection.type === 'shared' ? index?.shared : selection.type === 'unclassified' ? index?.unclassified : productTotal)}</em></button>
         {USAGES.map(([key, label]) => <button type="button" key={key} className={'al-tab' + (usage === key ? ' is-active' : '')} onClick={() => switchUsage(key)}>
@@ -509,13 +512,13 @@ export default function AssetLibrary({ active = true, user, initialCategory = 'p
           {uploadMeta.files.length > 0 && <div className="al-files">已选择 {uploadMeta.files.length} 个文件：{uploadMeta.files.map(f => f.name).join('、')}</div>}
         </div>
 
-        {isProductView && <>
+        {supportsProductLink && <>
           <div className="al-field-label mt8">关联产品（可多选，一份素材可关联多个产品，不会重复上传）</div>
           <div className="al-products mt8">
             {products.map(item => <label key={item.id} className="al-product">
               <input type="checkbox" checked={uploadMeta.productIds.includes(item.id)} disabled={uploadMeta.shared}
                 onChange={e => setUploadMeta(current => ({
-                  ...current,
+                  ...current, sku: '',
                   productIds: e.target.checked ? [...current.productIds, item.id] : current.productIds.filter(id => id !== item.id),
                 }))} />
               <span title={item.name}>{shortName(item)}</span>
@@ -525,7 +528,7 @@ export default function AssetLibrary({ active = true, user, initialCategory = 'p
 
           <label className="al-product mt8">
             <input type="checkbox" checked={uploadMeta.shared}
-              onChange={e => setUploadMeta(current => ({ ...current, shared: e.target.checked, productIds: e.target.checked ? [] : current.productIds }))} />
+              onChange={e => setUploadMeta(current => ({ ...current, shared: e.target.checked, sku: '', productIds: e.target.checked ? [] : current.productIds }))} />
             <span>通用素材（不归属单一产品，供多产品共享）</span>
           </label>
 

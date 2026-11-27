@@ -25,7 +25,17 @@ function createPortalStore(connectionString) {
     const row = (await c.query('SELECT v.id,v.vin FROM portal_vehicle_access a JOIN vins v ON v.id=a.vin_id JOIN app_users u ON u.id=a.user_id WHERE a.user_id=$1 AND a.vin_id=$2 AND a.role=$3 AND a.revoked_at IS NULL AND u.enabled AND u.role=a.role FOR SHARE OF a,v,u', [user.id, vinId, user.role])).rows[0];
     if (!row) fail('车辆不可用或尚未获得授权', 403); return row;
   }
-  async function fetchDealerOrders(userId = null) {
+  async function centerMembership(c,user,orderId=null){
+    if(user?.role!=='dealer'||!user.id)fail('经销商账号不可用',403);
+    const membership=(await c.query(`SELECT m.id,m.company_id AS "companyId",d.name AS "companyName",d.country,d.tax_id AS "taxId",d.address,d.contact_name AS "contactName",d.contact_email AS "contactEmail"
+      FROM app_users u JOIN dealer_company_memberships m ON m.dealer_user_uuid=u.entity_uuid AND m.ended_at IS NULL JOIN dealer_companies d ON d.id=m.company_id
+      WHERE u.id=$1 AND u.enabled AND u.role='dealer' FOR SHARE OF u,m,d`,[user.id])).rows[0];
+    if(!membership)fail('账号尚未关联有效经销商企业',403);
+    if(orderId&&!(await c.query(`SELECT 1 FROM dealer_orders o JOIN dealer_company_memberships m ON m.id=$3 AND m.dealer_user_uuid=o.dealer_user_uuid AND m.ended_at IS NULL
+      JOIN app_users u ON u.entity_uuid=o.dealer_user_uuid WHERE o.id=$1 AND u.id=$2 AND o.created_at>=m.started_at`,[orderId,user.id,membership.id])).rowCount)fail('订货申请不存在',404);
+    return membership;
+  }
+  async function fetchDealerOrders(userId = null,center=false) {
     return (await pool.query(`SELECT o.id,o.status,o.note,o.admin_note AS "adminNote",o.dealer_response_note AS "dealerResponseNote",o.currency,dr.note AS "receiptNote",dr.received_at AS "receivedAt",sh.carrier AS "carrier",sh.tracking_no AS "trackingNo",sh.shipped_at AS "shippedAt",o.cancel_note AS "cancelNote",o.cancelled_by AS "cancelledBy",o.cancelled_at AS "cancelledAt",o.quoted_by AS "quotedBy",o.quoted_at AS "quotedAt",o.created_at AS "createdAt",u.username,
       (SELECT COALESCE(sum(i.quantity*i.quoted_unit_price),0)::numeric(18,2)::text FROM dealer_order_items i WHERE i.order_id=o.id) AS "orderTotal",
       (SELECT COALESCE(sum(p.amount),0)::numeric(18,2)::text FROM dealer_order_payments p WHERE p.order_id=o.id AND NOT EXISTS(SELECT 1 FROM dealer_order_payment_reversals x WHERE x.payment_id=p.id)) AS "paidTotal",
@@ -40,8 +50,8 @@ function createPortalStore(connectionString) {
       LEFT JOIN dealer_order_items i ON i.order_id=o.id
       LEFT JOIN dealer_order_allocations a ON a.item_id=i.id
       LEFT JOIN warehouses w ON w.entity_uuid=a.warehouse_uuid
-      WHERE $1::text IS NULL OR u.id=$1
-      GROUP BY o.id,u.username,sh.id,dr.id ORDER BY o.created_at DESC`, [userId])).rows;
+      WHERE ($1::text IS NULL OR u.id=$1) AND (NOT $2::boolean OR EXISTS(SELECT 1 FROM dealer_company_memberships m WHERE m.dealer_user_uuid=o.dealer_user_uuid AND m.ended_at IS NULL AND o.created_at>=m.started_at))
+      GROUP BY o.id,u.username,sh.id,dr.id ORDER BY o.created_at DESC`, [userId,center])).rows;
   }
   return {
     async accounts() {
@@ -229,6 +239,22 @@ function createPortalStore(connectionString) {
         return {before:old,after:{...row,companyId,sku,currency}};
       });
     },
+    async dealerCenterProfile(user){return centerMembership(pool,user);},
+    async dealerCenterOrders(user){await centerMembership(pool,user);return fetchDealerOrders(user.id,true);},
+    async dealerCenterCatalog(user){
+      // 价格只能读取当前账号关联企业；不接受客户端传入的企业 ID。
+      await centerMembership(pool,user);
+      return (await pool.query(`SELECT s.code AS sku,s.spec,s.color_code AS color,c.en AS "colorEn",c.de AS "colorDe",p.kind,
+        COALESCE(web.published->'languages'->'en'->>'title',cp.published->'languages'->'en'->>'title',cp.published->'languages'->'de'->>'title',p.name) AS "productName",
+        COALESCE((SELECT jsonb_agg(jsonb_build_object('currency',pr.currency,'unitPrice',pr.unit_price::text) ORDER BY pr.currency) FROM dealer_company_prices pr WHERE pr.company_id=m.company_id AND pr.sku_uuid=s.entity_uuid AND pr.enabled),'[]'::jsonb) AS prices
+        FROM app_users u JOIN dealer_company_memberships m ON m.dealer_user_uuid=u.entity_uuid AND m.ended_at IS NULL
+        CROSS JOIN skus s JOIN products p ON p.id=s.product_id JOIN colors c ON c.code=s.color_code
+        LEFT JOIN catalog_publications cp ON cp.product_id=p.id
+        LEFT JOIN LATERAL (SELECT l.published FROM storefront_listings l JOIN storefront_listing_skus ls ON ls.listing_id=l.id AND ls.sku_uuid=s.entity_uuid WHERE l.product_uuid=p.entity_uuid AND l.channel='website' AND l.published IS NOT NULL ORDER BY l.is_default DESC,l.id LIMIT 1) web ON true
+        WHERE u.id=$1 AND u.enabled AND u.role='dealer' AND p.status='启用' AND p.deleted_at IS NULL AND NOT s.disabled
+          AND (web.published IS NOT NULL OR (cp.published IS NOT NULL AND NOT EXISTS(SELECT 1 FROM storefront_listings w WHERE w.product_uuid=p.entity_uuid AND w.channel='website')))
+        ORDER BY p.name,s.code`,[user.id])).rows;
+    },
     async dealerCatalog(user) {
       return (await pool.query(`SELECT s.code AS sku,s.spec,s.color_code AS color,c.en AS "colorEn",c.de AS "colorDe",p.kind,
         COALESCE(cp.published->'languages'->'en'->>'title',cp.published->'languages'->'de'->>'title',cp.published->'languages'->'zh'->>'title',p.name) AS "productName",
@@ -319,7 +345,7 @@ function createPortalStore(connectionString) {
       }); } catch(e) { if(e.code==='23505')fail('发票号码已登记，或该订单已有发票',409); throw e; }
       return (await fetchDealerOrders()).find(row=>row.id===id);
     },
-    async createDealerOrder(user, input) {
+    async createDealerOrder(user, input, center=false) {
       const note=String(input.note||'').trim(),items=input.items;
       if(note.length>2000||!Array.isArray(items)||items.length<1||items.length>100)fail('订货内容无效');
       const requested=items.map(item=>({sku:String(item?.sku||'').trim(),quantity:Number(item?.quantity)}));
@@ -329,9 +355,11 @@ function createPortalStore(connectionString) {
       await transaction('dealer.order.submit',`dealer-orders/${orderId}`,async c=>{
         const dealer=await portalUser(c,user.id);
         if(dealer.role!=='dealer')fail('只有经销商账号可以提交订货申请',403);
+        if(center)await centerMembership(c,user);
         await c.query('SELECT pg_advisory_xact_lock(hashtextextended($1,0))',[orderId]);
         const prior=(await c.query('SELECT id,dealer_user_uuid AS "dealerUserUuid",note,status FROM dealer_orders WHERE id=$1',[orderId])).rows[0];
         if(prior){
+          if(center)await centerMembership(c,user,orderId);
           const priorItems=(await c.query('SELECT sku_code AS sku,quantity FROM dealer_order_items WHERE order_id=$1',[orderId])).rows;
           const expected=new Map(requested.map(item=>[item.sku,item.quantity]));
           if(prior.dealerUserUuid!==dealer.entityUuid||prior.note!==note||priorItems.length!==expected.size||priorItems.some(item=>expected.get(item.sku)!==item.quantity))fail('订货编号已用于其他申请',409);
@@ -339,15 +367,17 @@ function createPortalStore(connectionString) {
         }
         const rows=(await c.query(`SELECT s.code,s.entity_uuid AS "skuUuid",p.kind,
           COALESCE(cp.published->'languages'->'en'->>'title',cp.published->'languages'->'de'->>'title',cp.published->'languages'->'zh'->>'title',p.name) AS "productName"
-          FROM skus s JOIN products p ON p.id=s.product_id JOIN catalog_publications cp ON cp.product_id=p.id
-          WHERE s.code=ANY($1::text[]) AND p.status='启用' AND cp.published IS NOT NULL FOR SHARE OF s,p`,[requested.map(item=>item.sku)])).rows;
+          FROM skus s JOIN products p ON p.id=s.product_id LEFT JOIN catalog_publications cp ON cp.product_id=p.id
+          WHERE s.code=ANY($1::text[]) AND p.status='启用' AND p.deleted_at IS NULL AND NOT s.disabled AND
+          (EXISTS(SELECT 1 FROM storefront_listings l JOIN storefront_listing_skus ls ON ls.listing_id=l.id AND ls.sku_uuid=s.entity_uuid WHERE l.product_uuid=p.entity_uuid AND l.channel='website' AND l.published IS NOT NULL)
+           OR (cp.published IS NOT NULL AND NOT EXISTS(SELECT 1 FROM storefront_listings l WHERE l.product_uuid=p.entity_uuid AND l.channel='website'))) FOR SHARE OF s,p`,[requested.map(item=>item.sku)])).rows;
         if(rows.length!==requested.length)fail('部分 SKU 不存在、未启用或尚未发布',404);
         const bySku=new Map(rows.map(row=>[row.code,row]));
         await c.query('INSERT INTO dealer_orders(id,dealer_user_uuid,note) VALUES($1,$2,$3)',[orderId,dealer.entityUuid,note]);
         for(const item of requested){const product=bySku.get(item.sku);await c.query('INSERT INTO dealer_order_items(order_id,sku_uuid,sku_code,product_name,quantity) VALUES($1,$2,$3,$4,$5)',[orderId,product.skuUuid,item.sku,product.productName,item.quantity]);}
         return{after:{id:orderId,status:'submitted',itemCount:requested.length}};
       });
-      return (await fetchDealerOrders(user.id)).find(row=>row.id===orderId);
+      return (await fetchDealerOrders(user.id,center)).find(row=>row.id===orderId);
     },
     async quoteDealerOrder(id,input) {
       if(!isUuidv7(id)||!['CNY','EUR'].includes(input.currency)||!Array.isArray(input.items))fail('报价内容无效');
@@ -468,12 +498,13 @@ function createPortalStore(connectionString) {
       });
       return result.after;
     },
-    async receiveDealerOrder(user,id,input) {
+    async receiveDealerOrder(user,id,input,center=false) {
       if(!isUuidv7(id))fail('收货资料无效');
       id=String(id).toLowerCase();
       const note=String(input.note||'').trim();if(note.length>2000)fail('收货资料无效');
       const result=await transaction('dealer.order.receive',`dealer-orders/${id}`,async c=>{
         const dealer=await portalUser(c,user.id);if(dealer.role!=='dealer')fail('只有经销商账号可以确认收货',403);
+        if(center)await centerMembership(c,user,id);
         const order=(await c.query('SELECT id,status FROM dealer_orders WHERE id=$1 AND dealer_user_uuid=$2 FOR UPDATE',[id,dealer.entityUuid])).rows[0];
         if(!order)fail('订货申请不存在',404);
         if(order.status==='delivered'){
@@ -490,12 +521,13 @@ function createPortalStore(connectionString) {
       });
       return result.after;
     },
-    async respondDealerOrder(user,id,input) {
+    async respondDealerOrder(user,id,input,center=false) {
       if(!isUuidv7(id)||!['accept','decline'].includes(input.decision))fail('报价回复无效');
       id=String(id).toLowerCase();
       const note=String(input.note||'').trim();if(note.length>2000)fail('回复不能超过 2000 个字符');
       const result=await transaction(`dealer.order.${input.decision}`,`dealer-orders/${id}`,async c=>{
         const dealer=await portalUser(c,user.id);if(dealer.role!=='dealer')fail('只有经销商账号可以回复报价',403);
+        if(center)await centerMembership(c,user,id);
         const order=(await c.query('SELECT id,status,dealer_response_note AS "dealerResponseNote" FROM dealer_orders WHERE id=$1 AND dealer_user_uuid=$2 FOR UPDATE',[id,dealer.entityUuid])).rows[0];
         if(!order)fail('订货申请不存在',404);
         const status=input.decision==='accept'?'accepted':'declined';
@@ -565,6 +597,12 @@ function registerPortalRoutes(app, { portal, auth }) {
   route('POST', '/api/portal-management/dealer-orders/:id/payments', req => portal.recordDealerPayment(req.params.id, req.body || {}));
   route('POST', '/api/portal-management/dealer-orders/:id/payments/:paymentId/reverse', req => portal.reverseDealerPayment(req.params.id, req.params.paymentId, req.body || {}));
   route('POST', '/api/portal-management/dealer-orders/:id/invoices', req => portal.recordDealerInvoice(req.params.id, req.body || {}));
+  route('GET','/api/portal/dealer/center/profile',req=>portal.dealerCenterProfile(req.user),true,['dealer']);
+  route('GET','/api/portal/dealer/center/catalog',req=>portal.dealerCenterCatalog(req.user),true,['dealer']);
+  route('GET','/api/portal/dealer/center/orders',req=>portal.dealerCenterOrders(req.user),true,['dealer']);
+  route('POST','/api/portal/dealer/center/orders',(req,reply)=>portal.createDealerOrder(req.user,req.body||{},true).then(row=>reply.code(201).send(row)),true,['dealer']);
+  route('POST','/api/portal/dealer/center/orders/:id/respond',req=>portal.respondDealerOrder(req.user,req.params.id,req.body||{},true),true,['dealer']);
+  route('POST','/api/portal/dealer/center/orders/:id/receive',req=>portal.receiveDealerOrder(req.user,req.params.id,req.body||{},true),true,['dealer']);
   route('GET', '/api/portal/dealer/catalog', req => portal.dealerCatalog(req.user), true, ['dealer']);
   route('GET', '/api/portal/dealer/orders', req => portal.dealerOrders(req.user), true, ['dealer']);
   route('POST', '/api/portal/dealer/orders', (req, reply) => portal.createDealerOrder(req.user, req.body || {}).then(row => reply.code(201).send(row)), true, ['dealer']);

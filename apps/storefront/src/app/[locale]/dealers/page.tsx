@@ -43,8 +43,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function DealersPage({ params }: Props) {
   const { locale } = await params;
+  // The new storefront dealer workspace is the default D04 entry; preserve configured external deployments.
   const configured = process.env.ALSVID_DEALER_PORTAL_URL?.trim() || '';
-  let portalUrl = '';
+  let portalUrl = '/'+locale+'/dealers/center';
   try {
     const url = new URL(configured);
     if ((url.protocol === 'https:' || (process.env.NODE_ENV !== 'production' && url.protocol === 'http:')) && !url.username && !url.password) portalUrl = url.href;

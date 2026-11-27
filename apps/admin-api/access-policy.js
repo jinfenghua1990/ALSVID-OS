@@ -20,7 +20,7 @@ function apiAccessHook(auth,sessionToken){
   if(req.routeOptions.config.publicDealerApplication===true&&req.method==='POST')return;
   if(req.routeOptions.config.publicColourInterest===true&&req.method==='POST')return;
   if(req.routeOptions.config.publicTestRide===true&&req.method==='POST')return;
-  if(req.routeOptions.config.publicGuestCheckout===true&&req.method==='POST'&&/^\/api\/public\/guest-checkout\/(start|verify|submit|lookup|respond|receive)$/.test(pathname))return;
+  if(req.routeOptions.config.publicGuestCheckout===true&&req.method==='POST'&&/^\/api\/public\/guest-checkout\/(start|verify|submit|lookup|respond|receive|receive-parcel)$/.test(pathname))return;
   if(req.routeOptions.config.publicEcomEvent===true&&req.method==='POST')return;
   // 支付回调由服务商发起，不带后台会话；安全性依赖各适配器验签（confirmWebhook），不靠登录态
   if(req.routeOptions.config.publicPaymentWebhook===true&&req.method==='POST')return;

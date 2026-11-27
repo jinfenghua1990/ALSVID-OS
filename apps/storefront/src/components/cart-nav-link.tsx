@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react';
 import type { Locale } from '@/lib/alsvid-api';
 import { openCartDrawerEvent } from './cart-drawer';
 import { UI } from '@/lib/ui-text';
-import { cartChangedEvent, guestCartKey, guestCartQuantity } from './cart-storage';
+import { cartChangedEvent, guestCartKey, guestCartQuantity, synchronizeOwnerCart } from './cart-storage';
 
 export function CartNavLink({ locale }: { locale: Locale }) {
   const [quantity, setQuantity] = useState(0);
@@ -21,8 +21,8 @@ export function CartNavLink({ locale }: { locale: Locale }) {
         if (!response.ok) return;
         const auth = await response.json();
         if (current !== revision || auth?.user?.role !== 'owner') return;
-        const cart = await fetch('/api/portal/storefront/cart', { cache: 'no-store' }).then(response => response.ok ? response.json() : null);
-        if (current === revision && Array.isArray(cart?.items)) setQuantity(cart.items.reduce((total: number, item: { quantity?: number }) => total + (Number(item.quantity) || 0), guestCartQuantity()));
+        const cart = await synchronizeOwnerCart(String(auth.user.id));
+        if (current === revision && Array.isArray(cart?.items)) setQuantity(cart.items.reduce((total: number, item: { quantity?: number }) => total + (Number(item.quantity) || 0), 0));
       } catch { /* Keep the locally stored guest count when account services are unavailable. */ }
     };
     const onStorage = (event: StorageEvent) => { if (event.key === guestCartKey) void refresh(); };

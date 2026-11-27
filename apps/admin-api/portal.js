@@ -31,6 +31,7 @@ function createPortalStore(connectionString) {
       FROM app_users u JOIN dealer_company_memberships m ON m.dealer_user_uuid=u.entity_uuid AND m.ended_at IS NULL JOIN dealer_companies d ON d.id=m.company_id
       WHERE u.id=$1 AND u.enabled AND u.role='dealer' FOR SHARE OF u,m,d`,[user.id])).rows[0];
     if(!membership)fail('账号尚未关联有效经销商企业',403);
+    if(user.centerMembershipId&&user.centerMembershipId!==membership.id)fail('企业关联已变化，请重新登录',409);
     if(orderId&&!(await c.query(`SELECT 1 FROM dealer_orders o JOIN dealer_company_memberships m ON m.id=$3 AND m.dealer_user_uuid=o.dealer_user_uuid AND m.ended_at IS NULL
       JOIN app_users u ON u.entity_uuid=o.dealer_user_uuid WHERE o.id=$1 AND u.id=$2 AND o.created_at>=m.started_at`,[orderId,user.id,membership.id])).rowCount)fail('订货申请不存在',404);
     return membership;
@@ -597,12 +598,13 @@ function registerPortalRoutes(app, { portal, auth }) {
   route('POST', '/api/portal-management/dealer-orders/:id/payments', req => portal.recordDealerPayment(req.params.id, req.body || {}));
   route('POST', '/api/portal-management/dealer-orders/:id/payments/:paymentId/reverse', req => portal.reverseDealerPayment(req.params.id, req.params.paymentId, req.body || {}));
   route('POST', '/api/portal-management/dealer-orders/:id/invoices', req => portal.recordDealerInvoice(req.params.id, req.body || {}));
+  function centerActor(req){const id=req.body?.membershipId;if(!isUuidv7(id))fail('企业关联凭证无效',409);return {...req.user,centerMembershipId:id.toLowerCase()};}
   route('GET','/api/portal/dealer/center/profile',req=>portal.dealerCenterProfile(req.user),true,['dealer']);
   route('GET','/api/portal/dealer/center/catalog',req=>portal.dealerCenterCatalog(req.user),true,['dealer']);
   route('GET','/api/portal/dealer/center/orders',req=>portal.dealerCenterOrders(req.user),true,['dealer']);
-  route('POST','/api/portal/dealer/center/orders',(req,reply)=>portal.createDealerOrder(req.user,req.body||{},true).then(row=>reply.code(201).send(row)),true,['dealer']);
-  route('POST','/api/portal/dealer/center/orders/:id/respond',req=>portal.respondDealerOrder(req.user,req.params.id,req.body||{},true),true,['dealer']);
-  route('POST','/api/portal/dealer/center/orders/:id/receive',req=>portal.receiveDealerOrder(req.user,req.params.id,req.body||{},true),true,['dealer']);
+  route('POST','/api/portal/dealer/center/orders',(req,reply)=>portal.createDealerOrder(centerActor(req),req.body||{},true).then(row=>reply.code(201).send(row)),true,['dealer']);
+  route('POST','/api/portal/dealer/center/orders/:id/respond',req=>portal.respondDealerOrder(centerActor(req),req.params.id,req.body||{},true),true,['dealer']);
+  route('POST','/api/portal/dealer/center/orders/:id/receive',req=>portal.receiveDealerOrder(centerActor(req),req.params.id,req.body||{},true),true,['dealer']);
   route('GET', '/api/portal/dealer/catalog', req => portal.dealerCatalog(req.user), true, ['dealer']);
   route('GET', '/api/portal/dealer/orders', req => portal.dealerOrders(req.user), true, ['dealer']);
   route('POST', '/api/portal/dealer/orders', (req, reply) => portal.createDealerOrder(req.user, req.body || {}).then(row => reply.code(201).send(row)), true, ['dealer']);

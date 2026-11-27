@@ -190,6 +190,16 @@ function createAssetLibraryStore(url, objectStorage) {
       currentActor(), action, target, before == null ? null : JSON.stringify(before), after == null ? null : JSON.stringify(after),
     ]);
   }
+  // Dealer publication is independent of public website visibility. Only the
+  // explicitly approved current checksum can be downloaded; replacements require approval again.
+  async function dealerCompany(user){
+    if(user?.role!=='dealer'||!user.id)fail('经销商账号不可用',403);
+    const row=(await pool.query(`SELECT m.id,m.company_id AS "companyId" FROM dealer_company_memberships m JOIN app_users u ON u.entity_uuid=m.dealer_user_uuid WHERE u.id=$1 AND u.enabled AND u.role='dealer' AND m.ended_at IS NULL`,[user.id])).rows[0];
+    if(!row)fail('账号尚未关联有效企业',403);return row;
+  }
+  const dealerAssetFields='a.id::text AS id,a.label,a.file_name AS "fileName",a.content_type AS "contentType",a.size_bytes::text AS "sizeBytes",a.langs,a.markets,a.tags,a.folder,a.updated_at AS "updatedAt"';
+  const dealerAssetScope="a.category='marketing' AND a.status='published' AND a.content_type IN ('image/jpeg','image/png','image/webp','image/avif','video/mp4','video/webm','application/pdf') AND p.enabled AND p.checksum=a.checksum";
+  const dealerActorScope="EXISTS(SELECT 1 FROM dealer_company_memberships m JOIN app_users u ON u.entity_uuid=m.dealer_user_uuid WHERE m.id=$1 AND m.ended_at IS NULL AND u.id=$2 AND u.enabled AND u.role='dealer')";
   async function load(id, client = pool) {
     if (!isUuidv7(id)) fail('素材不存在', 404);
     const row = (await client.query(`SELECT ${ASSET_COLUMNS} FROM media_assets WHERE id=$1`, [id])).rows[0];
@@ -592,6 +602,57 @@ function createAssetLibraryStore(url, objectStorage) {
       return { ok: true };
     },
 
+    async dealerResources(user){
+      const m=await dealerCompany(user);
+      const rows=(await pool.query(`SELECT ${dealerAssetFields} FROM media_assets a JOIN dealer_asset_publications p ON p.asset_id=a.id WHERE ${dealerAssetScope} AND ${dealerActorScope} ORDER BY a.updated_at DESC,a.id LIMIT 500`,[m.id,user.id])).rows;
+      return {membershipId:m.id,assets:rows};
+    },
+    async dealerFile(user,id){
+      if(!isUuidv7(id))fail('素材不存在',404);
+      const m=await dealerCompany(user);
+      const asset=(await pool.query(`SELECT a.id,a.object_key AS "objectKey",a.file_name AS "fileName",a.content_type AS "contentType" FROM media_assets a JOIN dealer_asset_publications p ON p.asset_id=a.id WHERE a.id=$3 AND ${dealerAssetScope} AND ${dealerActorScope}`,[m.id,user.id,id])).rows[0];
+      if(!asset)fail('素材不存在',404);if(!objectStorage)fail('对象存储尚未配置',503);
+      return {asset,object:await objectStorage.get(asset.objectKey)};
+    },
+    async dealerPublications(){
+      return (await pool.query(`SELECT ${dealerAssetFields},a.checksum,a.status,COALESCE(p.enabled AND p.checksum=a.checksum AND a.status='published',false) AS enabled FROM media_assets a LEFT JOIN dealer_asset_publications p ON p.asset_id=a.id WHERE a.category='marketing' ORDER BY a.updated_at DESC LIMIT 500`)).rows;
+    },
+    async setDealerPublication(id,input){
+      if(!isUuidv7(id)||typeof input.enabled!=='boolean'||typeof input.checksum!=='string'||!input.checksum)fail('素材授权资料无效');
+      return tx(async c=>{
+        const asset=(await c.query('SELECT id,checksum,status,category,content_type FROM media_assets WHERE id=$1 FOR UPDATE',[id])).rows[0];
+        if(!asset||asset.category!=='marketing')fail('营销素材不存在',404);
+        if(asset.checksum!==input.checksum)fail('素材已更新，请刷新',409);
+        if(input.enabled&&(asset.status!=='published'||!CONTENT_TYPES[asset.content_type]))fail('仅允许已发布的营销素材',409);
+        const before=(await c.query('SELECT checksum,enabled FROM dealer_asset_publications WHERE asset_id=$1',[id])).rows[0]||null;
+        const after=(await c.query('INSERT INTO dealer_asset_publications(asset_id,checksum,enabled,published_by) VALUES($1,$2,$3,$4) ON CONFLICT(asset_id) DO UPDATE SET checksum=EXCLUDED.checksum,enabled=EXCLUDED.enabled,published_by=EXCLUDED.published_by,updated_at=now() RETURNING enabled,checksum',[id,asset.checksum,input.enabled,currentActor()])).rows[0];
+        await audit(c,'dealer.asset.publish','dealer-assets/'+id,before,after);return after;
+      });
+    },
+    async dealerNotices(user){
+      const m=await dealerCompany(user);
+      const notices=(await pool.query(`SELECT n.id,n.kind,n.translations,n.created_at AS "createdAt" FROM dealer_notices n WHERE n.enabled AND (n.company_id IS NULL OR n.company_id=$3) AND ${dealerActorScope} ORDER BY n.created_at DESC LIMIT 100`,[m.id,user.id,m.companyId])).rows;
+      return {membershipId:m.id,notices};
+    },
+    async adminDealerNotices(){return (await pool.query('SELECT n.id,n.kind,n.translations,n.enabled,n.company_id AS "companyId",c.name AS "companyName",n.created_at AS "createdAt" FROM dealer_notices n LEFT JOIN dealer_companies c ON c.id=n.company_id ORDER BY n.created_at DESC LIMIT 200')).rows;},
+    async createDealerNotice(input){
+      const kind=input.kind,companyId=input.companyId||null,translations={};
+      if(!['policy','price','product','promotion'].includes(kind)||companyId&&!isUuidv7(companyId))fail('公告资料无效');
+      for(const lang of ['zh','de','en']){
+        const v=input.translations?.[lang];
+        if(typeof v?.title!=='string'||!v.title.trim()||v.title.length>160||typeof v?.body!=='string'||!v.body.trim()||v.body.length>6000)fail('请填写完整的中英德三语公告');
+        translations[lang]={title:v.title.trim(),body:v.body.trim()};
+      }
+      return tx(async c=>{
+        if(companyId&&!(await c.query('SELECT 1 FROM dealer_companies WHERE id=$1 FOR SHARE',[companyId])).rowCount)fail('企业不存在',404);
+        const id=uuidv7();await c.query('INSERT INTO dealer_notices(id,company_id,kind,translations,created_by) VALUES($1,$2,$3,$4,$5)',[id,companyId,kind,JSON.stringify(translations),currentActor()]);
+        await audit(c,'dealer.notice.publish','dealer-notices/'+id,null,{id,companyId,kind});return {id};
+      });
+    },
+    async withdrawDealerNotice(id){
+      if(!isUuidv7(id))fail('公告不存在',404);
+      return tx(async c=>{const before=(await c.query('SELECT enabled FROM dealer_notices WHERE id=$1 FOR UPDATE',[id])).rows[0];if(!before)fail('公告不存在',404);await c.query('UPDATE dealer_notices SET enabled=false WHERE id=$1',[id]);await audit(c,'dealer.notice.withdraw','dealer-notices/'+id,before,{enabled:false});return {id};});
+    },
     async file(id, version) {
       const asset = await load(id);
       let objectKey = asset.objectKey, contentType = asset.contentType, fileName = asset.fileName;
@@ -769,6 +830,24 @@ function registerAssetLibraryRoutes(app, store) {
       },
     });
   }
+  const dealerRoute=(method,url,handler)=>app.route({method,url,config:{portalRoles:['dealer']},handler:async(req,reply)=>{
+    if(req.user?.role!=='dealer')return reply.code(403).send({error:'仅经销商可访问'});
+    if(!store)return reply.code(503).send({error:'素材库服务暂不可用'});
+    reply.header('Cache-Control','no-store');
+    try{return await handler(req,reply)}catch(e){return reply.code(e.statusCode||502).send({error:e.statusCode?e.message:'经销商资源暂不可用'})}
+  }});
+  dealerRoute('GET','/api/portal/dealer/center/resources',req=>store.dealerResources(req.user));
+  dealerRoute('GET','/api/portal/dealer/center/resources/:id/file',async(req,reply)=>{
+    const r=await store.dealerFile(req.user,req.params.id);
+    return reply.header('X-Content-Type-Options','nosniff').header('Content-Security-Policy',"default-src 'none'; sandbox").header('Content-Disposition',contentDisposition('attachment',r.asset.fileName||r.asset.id,r.asset.contentType)).type(r.asset.contentType).send(r.object.Body);
+  });
+  dealerRoute('GET','/api/portal/dealer/center/notices',req=>store.dealerNotices(req.user));
+  const adminOnly=req=>{if(req.user?.role!=='admin')fail('仅管理员可管理经销商资源',403)};
+  route('GET','/api/portal-management/dealer-resources',req=>{adminOnly(req);return store.dealerPublications()});
+  route('POST','/api/portal-management/dealer-resources/:id',req=>{adminOnly(req);return store.setDealerPublication(req.params.id,req.body||{})});
+  route('GET','/api/portal-management/dealer-notices',req=>{adminOnly(req);return store.adminDealerNotices()});
+  route('POST','/api/portal-management/dealer-notices',req=>{adminOnly(req);return store.createDealerNotice(req.body||{})});
+  route('POST','/api/portal-management/dealer-notices/:id/withdraw',req=>{adminOnly(req);return store.withdrawDealerNotice(req.params.id)});
   route('GET', '/api/assets', req => store.list(req.query || {}));
   route('GET', '/api/assets/folders', req => store.folders(req.query || {}));
   route('GET', '/api/assets/product-index', () => store.productIndex());

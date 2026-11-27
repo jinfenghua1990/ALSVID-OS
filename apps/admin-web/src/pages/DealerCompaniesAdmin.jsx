@@ -1,3 +1,4 @@
+import DealerBenefitsAdmin from './DealerBenefitsAdmin.jsx';
 import DealerResourcesAdmin from './DealerResourcesAdmin.jsx';
 import DealerPricesAdmin from './DealerPricesAdmin.jsx';
 import DealerApplicationsAdmin from './DealerApplicationsAdmin.jsx';
@@ -37,6 +38,7 @@ export default function DealerCompaniesAdmin({ accounts, active = true }) {
     <section className="padmin-panel"><div className="padmin-panel__head"><h3>账号与企业关联</h3><span>经销商账号只能查看已关联企业的订单与专属价格</span></div><div className="padmin-panel__body"><form className="padmin-form__grid" onSubmit={assign}><div className="field"><label>经销商账号</label><select required value={userId} onChange={event => setUserId(event.target.value)}><option value="">选择账号</option>{accounts.filter(account => account.role === 'dealer' && account.enabled).map(account => <option key={account.id} value={account.id}>{account.username}</option>)}</select></div><div className="field"><label>企业</label><select required value={companyId} onChange={event => setCompanyId(event.target.value)}><option value="">选择企业</option>{companies.map(company => <option key={company.id} value={company.id}>{company.name}</option>)}</select></div><div className="field"><label>变更说明</label><input required maxLength="2000" placeholder="例如：已核验经销协议" value={reason} onChange={event => setReason(event.target.value)} /></div><div className="padmin-form__actions"><button className="btn primary" disabled={busy}>保存关联</button></div></form><div className="padmin-panel__scroll mt16"><table className="table"><thead><tr><th>账号</th><th>企业</th><th>开始</th><th>结束</th><th>说明</th></tr></thead><tbody>{links.map(link => <tr key={link.id}><td>{link.username}</td><td>{link.companyName}</td><td>{new Date(link.startedAt).toLocaleString('zh-CN')}</td><td>{link.endedAt ? new Date(link.endedAt).toLocaleString('zh-CN') : '当前'}</td><td>{link.reason || '—'}</td></tr>)}{!links.length && <tr><td colSpan="5" className="empty-cell">暂无关联记录</td></tr>}</tbody></table></div></div></section>
     <DealerPricesAdmin active={active} companies={companies} />
     <DealerResourcesAdmin active={active} companies={companies} />
+    <DealerBenefitsAdmin active={active} companies={companies} />
     {showEditor && <CompanyDialog value={form} busy={busy} error={error} onClose={closeEditor} onSave={save} onChange={setForm} />}
   </div>;
 }

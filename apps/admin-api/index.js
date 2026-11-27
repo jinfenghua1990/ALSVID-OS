@@ -45,6 +45,7 @@ const { createPublicLocationsStore, registerPublicLocationRoutes } = require('./
 const { createTestRideStore, registerTestRideRoutes } = require('./test-rides');
 const { createTestRideAssignments, registerTestRideAssignmentRoutes } = require('./test-ride-assignments');
 const {createStoreAppointments,registerStoreAppointmentRoutes}=require('./store-appointments');
+const {createDealerBenefits,registerDealerBenefitsRoutes}=require('./dealer-benefits');
 const { createProcurementStore, registerProcurementRoutes } = require('./procurement');
 
 const PORT = Number(process.env.PORT || 8089);
@@ -274,6 +275,7 @@ if (orderStore) payments.setOrderStore(orderStore);
 registerStorefrontReviewRoutes(app,process.env.DATABASE_URL ? createStorefrontReviews(process.env.DATABASE_URL) : null);
 const portal = process.env.DATABASE_URL ? createPortalStore(process.env.DATABASE_URL) : null;
 registerPortalRoutes(app, { portal, auth });
+registerDealerBenefitsRoutes(app,process.env.DATABASE_URL?createDealerBenefits(process.env.DATABASE_URL):null);
 registerDealerReturnRoutes(app, process.env.DATABASE_URL ? createDealerReturns(process.env.DATABASE_URL) : null);
 registerDeliveryParcelRoutes(app, process.env.DATABASE_URL ? createDeliveryParcelStore(process.env.DATABASE_URL) : null);
 const dealerApplicationAttempts=new Map();

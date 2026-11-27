@@ -48,7 +48,7 @@
 | **K11** | **官网试骑引流与预约**| 承接官网 C 端预约分配、时段确认、到店试骑接待、试骑成交登记与跟进 | `test_ride_enquiries`, `appointments` |
 | **K12** | **消息与政策通知** | 调价公告、新品发售通知、促销活动通报、关键订单交付提醒 | `dealer_notifications` |
 | **K13** | **企业账户与权限多门店**| 企业基础资料与经销商账号；当前不设员工及分级权限 | `dealer_organizations`, `rbac_roles` |
-| **K14** | **商业权益与业绩返利**| 经销商等级评定、月/季/年阶梯业绩考核、返利积分抵扣采购款、样车采购补贴 | `dealer_tiers`, `rebate_ledger` |
+| **K14** | **商业权益与业绩返利**| 月/季/年有效采购业绩、按企业配置 EUR 返利政策、审核结算及样车/展会/营销补贴；暂不设等级与积分 | `dealer_rebate_policies`, `dealer_benefit_awards`, `dealer_benefit_ledger` |
 
 ---
 

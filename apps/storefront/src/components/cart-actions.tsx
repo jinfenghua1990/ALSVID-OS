@@ -117,7 +117,7 @@ export function CartActions({ locale, productId, offers, availability, giftPrevi
       if(serverCart){
         // Do not clear guest items here; the existing cart-page merge flow handles them.
         const items=merge([...serverCart.items,requested]);
-        await data(await fetch('/api/portal/storefront/cart',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({revision:serverCart.revision,items})}));
+        await data(await fetch('/api/portal/storefront/cart',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({revision:serverCart.revision,items,expectedAccountId:String(user.id)})}));
       }else{
         // Guest selections are local; a catalog response is not a server cart acknowledgement.
         localStorage.setItem(guestCartKey,JSON.stringify(combined));
@@ -224,7 +224,10 @@ export function CartPage({ locale, initialStep = 1, initialOrderId }: { locale: 
         if(order.delivery)setDelivery(current=>({...current,...order.delivery}));
         return;
       }
-      const auth = await fetch('/api/auth/status', { cache: 'no-store' }).then(response => response.ok ? response.json() : null).catch(() => null);
+      const authResponse = await fetch('/api/auth/status', { cache: 'no-store' });
+      if (!authResponse.ok && authResponse.status !== 401) throw new Error('auth unavailable');
+      const auth = authResponse.ok ? await authResponse.json() : null;
+      setAccountId('');
       let current: CartItem[] = readGuestCart();
       if (auth?.user?.role === 'owner') {
         setStatus('owner'); setAccountId(String(auth.user.id));
@@ -241,7 +244,7 @@ export function CartPage({ locale, initialStep = 1, initialOrderId }: { locale: 
         if (merged.size > 50) throw new Error('merge_limit');
         current = [...merged.values()];
         if (readGuestCart().length) {
-          const result = await data(await fetch('/api/portal/storefront/cart', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ revision: cart.revision, items: current }) }));
+          const result = await data(await fetch('/api/portal/storefront/cart', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ revision: cart.revision, items: current, expectedAccountId: String(auth.user.id) }) }));
           current = result.items; setRevision(result.revision); localStorage.removeItem(guestCartKey);
         } else current = cart.items;
       } else setStatus(auth?.user ? 'ownerOnly' : 'guest');
@@ -270,7 +273,7 @@ export function CartPage({ locale, initialStep = 1, initialOrderId }: { locale: 
     setBusy(true); setError('');
     try {
       if (status === 'owner') {
-        const result = await data(await fetch('/api/portal/storefront/cart', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ revision, items: next }) }));
+        const result = await data(await fetch('/api/portal/storefront/cart', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ revision, items: next, expectedAccountId: accountId }) }));
         setRevision(result.revision); setItems(result.items);
         notifyCartChanged();
       } else {

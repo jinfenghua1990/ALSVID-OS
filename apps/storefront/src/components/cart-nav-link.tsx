@@ -17,8 +17,10 @@ export function CartNavLink({ locale }: { locale: Locale }) {
       const current = ++revision;
       setQuantity(guestCartQuantity());
       try {
-        const auth = await fetch('/api/auth/status', { cache: 'no-store' }).then(response => response.ok ? response.json() : null);
-        if (auth?.user?.role !== 'owner') return;
+        const response = await fetch('/api/auth/status', { cache: 'no-store' });
+        if (!response.ok) return;
+        const auth = await response.json();
+        if (current !== revision || auth?.user?.role !== 'owner') return;
         const cart = await fetch('/api/portal/storefront/cart', { cache: 'no-store' }).then(response => response.ok ? response.json() : null);
         if (current === revision && Array.isArray(cart?.items)) setQuantity(cart.items.reduce((total: number, item: { quantity?: number }) => total + (Number(item.quantity) || 0), guestCartQuantity()));
       } catch { /* Keep the locally stored guest count when account services are unavailable. */ }
@@ -27,9 +29,15 @@ export function CartNavLink({ locale }: { locale: Locale }) {
     void refresh();
     window.addEventListener(cartChangedEvent, refresh);
     window.addEventListener('storage', onStorage);
+    window.addEventListener('focus', refresh);
+    const onVisible = () => { if (document.visibilityState === 'visible') void refresh(); };
+    document.addEventListener('visibilitychange', onVisible);
     return () => {
+      revision++;
       window.removeEventListener(cartChangedEvent, refresh);
       window.removeEventListener('storage', onStorage);
+      window.removeEventListener('focus', refresh);
+      document.removeEventListener('visibilitychange', onVisible);
     };
   }, []);
 

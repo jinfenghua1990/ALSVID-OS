@@ -7,6 +7,7 @@ import type { Locale } from '@/lib/alsvid-api';
 import { ApiError, apiJson, postJson } from './account-api';
 import { COMMON, LOGIN, NAV, ROLE, SECURITY } from '@/lib/account-text';
 import { RegistrationForm } from './registration-form';
+import { notifyCartChanged } from '../cart-storage';
 
 type AccountUser = { id: string; username: string; role: string };
 type Status = 'loading' | 'guest' | 'forbidden' | 'owner';
@@ -48,6 +49,8 @@ export function AccountShell({ locale, children }: { locale: Locale; children: R
     } catch {
       setUser(null);
       setStatus('guest');
+    } finally {
+      notifyCartChanged();
     }
   }, []);
 
@@ -57,6 +60,7 @@ export function AccountShell({ locale, children }: { locale: Locale; children: R
     try { await postJson('/api/auth/logout', {}); } catch { /* 会话已失效也视为已退出 */ }
     setUser(null);
     setStatus('guest');
+    notifyCartChanged();
   };
 
   if (status === 'loading') {

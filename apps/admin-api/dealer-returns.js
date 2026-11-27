@@ -1,6 +1,7 @@
 'use strict';
 const { createPool } = require('./db-pool');
 const { currentActor } = require('./audit-context');
+const {reverseOrderOffsets}=require('./dealer-benefit-offsets');
 const { isUuidv7, uuidv7 } = require('./uuidv7');
 const { createHash } = require('node:crypto');
 
@@ -104,6 +105,7 @@ function createDealerReturns(connectionString) {
           return { id: existing.id, requestId: id, status: 'received', replayed: true };
         }
         if (request.status !== 'approved') fail('只有已批准的退货申请可以登记收货', 409);
+        if (!(await c.query('SELECT id FROM dealer_orders WHERE id=$1 FOR UPDATE',[request.order_id])).rowCount) fail('订单不存在',404);
         const lines = (await c.query(`SELECT ri.id,ri.quantity,oi.sku_uuid AS "skuUuid",oi.sku_code AS sku,oi.order_id AS "orderId" FROM dealer_order_return_items ri JOIN dealer_order_items oi ON oi.id=ri.order_item_id WHERE ri.request_id=$1 ORDER BY ri.id FOR UPDATE OF ri,oi`, [id])).rows;
         if (lines.length !== items.length || lines.some(line => !items.some(item => item.returnItemId === line.id && item.quantity <= Number(line.quantity)))) fail('必须逐项登记申请商品的实收数量');
         if (items.some(item => item.quantity !== Number(lines.find(line => line.id === item.returnItemId).quantity) && !item.note)) fail('实收数量与申请数量不同时必须填写该商品的差异说明');
@@ -130,6 +132,7 @@ function createDealerReturns(connectionString) {
           }
           await c.query('INSERT INTO dealer_order_return_receipt_items(receipt_id,return_item_id,received_quantity,disposition,warehouse_uuid,stock_movement_uuid,note) VALUES($1,$2,$3,$4,$5,$6,$7)', [receiptId, item.returnItemId, item.quantity, item.disposition, warehouseUuid, movementUuid, item.note]);
         }
+        if(items.some(item=>item.quantity>0))await reverseOrderOffsets(c,request.order_id,'订单退货收货自动冲销权益抵扣 '+id,currentActor());
         await c.query("UPDATE dealer_order_return_requests SET status='received',updated_at=now() WHERE id=$1", [id]);
         return { id: receiptId, requestId: id, status: 'received' };
       });

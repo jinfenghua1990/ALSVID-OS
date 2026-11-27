@@ -84,7 +84,13 @@ const CONSUMER_RULES: Rule[] = [
   { method: 'GET', pattern: /^\/api\/service-centers$/ },
 ];
 
-const RULES: Rule[] = [...PUBLIC_RULES, ...CONSUMER_RULES];
+// Dedicated dealer workspace. Never proxy management or legacy dealer routes.
+const DEALER_RULES: Rule[] = [
+ {method:'GET',pattern:/^\/api\/portal\/dealer\/center\/(profile|catalog|orders)$/},
+ {method:'POST',pattern:/^\/api\/portal\/dealer\/center\/orders$/},
+ {method:'POST',pattern:/^\/api\/portal\/dealer\/center\/orders\/[0-9a-fA-F-]{36}\/(respond|receive)$/},
+];
+const RULES: Rule[] = [...PUBLIC_RULES, ...CONSUMER_RULES, ...DEALER_RULES];
 
 const ALLOWED_METHODS = new Set(['GET', 'HEAD', 'POST', 'PUT']);
 

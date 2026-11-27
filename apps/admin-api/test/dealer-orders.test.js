@@ -8,7 +8,9 @@ test('dealer requests require explicit prices and allocate only available invent
   const secondCompany=(await portal.saveCompany({name:'Company B'})).after;
   const edited=(await portal.saveCompany({...company,name:'Company A updated'},company.id)).after;assert.equal(edited.revision,2);
   await assert.rejects(portal.saveCompany({...company,name:'stale'},company.id),/已更新/);
+  await assert.rejects(portal.dealerCenterProfile(dealer),/尚未关联/);
   await portal.assignCompany(dealer.id,{companyId:company.id,expectedCompanyId:null,reason:'verified'});
+  const formerMembership=await portal.dealerCenterProfile(dealer);
   await assert.rejects(portal.assignCompany(dealer.id,{companyId:secondCompany.id,expectedCompanyId:null,reason:'stale'}),/已更新/);
   await portal.assignCompany(dealer.id,{companyId:secondCompany.id,expectedCompanyId:company.id,reason:'transfer'});
   const links=await portal.companyMemberships();assert.equal(links.length,2);assert.equal(links.filter(x=>!x.endedAt)[0].companyId,secondCompany.id);
@@ -23,6 +25,9 @@ test('dealer requests require explicit prices and allocate only available invent
   const p2=(await portal.saveCompanyPrice({companyId:secondCompany.id,sku:'D1-EBI-STD-TST',currency:'EUR',unitPrice:'20.00',enabled:true})).after;
   assert.deepEqual((await portal.dealerCatalog(dealer))[0].prices,[{currency:'EUR',unitPrice:'20.00'}]);
   assert.deepEqual((await portal.dealerCatalog(other))[0].prices,[{currency:'EUR',unitPrice:'9.00'}]);
+  assert.deepEqual((await portal.dealerCenterCatalog(dealer))[0].prices,[{currency:'EUR',unitPrice:'20.00'}]);
+  assert.deepEqual((await portal.dealerCenterCatalog(other))[0].prices,[{currency:'EUR',unitPrice:'9.00'}]);
+  await assert.rejects(portal.createDealerOrder({...dealer,centerMembershipId:formerMembership.id},{items:[{sku:'D1-EBI-STD-TST',quantity:1}]},true),/企业关联已变化/);
   await assert.rejects(portal.saveCompanyPrice({...p2,unitPrice:''},p2.id),/价格资料无效/);
   await portal.saveCompanyPrice({...p2,unitPrice:'21.50',enabled:false},p2.id);
   await assert.rejects(portal.saveCompanyPrice({...p2,unitPrice:'1.00'},p2.id),/已更新/);
@@ -34,11 +39,14 @@ test('dealer requests require explicit prices and allocate only available invent
   await pool.query("INSERT INTO inventory_ledger(source_type,source_id,sku_uuid,warehouse_id,quantity_delta) SELECT 'opening_balance','dealer-test',entity_uuid,'dealer-warehouse',5 FROM skus WHERE code='D1-EBI-STD-TST'");
   const order=await portal.createDealerOrder(dealer,{items:[{sku:'D1-EBI-STD-TST',quantity:3}]});const line=order.items[0];
   assert.equal((await portal.dealerOrders(other)).length,0);
+  assert.equal((await portal.dealerCenterOrders(other)).length,0);
+  assert.equal((await portal.dealerCenterOrders(dealer))[0].id,order.id);
   for(const price of ['',null,'1.234','-1'])await assert.rejects(portal.quoteDealerOrder(order.id,{currency:'EUR',items:[{id:line.id,price}]}),/报价内容无效/);
   assert.equal((await portal.dealerOrders(dealer))[0].status,'submitted');
   const quote=await portal.quoteDealerOrder(order.id,{currency:'EUR',items:[{id:line.id,price:'12.34'}]});assert.equal(quote.items[0].quotedUnitPrice,12.34);
   await assert.rejects(portal.respondDealerOrder(other,order.id,{decision:'accept'}),/不存在/);
-  await portal.respondDealerOrder(dealer,order.id,{decision:'accept'});
+  await assert.rejects(portal.respondDealerOrder(other,order.id,{decision:'accept'},true),/不存在/);
+  await portal.respondDealerOrder(dealer,order.id,{decision:'accept'},true);
   const allocated=await portal.allocateDealerOrder(order.id,{items:[{itemId:line.id,warehouseId:'dealer-warehouse'}]});assert.equal(allocated.status,'allocated');
   const reservation=await pool.query("SELECT quantity,status FROM inventory_reservations WHERE source_type='sales_order'");assert.equal(reservation.rows[0].quantity,3);assert.equal(reservation.rows[0].status,'reserved');
   await assert.rejects(portal.allocateDealerOrder(order.id,{items:[{itemId:line.id,warehouseId:'dealer-warehouse'}]}),/接受报价后/);
@@ -86,6 +94,9 @@ test('dealer requests require explicit prices and allocate only available invent
   assert.equal((await pool.query("SELECT count(*)::int n FROM inventory_reservations WHERE source_id LIKE $1 AND status='reserved'",[multi.id+':%'])).rows[0].n,2);
   await pool.query("UPDATE warehouse_stock SET quantity=quantity-1 WHERE warehouse_id='dealer-warehouse' AND sku_code=$1",[last]);
   assert.equal((await portal.shipDealerOrder(multi.id,{carrier:'Carrier',trackingNo:'MULTI'})).status,'shipped');
+  await portal.assignCompany(dealer.id,{companyId:company.id,expectedCompanyId:secondCompany.id,reason:'new membership'});
+  assert.equal((await portal.dealerCenterOrders(dealer)).length,0);
+  await assert.rejects(portal.receiveDealerOrder(dealer,multi.id,{note:'received'},true),/不存在/);
 
 
 

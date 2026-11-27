@@ -86,8 +86,8 @@ const CONSUMER_RULES: Rule[] = [
 
 // Dedicated dealer workspace. Never proxy management or legacy dealer routes.
 const DEALER_RULES: Rule[] = [
- {method:'GET',pattern:/^\/api\/portal\/dealer\/center\/(profile|catalog|orders)$/},
- {method:'POST',pattern:/^\/api\/portal\/dealer\/center\/orders$/},
+ {method:'GET',pattern:/^\/api\/portal\/dealer\/center\/(profile|catalog|orders|vehicles|vehicle-requests|service-requests)$/},
+ {method:'POST',pattern:/^\/api\/portal\/dealer\/center\/(orders|vehicle-requests|service-requests)$/},
  {method:'POST',pattern:/^\/api\/portal\/dealer\/center\/orders\/[0-9a-fA-F-]{36}\/(respond|receive)$/},
 ];
 const RULES: Rule[] = [...PUBLIC_RULES, ...CONSUMER_RULES, ...DEALER_RULES];

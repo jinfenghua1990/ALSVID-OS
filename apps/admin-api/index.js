@@ -117,7 +117,7 @@ const authAttemptsCleanup = setInterval(() => {
 }, 60_000);
 authAttemptsCleanup.unref();
 function sessionToken(req) { const match=String(req.headers.cookie||'').match(/(?:^|;\s*)alsvid_session=([A-Za-z0-9_-]{43})(?:;|$)/); return match?.[1]||''; }
-app.addHook('onRequest',apiAccessHook(auth,sessionToken));
+app.addHook('onRequest',apiAccessHook(auth,sessionToken,auth?.dealerPolicy));
 app.addHook('onRequest',(req,reply,done)=>runAsActor(req.user?.username||'system',done));
 app.get('/api/auth/status',async req=>({initialized:auth?await auth.hasUsers():false,user:auth?await auth.user(sessionToken(req)):null}));
 app.get('/api/auth/registration',async()=>({enabled:!!auth?.registration.ready()}));

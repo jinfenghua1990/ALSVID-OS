@@ -1,0 +1,31 @@
+'use strict';
+const {test}=require('node:test'),assert=require('node:assert/strict'),Fastify=require('fastify');
+const {mayAccessDealerApi}=require('../dealer-rbac');const {apiAccessHook}=require('../access-policy');
+const p='/api/portal/dealer/center/';
+test('explicit dealer role matrix denies legacy bypass, cross-role writes and unknown routes',()=>{
+ assert(mayAccessDealerApi('procurement','POST',p+'orders'));
+ assert(!mayAccessDealerApi('finance','POST',p+'orders'));
+ assert(mayAccessDealerApi('finance','GET',p+'orders'));
+ assert(!mayAccessDealerApi('store_staff','POST',p+'store-appointments/slots'));
+ assert(mayAccessDealerApi('store_staff','GET',p+'store-appointments'));
+ assert(!mayAccessDealerApi('service','GET',p+'catalog'));
+ assert(mayAccessDealerApi('service','POST',p+'service-requests'));
+ assert(!mayAccessDealerApi('pending','GET',p+'orders'));
+ assert(mayAccessDealerApi('pending','GET',p+'profile'));
+ assert(!mayAccessDealerApi('finance','POST','/api/portal/dealer/orders'));
+ assert(mayAccessDealerApi('legacy','POST','/api/portal/dealer/orders'));
+ assert(!mayAccessDealerApi('legacy','GET',p+'staff'));
+ assert(mayAccessDealerApi('company_admin','GET',p+'staff'));
+ assert(!mayAccessDealerApi('company_admin','GET',p+'unknown'));
+});
+test('server hook enforces role even on direct legacy API calls',async t=>{
+ const app=Fastify();t.after(()=>app.close());let role='finance';
+ app.addHook('onRequest',apiAccessHook({user:async()=>({id:'dealer',role:'dealer'})},()=>'',async()=>role));
+ for(const url of [p+'orders','/api/portal/dealer/orders',p+'staff'])app.route({method:['GET','POST'],url,config:{portalRoles:['dealer']},handler:async()=>({ok:true})});
+ assert.equal((await app.inject(p+'orders')).statusCode,200);
+ assert.equal((await app.inject({method:'POST',url:p+'orders',payload:{}})).statusCode,403);
+ assert.equal((await app.inject('/api/portal/dealer/orders')).statusCode,403);
+ assert.equal((await app.inject(p+'staff')).statusCode,403);
+ role='company_admin';assert.equal((await app.inject(p+'staff')).statusCode,200);
+ role='pending';assert.equal((await app.inject(p+'orders')).statusCode,403);
+});

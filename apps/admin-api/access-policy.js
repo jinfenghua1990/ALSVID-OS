@@ -4,7 +4,8 @@ function mayAccessInternalApi(role,method,path){
  if(role!=='viewer')return false;
  return ['GET','HEAD'].includes(method)||path==='/api/account/password';
 }
-function apiAccessHook(auth,sessionToken){
+const {mayAccessDealerApi}=require('./dealer-rbac');
+function apiAccessHook(auth,sessionToken,dealerPolicy){
  // 公开路由仍然允许匿名访问，但若请求带了有效会话则解析出用户身份（供草稿预览等按角色分流的场景使用）
  const attachUser=async req=>{
   if(!auth)return;
@@ -32,6 +33,10 @@ function apiAccessHook(auth,sessionToken){
   if(!user)return reply.code(401).send({error:'请先登录'});
   const portalRoles=req.routeOptions.config.portalRoles;
   if(portalRoles ? !portalRoles.includes(user.role) : !mayAccessInternalApi(user.role,req.method,pathname))return reply.code(403).send({error:'没有访问权限'});
+  if(user.role==='dealer'&&dealerPolicy){
+   let role;try{role=await dealerPolicy(user.id)}catch(_){return reply.code(503).send({error:'经销商权限暂不可用'})}
+   if(!mayAccessDealerApi(role,req.method,pathname))return reply.code(403).send({error:'没有该业务权限'});
+  }
   req.user=user;
  };
 }

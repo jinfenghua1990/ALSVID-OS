@@ -1,6 +1,7 @@
 const { uuidv7, isUuidv7 } = require('./uuidv7');
 const { createPool } = require('./db-pool');
 const { currentActor } = require('./audit-context');
+const {ROLES,grants}=require('./dealer-rbac');
 
 function fail(message, statusCode = 400) { throw Object.assign(new Error(message), { statusCode }); }
 function noteOf(value) { if (typeof value !== 'string' || !value.trim() || value.length > 2000) fail('请填写说明，最多 2000 个字符'); return value.trim(); }
@@ -27,7 +28,7 @@ function createPortalStore(connectionString) {
   }
   async function centerMembership(c,user,orderId=null){
     if(user?.role!=='dealer'||!user.id)fail('经销商账号不可用',403);
-    const membership=(await c.query(`SELECT m.id,m.company_id AS "companyId",d.name AS "companyName",d.country,d.tax_id AS "taxId",d.address,d.contact_name AS "contactName",d.contact_email AS "contactEmail"
+    const membership=(await c.query(`SELECT m.id,m.company_id AS "companyId",d.name AS "companyName",d.country,d.tax_id AS "taxId",d.address,d.contact_name AS "contactName",d.contact_email AS "contactEmail",COALESCE((SELECT business_role FROM dealer_membership_roles WHERE membership_id=m.id),'pending') AS "businessRole"
       FROM app_users u JOIN dealer_company_memberships m ON m.dealer_user_uuid=u.entity_uuid AND m.ended_at IS NULL JOIN dealer_companies d ON d.id=m.company_id
       WHERE u.id=$1 AND u.enabled AND u.role='dealer' FOR SHARE OF u,m,d`,[user.id])).rows[0];
     if(!membership)fail('账号尚未关联有效经销商企业',403);
@@ -235,7 +236,7 @@ function createPortalStore(connectionString) {
         return {before:old,after:row};
       });
     },
-    async companyMemberships() {return (await pool.query('SELECT m.id,u.id AS "userId",u.username,m.company_id AS "companyId",c.name AS "companyName",m.reason,m.assigned_by AS "assignedBy",m.started_at AS "startedAt",m.ended_at AS "endedAt" FROM dealer_company_memberships m JOIN app_users u ON u.entity_uuid=m.dealer_user_uuid JOIN dealer_companies c ON c.id=m.company_id ORDER BY m.started_at DESC,m.id DESC')).rows;},
+    async companyMemberships() {return (await pool.query('SELECT m.id,u.id AS "userId",u.username,m.company_id AS "companyId",c.name AS "companyName",m.reason,m.assigned_by AS "assignedBy",m.started_at AS "startedAt",m.ended_at AS "endedAt",COALESCE((SELECT business_role FROM dealer_membership_roles WHERE membership_id=m.id),'pending') AS "businessRole",COALESCE((SELECT revision FROM dealer_membership_roles WHERE membership_id=m.id),0) AS "roleRevision" FROM dealer_company_memberships m JOIN app_users u ON u.entity_uuid=m.dealer_user_uuid JOIN dealer_companies c ON c.id=m.company_id ORDER BY m.started_at DESC,m.id DESC')).rows;},
     async assignCompany(userId,input) {
       const companyId=input.companyId,expected=input.expectedCompanyId,reason=noteOf(input.reason);if(!isUuidv7(companyId)||!(expected===null||isUuidv7(expected)))fail('企业关联资料无效');
       return transaction('dealer.company.assign',`dealer-accounts/${userId}/company`,async c=>{
@@ -262,7 +263,28 @@ function createPortalStore(connectionString) {
         return {before:old,after:{...row,companyId,sku,currency}};
       });
     },
-    async dealerCenterProfile(user){return centerMembership(pool,user);},
+    async dealerCenterProfile(user){const m=await centerMembership(pool,user);return {...m,permissions:grants(m.businessRole)};},
+    async dealerCenterStaff(user){return centerRead(user,async(c,m)=>{
+      if(m.businessRole!=='company_admin')fail('仅企业管理员可查看员工',403);
+      return (await c.query(`SELECT m.id,u.username,u.enabled,COALESCE(r.business_role,'pending') AS "businessRole",COALESCE(r.revision,0) AS "roleRevision" FROM dealer_company_memberships m JOIN app_users u ON u.entity_uuid=m.dealer_user_uuid LEFT JOIN dealer_membership_roles r ON r.membership_id=m.id WHERE m.company_id=$1 AND m.ended_at IS NULL AND u.role='dealer' ORDER BY u.username`,[m.companyId])).rows;
+    });},
+    async setDealerMembershipRole(id,input,actor=null){
+      const role=input.businessRole,revision=input.revision,reason=noteOf(input.reason);
+      if(!isUuidv7(id)||!ROLES.includes(role)&&role!=='pending'||!Number.isSafeInteger(revision)||revision<0)fail('角色资料无效');
+      return transaction('dealer.membership.role',`dealer-memberships/${id}`,async c=>{
+        // Serialize role changes, then lock actor and target membership; no self escalation.
+        await c.query('SELECT pg_advisory_xact_lock(912603392)');
+        const m=actor?await centerMembership(c,actor):null;
+        if(m&&(m.businessRole!=='company_admin'||m.id===id||role==='company_admin'))fail('不能修改该员工权限',403);
+        const target=(await c.query(`SELECT m.id,m.company_id AS "companyId",u.id AS "userId",COALESCE(r.business_role,'pending') AS "businessRole",COALESCE(r.revision,0) AS revision FROM dealer_company_memberships m JOIN app_users u ON u.entity_uuid=m.dealer_user_uuid LEFT JOIN dealer_membership_roles r ON r.membership_id=m.id WHERE m.id=$1 AND m.ended_at IS NULL AND u.role='dealer' FOR UPDATE OF m,u`,[id])).rows[0];
+        if(!target||m&&target.companyId!==m.companyId)fail('员工关联不存在',404);
+        if(m&&['company_admin','legacy'].includes(target.businessRole))fail('该账号由 ALSVID 管理',403);
+        if(target.revision!==revision)fail('角色已更新，请刷新',409);
+        const row=(await c.query(`INSERT INTO dealer_membership_roles(membership_id,business_role,updated_by) VALUES($1,$2,$3) ON CONFLICT(membership_id) DO UPDATE SET business_role=EXCLUDED.business_role,revision=dealer_membership_roles.revision+1,updated_by=EXCLUDED.updated_by,updated_at=now() RETURNING business_role AS "businessRole",revision`,[id,role,currentActor()])).rows[0];
+        await c.query('DELETE FROM app_sessions WHERE user_id=$1',[target.userId]);
+        return {before:{businessRole:target.businessRole,revision},after:row,reason};
+      });
+    },
     async dealerCenterOrders(user){await centerMembership(pool,user);return fetchDealerOrders(user.id,true);},
     async dealerCenterCatalog(user){
       // 价格只能读取当前账号关联企业；不接受客户端传入的企业 ID。
@@ -611,6 +633,7 @@ function registerPortalRoutes(app, { portal, auth }) {
   route('PUT', '/api/portal-management/dealer-companies/:id', req => portal.saveCompany(req.body || {},req.params.id));
   route('GET', '/api/portal-management/dealer-company-memberships', () => portal.companyMemberships());
   route('POST', '/api/portal-management/dealer-accounts/:id/company', req => portal.assignCompany(req.params.id,req.body || {}));
+  route('POST','/api/portal-management/dealer-company-memberships/:id/role',req=>portal.setDealerMembershipRole(req.params.id,req.body||{}));
   route('GET', '/api/portal-management/dealer-orders', () => portal.dealerOrders());
   route('POST', '/api/portal-management/dealer-orders/:id/quote', req => portal.quoteDealerOrder(req.params.id, req.body || {}));
   route('POST', '/api/portal-management/dealer-orders/:id/reject', req => portal.rejectDealerOrder(req.params.id, req.body || {}));
@@ -626,6 +649,8 @@ function registerPortalRoutes(app, { portal, auth }) {
   route('POST','/api/portal/dealer/center/vehicle-requests',(req,reply)=>portal.requestVehicle(centerActor(req),req.body||{},true).then(row=>reply.code(201).send(row)),true,['dealer']);
   route('GET','/api/portal/dealer/center/service-requests',req=>portal.dealerCenterServices(req.user),true,['dealer']);
   route('POST','/api/portal/dealer/center/service-requests',(req,reply)=>portal.requestService(centerActor(req),req.body||{},true).then(row=>reply.code(201).send(row)),true,['dealer']);
+  route('GET','/api/portal/dealer/center/staff',req=>portal.dealerCenterStaff(req.user),true,['dealer']);
+  route('POST','/api/portal/dealer/center/staff/:id/role',req=>portal.setDealerMembershipRole(req.params.id,req.body||{},centerActor(req)),true,['dealer']);
   route('GET','/api/portal/dealer/center/profile',req=>portal.dealerCenterProfile(req.user),true,['dealer']);
   route('GET','/api/portal/dealer/center/catalog',req=>portal.dealerCenterCatalog(req.user),true,['dealer']);
   route('GET','/api/portal/dealer/center/orders',req=>portal.dealerCenterOrders(req.user),true,['dealer']);

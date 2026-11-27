@@ -188,15 +188,15 @@ export function CartPage({ locale, initialStep = 1, initialOrderId }: { locale: 
   const [lookupId,setLookupId]=useState(initialOrderId||'');
   const [guestOrder,setGuestOrder]=useState<any>(null);
   const guestRequest=async (action:string,body:object,token='')=>data(await fetch('/api/public/guest-checkout/'+action,{method:'POST',headers:{'Content-Type':'application/json',...(token?{Authorization:'Bearer '+token}:{})},body:JSON.stringify(body),cache:'no-store'}));
-  const guestAction=async(action:string)=>{
+  const guestAction=async(action:string,parcelId?:string)=>{
     if(guestBusy)return;
     setGuestBusy(true);setGuestError('');
     try{
       if(action==='start'){setGuestToken('');setGuestChallenge('');const r=await guestRequest('start',{email:guestEmail,locale});setGuestChallenge(r.challengeId);}
       else if(action==='verify'){const r=await guestRequest('verify',{email:guestEmail,challengeId:guestChallenge,code:guestCode});setGuestToken(r.accessToken);}
-      else if(action==='lookup'){const r=await guestRequest('lookup',{orderId:lookupId.trim().toLowerCase()},guestToken);setGuestOrder(r);}
-      else if(action==='claim'){await data(await fetch('/api/portal/storefront/guest-claim',{method:'POST',headers:{'Content-Type':'application/json','X-Guest-Authorization':'Bearer '+guestToken},body:JSON.stringify({orderId:lookupId.trim().toLowerCase()})}));window.location.assign('/'+locale+'/account/orders');}
-      else if(guestOrder){await guestRequest(action==='receive'?'receive':'respond',{orderId:guestOrder.id,quoteId:guestOrder.quote?.id,decision:action,note:''},guestToken);setGuestOrder(await guestRequest('lookup',{orderId:guestOrder.id},guestToken));}
+      else if(action==='lookup'){setGuestOrder(null);const r=await guestRequest('lookup',{orderId:lookupId.trim().toLowerCase()},guestToken);setGuestOrder(r);}
+      else if(action==='claim'){await data(await fetch('/api/portal/storefront/guest-claim',{method:'POST',headers:{'Content-Type':'application/json','X-Guest-Authorization':'Bearer '+guestToken},body:JSON.stringify({orderId:guestOrder?.id||lookupId.trim().toLowerCase()})}));window.location.assign('/'+locale+'/account/orders');}
+      else if(guestOrder){await guestRequest(action==='receive'||action==='receive-parcel'?action:'respond',{orderId:guestOrder.id,quoteId:guestOrder.quote?.id,decision:action,note:'',parcelId},guestToken);setGuestOrder(await guestRequest('lookup',{orderId:guestOrder.id},guestToken));}
     }catch{setGuestError(g.error)}finally{setGuestBusy(false)}
   };
   const [items, setItems] = useState<CartItem[]>([]);
@@ -304,7 +304,8 @@ export function CartPage({ locale, initialStep = 1, initialOrderId }: { locale: 
     event.preventDefault(); if (busy || !available || currencies.length !== 1 || (status!=='owner'&&(status!=='guest'||!guestToken))) return;
     setBusy(true); setError('');
     try {
-      const key = status==='guest'?'alsvid-guest-request-v1:'+JSON.stringify([guestEmail.trim().toLowerCase(),items,delivery]):`alsvid-order-request-v1:${accountId}:${revision}`;
+      const guestFingerprint = status==='guest' ? Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(JSON.stringify([guestEmail.trim().toLowerCase(),items,delivery]))))).map(b=>b.toString(16).padStart(2,'0')).join('') : '';
+      const key = status==='guest'?'alsvid-guest-request-v1:'+guestFingerprint:`alsvid-order-request-v1:${accountId}:${revision}`;
       let requestId = localStorage.getItem(key);
       if (!requestId || !/^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(requestId)) { requestId = uuidv7(); localStorage.setItem(key, requestId); }
       const requestItems = items.map(item => {
@@ -321,7 +322,7 @@ export function CartPage({ locale, initialStep = 1, initialOrderId }: { locale: 
     finally { setBusy(false); }
   };
 
-  const loginHref = `/${locale}/account?returnTo=${encodeURIComponent(`/${locale}/cart`)}`;
+  const loginHref = `/${locale}/account?returnTo=${encodeURIComponent(`/${locale}/cart${lookupId?'?order='+encodeURIComponent(lookupId):''}`)}`;
   return <main className="container cart-page">
     <p className="eyebrow">ALSVID / {UI.cart[locale]}</p>
     <nav className="transaction-steps" aria-label={flow.review} style={{display:'flex',alignItems:'center',gap:'clamp(12px,4vw,48px)',margin:'0 0 28px',flexWrap:'wrap'}}>
@@ -332,7 +333,7 @@ export function CartPage({ locale, initialStep = 1, initialOrderId }: { locale: 
     {!loading && status !== 'owner' && items.length > 0 && <section className="cart-notice"><a className="cart-view-link" href={loginHref}>{t.loginButton}</a></section>}
     {!loading && (status==='guest'||(initialOrderId&&!success&&status==='owner')) && (step===2||step===3||!items.length) && <section className="cart-checkout" aria-label={g.title}>
       <h2>{step===2&&items.length?g.title:g.lookup}</h2>
-      <label>{g.email}<input type="email" autoComplete="email" value={guestEmail} maxLength={254} onChange={e=>{setGuestEmail(e.target.value);setGuestChallenge('');setGuestToken('');setGuestOrder(null)}} /></label>
+      <label>{g.email}<input type="email" autoComplete="email" disabled={guestBusy} value={guestEmail} maxLength={254} onChange={e=>{setGuestEmail(e.target.value);setGuestChallenge('');setGuestToken('');setGuestOrder(null)}} /></label>
       <button type="button" disabled={guestBusy||!guestEmail} onClick={()=>void guestAction('start')}>{g.send}</button>
       {guestChallenge&&!guestToken&&<><label>{g.code}<input inputMode="numeric" autoComplete="one-time-code" maxLength={8} value={guestCode} onChange={e=>setGuestCode(e.target.value)}/></label><button type="button" disabled={guestBusy||!/^\d{8}$/.test(guestCode)} onClick={()=>void guestAction('verify')}>{g.verify}</button></>}
       {guestToken&&<p role="status">{g.verified}</p>}
@@ -340,8 +341,9 @@ export function CartPage({ locale, initialStep = 1, initialOrderId }: { locale: 
       {guestOrder&&<section><p>{g.order}: {guestOrder.id}</p><p>{orderStatuses[locale][guestOrder.status]||guestOrder.status}</p>
       {guestOrder.quote&&<p>{guestOrder.currency} {(Number(guestOrder.quote.totalMinor)/100).toFixed(2)}</p>}
       {guestOrder.status==='quoted'&&<><button type="button" disabled={guestBusy} onClick={()=>void guestAction('accept')}>{g.accept}</button><button type="button" disabled={guestBusy} onClick={()=>void guestAction('decline')}>{g.decline}</button></>}
-      {guestOrder.status==='shipped'&&<button type="button" disabled={guestBusy} onClick={()=>void guestAction('receive')}>{g.receive}</button>}
-      {guestOrder.shipment&&<p>{guestOrder.shipment.carrier} · {guestOrder.shipment.trackingNo}</p>}
+      {(guestOrder.parcels||[]).map((p:any)=><div key={p.id}><p>{({zh:{whole:'整件',body:'车体',battery:'电池'},en:{whole:'Complete item',body:'Bike body',battery:'Battery'},de:{whole:'Komplettartikel',body:'Fahrrad ohne Akku',battery:'Akku'}}[locale] as Record<string,string>)[p.component]} · {p.trackingNo||'—'} {p.carrier||''} {p.receivedAt?g.receive+' ✓':''}</p>{p.dispatchedAt&&!p.receivedAt&&<button type="button" disabled={guestBusy} onClick={()=>void guestAction('receive-parcel',p.id)}>{g.receive}</button>}</div>)}
+      {guestOrder.status==='shipped'&&(guestOrder.parcels||[]).every((p:any)=>p.receivedAt)&&<button type="button" disabled={guestBusy} onClick={()=>void guestAction('receive')}>{g.receive}</button>}
+      {!guestOrder.parcels?.length&&guestOrder.shipment&&<p>{guestOrder.shipment.carrier} · {guestOrder.shipment.trackingNo}</p>}
       {status==='owner'?<button type="button" disabled={guestBusy} onClick={()=>void guestAction('claim')}>{g.claim}</button>:<Link href={loginHref}>{g.claim}</Link>}
       </section>}</>}
       {guestError&&<p role="alert">{guestError}</p>}

@@ -2,12 +2,13 @@
 const {createPool}=require('./db-pool');
 const {uuidv7,isUuidv7}=require('./uuidv7');
 const {currentActor}=require('./audit-context');
+const {activeOffsetTotal}=require('./dealer-benefit-offsets');
 function fail(message,statusCode=400){throw Object.assign(Error(message),{statusCode})}
 function textOf(value,max=2000){if(typeof value!=='string'||!value.trim()||value.length>max)fail('资料无效');return value.trim()}
 function day(v){if(typeof v!=='string'||!/^\d{4}-\d{2}-\d{2}$/.test(v)||!Number.isFinite(Date.parse(v))||new Date(v).toISOString().slice(0,10)!==v)fail('日期无效');return v}
 function amountOf(v){const s=String(v??'');if(!/^\d{1,12}(?:\.\d{1,2})?$/.test(s)||Number(s)<=0)fail('金额无效');return s}
 function rateOf(v){const s=String(v??'');if(!/^\d{1,3}(?:\.\d{1,2})?$/.test(s))fail('返利比例无效');const [whole,frac='']=s.split('.'),n=Number(whole)*100+Number(frac.padEnd(2,'0'));if(n<0||n>10000)fail('返利比例无效');return n}
-const orderBasis=`SELECT o.id,m.company_id AS "companyId",o.currency,(dr.received_at AT TIME ZONE 'Europe/Berlin')::date AS "receivedOn",
+const orderBasis=`SELECT o.id,m.company_id AS "companyId",o.currency,o.created_at AS "orderedAt",(dr.received_at AT TIME ZONE 'Europe/Berlin')::date AS "receivedOn",
  GREATEST(0,COALESCE((SELECT sum(i.quantity*i.quoted_unit_price) FROM dealer_order_items i WHERE i.order_id=o.id),0)-COALESCE((SELECT sum(ri.received_quantity*oi.quoted_unit_price) FROM dealer_order_return_receipt_items ri JOIN dealer_order_return_receipts rc ON rc.id=ri.receipt_id JOIN dealer_order_return_requests rr ON rr.id=rc.request_id JOIN dealer_order_return_items di ON di.id=ri.return_item_id JOIN dealer_order_items oi ON oi.id=di.order_item_id WHERE rr.order_id=o.id AND ri.disposition IN ('restocked','not_restocked')),0))::numeric(18,2) AS basis,
  EXISTS(SELECT 1 FROM dealer_order_return_requests rr WHERE rr.order_id=o.id AND rr.status IN ('pending','approved')) AS "openReturn"
  FROM dealer_orders o JOIN dealer_order_receipts dr ON dr.order_id=o.id JOIN dealer_company_memberships m ON m.dealer_user_uuid=o.dealer_user_uuid AND m.started_at<=o.created_at AND (m.ended_at IS NULL OR o.created_at<m.ended_at)
@@ -29,18 +30,22 @@ function createDealerBenefits(url){
   const amount=(await c.query('SELECT round($1::numeric*$2::integer/10000,2)::text AS amount WHERE $3::date BETWEEN $4::date AND $5::date',[o.basis,p.rateBps,o.receivedOn,p.startsOn,p.endsOn])).rows[0]?.amount;
   if(!amount||Number(amount)<=0)fail('订单不符合政策日期或返利金额为零',409);return {basis:o.basis,amount};
  }
+ // Target order must have a registered EUR invoice and no return history requiring settlement.
+ const unpaidSql=`i.total_amount-COALESCE((SELECT sum(p.amount) FROM dealer_order_payments p WHERE p.order_id=o.id AND NOT EXISTS(SELECT 1 FROM dealer_order_payment_reversals z WHERE z.payment_id=p.id)),0)-${activeOffsetTotal('order_id','o.id')}`;
  const policyFields='id,title,rate_bps AS "rateBps",starts_on::text AS "startsOn",ends_on::text AS "endsOn",enabled,note';
  async function read(c,id,admin=false){
   const periods=(await c.query(`SELECT currency,to_char("receivedOn",'YYYY-MM') AS month,sum(basis)::text AS amount,count(*)::int AS orders FROM (${orderBasis}) o WHERE "companyId"=$1 GROUP BY currency,month ORDER BY month DESC,currency`,[id])).rows;
   const policies=(await c.query('SELECT '+policyFields+' FROM dealer_rebate_policies WHERE company_id=$1 '+(admin?'':'AND enabled ')+'ORDER BY starts_on DESC,id',[id])).rows;
-  const awards=(await c.query(`SELECT a.id,a.kind,a.order_id AS "orderId",a.policy_id AS "policyId",a.basis::text,a.amount::text,a.note,a.status,a.review_note AS "reviewNote",a.created_at AS "createdAt",
+  const awards=(await c.query(`SELECT a.id,a.kind,a.order_id AS "orderId",a.policy_id AS "policyId",a.basis::text,a.amount::text, (a.amount-${activeOffsetTotal('award_id','a.id')})::text AS remaining,a.note,a.status,a.review_note AS "reviewNote",a.created_at AS "createdAt",
    CASE WHEN a.kind='rebate' AND a.status='approved' THEN NOT EXISTS(SELECT 1 FROM (${orderBasis}) o WHERE o.id=a.order_id AND o."companyId"=a.company_id AND o.currency='EUR' AND NOT o."openReturn" AND o.basis=a.basis) ELSE false END AS "needsReview"
    FROM dealer_benefit_awards a WHERE a.company_id=$1 ORDER BY a.created_at DESC LIMIT 500`,[id])).rows;
   const ledger=(await c.query('SELECT id,award_id AS "awardId",kind,amount::text,note,created_at AS "createdAt" FROM dealer_benefit_ledger WHERE company_id=$1 ORDER BY created_at DESC LIMIT 500',[id])).rows;
-  const summary=(await c.query(`SELECT COALESCE((SELECT sum(amount) FROM dealer_benefit_awards WHERE company_id=$1 AND status='pending'),0)::text AS pending,COALESCE((SELECT sum(amount) FROM dealer_benefit_ledger WHERE company_id=$1),0)::text AS balance,
+  const summary=(await c.query(`SELECT COALESCE((SELECT sum(amount) FROM dealer_benefit_awards WHERE company_id=$1 AND status='pending'),0)::text AS pending,(COALESCE((SELECT sum(amount) FROM dealer_benefit_ledger WHERE company_id=$1),0)-${activeOffsetTotal('company_id','$1')})::text AS balance,
    EXISTS(SELECT 1 FROM dealer_benefit_awards a WHERE a.company_id=$1 AND a.kind='rebate' AND a.status='approved' AND NOT EXISTS(SELECT 1 FROM (${orderBasis}) o WHERE o.id=a.order_id AND o."companyId"=a.company_id AND o.currency='EUR' AND NOT o."openReturn" AND o.basis=a.basis)) AS "frozen"`,[id])).rows[0];
   const eligible=admin?(await c.query(`SELECT id,basis::text,"receivedOn"::text AS "receivedOn" FROM (${orderBasis}) o WHERE "companyId"=$1 AND currency='EUR' AND basis>0 AND NOT "openReturn" AND NOT EXISTS(SELECT 1 FROM dealer_benefit_awards a WHERE a.order_id=o.id AND a.status IN ('pending','approved')) ORDER BY "receivedOn" DESC LIMIT 500`,[id])).rows:[];
-  return {periods,policies,awards,ledger,summary,eligible};
+  const offsets=(await c.query(`SELECT x.id,x.award_id AS "awardId",x.order_id AS "orderId",x.amount::text,x.note,x.created_at AS "createdAt",z.created_at AS "reversedAt",z.note AS "reversalNote" FROM dealer_benefit_offsets x LEFT JOIN dealer_benefit_offset_reversals z ON z.offset_id=x.id WHERE x.company_id=$1 ORDER BY x.created_at DESC LIMIT 500`,[id])).rows;
+  const targets=admin?(await c.query(`SELECT o.id,i.invoice_number AS "invoiceNumber",(${unpaidSql})::text AS due FROM (${orderBasis}) b JOIN dealer_orders o ON o.id=b.id JOIN dealer_order_invoices i ON i.order_id=o.id WHERE b."companyId"=$1 AND b.currency='EUR' AND NOT EXISTS(SELECT 1 FROM dealer_order_return_requests rr WHERE rr.order_id=o.id AND rr.status IN ('pending','approved','received')) AND (${unpaidSql})>0 ORDER BY o.created_at DESC LIMIT 500`,[id])).rows:[];
+  return {periods,policies,awards,ledger,summary,eligible,offsets,targets};
  }
  return {
  async dealer(user){return tx(async c=>{const m=await member(c,user);return {membershipId:m.id,...await read(c,m.companyId)}})},
@@ -74,9 +79,43 @@ function createDealerBenefits(url){
     const p=(await c.query('SELECT '+policyFields+' FROM dealer_rebate_policies WHERE id=$1 AND company_id=$2 AND enabled',[a.policy_id,id])).rows[0];if(!p)fail('政策未启用',409);
     const v=await calculate(c,p,id,a.order_id);if(v.basis!==a.basis||v.amount!==a.amount)fail('订单金额已变化，请拒绝后重新生成',409);
    }
+   if(status==='void'&&(await c.query(`SELECT ${activeOffsetTotal('award_id','$1')}>0 AS used`,[aid])).rows[0].used)fail('请先冲销该权益已抵扣的订单',409);
    await c.query('UPDATE dealer_benefit_awards SET status=$3,review_note=$4,reviewed_at=now(),reviewed_by=$5 WHERE id=$1 AND company_id=$2',[aid,id,status,note,currentActor()]);
    if(status==='approved'||status==='void')await c.query('INSERT INTO dealer_benefit_ledger(id,company_id,award_id,kind,amount,note,created_by) VALUES($1,$2,$3,$4,$5::numeric,$6,$7)',[uuidv7(),id,aid,status==='approved'?'credit':'reversal',status==='approved'?a.amount:'-'+a.amount,note,currentActor()]);
    await audit(c,'dealer.benefit.review',aid,{status,note});return {id:aid,status};
+  });
+ },
+ async offset(id,input){
+  const aid=input.awardId,oid=input.orderId,key=input.id,amount=amountOf(input.amount),note=textOf(input.note);
+  if(![aid,oid,key].every(isUuidv7))fail('抵扣资料无效');
+  return tx(async c=>{
+   await company(c,id);
+   const prior=(await c.query('SELECT company_id,award_id,order_id,amount,note FROM dealer_benefit_offsets WHERE id=$1',[key])).rows[0];
+   if(prior){if(prior.company_id!==id||prior.award_id!==aid||prior.order_id!==oid||prior.note!==note||!(await c.query('SELECT $1::numeric=$2::numeric AS same',[prior.amount,amount])).rows[0].same)fail('抵扣编号已使用',409);return {id:key,replayed:true}}
+   const a=(await c.query("SELECT * FROM dealer_benefit_awards WHERE id=$1 AND company_id=$2 AND status='approved' FOR UPDATE",[aid,id])).rows[0];if(!a)fail('权益不存在或未审核',404);
+   // Order locks in deterministic order; returns/receipts and payments take the same order lock.
+   const orders=[...new Set([oid,...(a.order_id?[a.order_id]:[])])].sort();
+   if((await c.query('SELECT id FROM dealer_orders WHERE id=ANY($1::uuid[]) ORDER BY id FOR UPDATE',[orders])).rowCount!==orders.length)fail('订单不存在',404);
+   if(a.kind==='rebate'){
+    const b=await basis(c,id,a.order_id);
+    if(b.basis!==a.basis)fail('返利原订单已变化，请重新审核',409);
+   }
+   if((await c.query(`SELECT EXISTS(SELECT 1 FROM dealer_benefit_awards a WHERE a.company_id=$1 AND a.kind='rebate' AND a.status='approved' AND NOT EXISTS(SELECT 1 FROM (${orderBasis}) b WHERE b.id=a.order_id AND b."companyId"=a.company_id AND b.currency='EUR' AND NOT b."openReturn" AND b.basis=a.basis)) AS frozen`,[id])).rows[0].frozen)fail('存在待复核权益，暂不能抵扣',409);
+   const target=(await c.query(`SELECT (${unpaidSql})::text AS due FROM (${orderBasis}) b JOIN dealer_orders o ON o.id=b.id JOIN dealer_order_invoices i ON i.order_id=o.id WHERE b.id=$1 AND b."companyId"=$2 AND b.currency='EUR' AND i.currency='EUR' AND o.created_at>$3 AND NOT EXISTS(SELECT 1 FROM dealer_order_return_requests rr WHERE rr.order_id=o.id AND rr.status IN ('pending','approved','received'))`,[oid,id,a.reviewed_at])).rows[0];
+   if(!target)fail('只能抵扣权益批准后创建、已开票且无有效退货的本企业 EUR 订单',409);
+   const inserted=(await c.query(`INSERT INTO dealer_benefit_offsets(id,company_id,award_id,order_id,amount,note,created_by) SELECT $1,$2,$3,$4,$5::numeric,$6,$7 WHERE $5::numeric<=$8::numeric AND $5::numeric<=($9::numeric-${activeOffsetTotal('award_id','$3')}) RETURNING id`,[key,id,aid,oid,amount,note,currentActor(),target.due,a.amount])).rows[0];
+   if(!inserted)fail('抵扣金额超过权益余额或应收余额',409);
+   await audit(c,'dealer.benefit.offset',key,{companyId:id,awardId:aid,orderId:oid,amount,note});return {id:key};
+  });
+ },
+ async reverseOffset(id,oid,input){
+  const note=textOf(input.note);if(!isUuidv7(oid))fail('抵扣编号无效');
+  return tx(async c=>{await company(c,id);
+   const x=(await c.query('SELECT order_id FROM dealer_benefit_offsets WHERE id=$1 AND company_id=$2',[oid,id])).rows[0];if(!x)fail('抵扣记录不存在',404);
+   await c.query('SELECT id FROM dealer_orders WHERE id=$1 FOR UPDATE',[x.order_id]);
+   const prior=(await c.query('SELECT note FROM dealer_benefit_offset_reversals WHERE offset_id=$1',[oid])).rows[0];if(prior){if(prior.note!==note)fail('抵扣已冲销，请刷新',409);return {id:oid,replayed:true}}
+   await c.query('INSERT INTO dealer_benefit_offset_reversals(offset_id,note,created_by) VALUES($1,$2,$3)',[oid,note,currentActor()]);
+   await audit(c,'dealer.benefit.offset.reverse',oid,{note,orderId:x.order_id});return {id:oid};
   });
  },close:()=>pool.end()};
 }
@@ -93,5 +132,7 @@ function registerDealerBenefitsRoutes(app,store){
  route('POST',p+'/policies/:id/status',r=>store.policyStatus(r.params.companyId,r.params.id,r.body||{}));
  route('POST',p+'/awards',r=>store.propose(r.params.companyId,r.body||{}));
  route('POST',p+'/awards/:id/review',r=>store.review(r.params.companyId,r.params.id,r.body||{}));
+ route('POST',p+'/offsets',r=>store.offset(r.params.companyId,r.body||{}));
+ route('POST',p+'/offsets/:id/reverse',r=>store.reverseOffset(r.params.companyId,r.params.id,r.body||{}));
 }
 module.exports={createDealerBenefits,registerDealerBenefitsRoutes,rateOf};

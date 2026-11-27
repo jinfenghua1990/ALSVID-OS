@@ -1,6 +1,7 @@
 const { uuidv7, isUuidv7 } = require('./uuidv7');
 const { createPool } = require('./db-pool');
 const { currentActor } = require('./audit-context');
+const {activeOffsetTotal}=require('./dealer-benefit-offsets');
 
 function fail(message, statusCode = 400) { throw Object.assign(new Error(message), { statusCode }); }
 function noteOf(value) { if (typeof value !== 'string' || !value.trim() || value.length > 2000) fail('请填写说明，最多 2000 个字符'); return value.trim(); }
@@ -50,6 +51,7 @@ function createPortalStore(connectionString) {
     return (await pool.query(`SELECT o.id,o.status,o.note,o.admin_note AS "adminNote",o.dealer_response_note AS "dealerResponseNote",o.currency,dr.note AS "receiptNote",dr.received_at AS "receivedAt",sh.carrier AS "carrier",sh.tracking_no AS "trackingNo",sh.shipped_at AS "shippedAt",o.cancel_note AS "cancelNote",o.cancelled_by AS "cancelledBy",o.cancelled_at AS "cancelledAt",o.quoted_by AS "quotedBy",o.quoted_at AS "quotedAt",o.created_at AS "createdAt",u.username,
       (SELECT COALESCE(sum(i.quantity*i.quoted_unit_price),0)::numeric(18,2)::text FROM dealer_order_items i WHERE i.order_id=o.id) AS "orderTotal",
       (SELECT COALESCE(sum(p.amount),0)::numeric(18,2)::text FROM dealer_order_payments p WHERE p.order_id=o.id AND NOT EXISTS(SELECT 1 FROM dealer_order_payment_reversals x WHERE x.payment_id=p.id)) AS "paidTotal",
+      ${activeOffsetTotal('order_id','o.id')}::numeric(18,2)::text AS "benefitOffsetTotal",
       (SELECT COALESCE(jsonb_agg(jsonb_build_object('id',p.id,'amount',p.amount::text,'reference',p.reference,'note',p.note,'recordedBy',p.recorded_by,'receivedAt',p.received_at,'reversed',x.id IS NOT NULL,'reversalReason',x.reason,'reversedBy',x.reversed_by,'reversedAt',x.created_at) ORDER BY p.received_at,p.id),'[]'::jsonb) FROM dealer_order_payments p LEFT JOIN dealer_order_payment_reversals x ON x.payment_id=p.id WHERE p.order_id=o.id) AS payments,
       (SELECT jsonb_build_object('id',inv.id,'invoiceNumber',inv.invoice_number,'issuedOn',inv.issued_on,'dueOn',inv.due_on,'currency',inv.currency,'totalAmount',inv.total_amount::text,'note',inv.note,'recordedBy',inv.recorded_by,'createdAt',inv.created_at,'items',COALESCE((SELECT jsonb_agg(jsonb_build_object('sku',ii.sku_code,'productName',ii.product_name,'quantity',ii.quantity,'unitPrice',ii.unit_price::text,'lineTotal',ii.line_total::text) ORDER BY ii.id) FROM dealer_order_invoice_items ii WHERE ii.invoice_id=inv.id),'[]'::jsonb)) FROM dealer_order_invoices inv WHERE inv.order_id=o.id) AS invoice,
       COALESCE((SELECT sum(ri.received_quantity*oi.quoted_unit_price) FROM dealer_order_return_receipt_items ri JOIN dealer_order_return_receipts rc ON rc.id=ri.receipt_id JOIN dealer_order_return_requests rr ON rr.id=rc.request_id JOIN dealer_order_return_items di ON di.id=ri.return_item_id JOIN dealer_order_items oi ON oi.id=di.order_item_id WHERE rr.order_id=o.id AND ri.disposition IN ('restocked','not_restocked')),0)::numeric(18,2)::text AS "returnCreditTotal",
@@ -316,13 +318,14 @@ function createPortalStore(connectionString) {
             WHERE rr.order_id=$1 AND ri.disposition IN ('restocked','not_restocked')),0)::numeric(18,2)::text AS returned,
           COALESCE((SELECT sum(f.amount) FROM dealer_order_return_refunds f
             JOIN dealer_order_return_requests rr ON rr.id=f.return_id WHERE rr.order_id=$1),0)::numeric(18,2)::text AS refunded,
+          ${activeOffsetTotal('order_id','$1')}::numeric(18,2)::text AS offset,
           count(*) FILTER(WHERE quoted_unit_price IS NULL)::int AS "unquotedCount"
           FROM dealer_order_items WHERE order_id=$1`,[id])).rows[0];
         if(totals.unquotedCount)fail('订单报价未完成，不能登记收款',409);
         const inserted=(await c.query(`INSERT INTO dealer_order_payments(id,order_id,amount,reference,note,recorded_by)
           SELECT $1,$2,$3::numeric,$4,$5,$6
-          WHERE $3::numeric<=($7::numeric-$8::numeric-$9::numeric+$10::numeric)
-          RETURNING id,order_id AS "orderId",amount::text,reference,note,recorded_by AS "recordedBy",received_at AS "receivedAt"`,[paymentId,id,amountText,reference,note,currentActor(),totals.total,totals.paid,totals.returned,totals.refunded])).rows[0];
+          WHERE $3::numeric<=($7::numeric-$8::numeric-$9::numeric+$10::numeric-$11::numeric)
+          RETURNING id,order_id AS "orderId",amount::text,reference,note,recorded_by AS "recordedBy",received_at AS "receivedAt"`,[paymentId,id,amountText,reference,note,currentActor(),totals.total,totals.paid,totals.returned,totals.refunded,totals.offset])).rows[0];
         if(!inserted)fail('收款金额超过订单未结余额',409);
         return{after:inserted};
       });

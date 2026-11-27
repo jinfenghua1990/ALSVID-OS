@@ -12,6 +12,15 @@ test('owner cloud cart isolates accounts, rejects stale updates and checks publi
   assert.deepEqual(await cart.get(owner),{revision:0,items:[]});assert.equal((await cart.save(owner,{revision:0,items:[item]})).revision,1);assert.deepEqual((await cart.get(other)).items,[]);
   await assert.rejects(cart.get(dealer),/车主账号不可用/);
   const races=await Promise.allSettled([cart.save(owner,{revision:1,items:[{...item,quantity:3}]}),cart.save(owner,{revision:1,items:[{...item,quantity:4}]})]);assert.equal(races.filter(r=>r.status==='fulfilled').length,1);assert.equal(races.filter(r=>r.status==='rejected'&&r.reason.statusCode===409).length,1);
+  const {uuidv7}=require('../uuidv7');
+  const batch={mergeId:uuidv7(),expectedAccountId:String(owner.id),items:[{...item,quantity:2}]};
+  const merged=await cart.save(owner,batch);assert.equal(merged.mergeId,batch.mergeId);
+  assert.equal(merged.items[0].quantity,(races.find(r=>r.status==='fulfilled').value.items[0].quantity)+2);
+  const updated=await cart.save(owner,{revision:merged.revision,items:[{...item,quantity:1}],expectedAccountId:String(owner.id)});
+  const replay=await cart.save(owner,batch);assert.equal(replay.revision,updated.revision);assert.equal(replay.items[0].quantity,1);
+  await assert.rejects(cart.save(owner,{...batch,items:[{...item,quantity:3}]}),{statusCode:409});
+  await assert.rejects(cart.save(other,{...batch,expectedAccountId:String(other.id)}),{statusCode:409});
+  assert.deepEqual((await cart.get(other)).items,[]);
   const before=await cart.get(owner);assert(!JSON.stringify(before).includes('99.00'));await catalog.saveOffer({...offer,sku:item.sku,currency:'EUR',published:false},offer.id);
   await assert.rejects(cart.save(owner,{revision:before.revision,items:before.items}),/不可用/);assert.deepEqual(await cart.get(owner),before);
   assert.deepEqual((await cart.save(owner,{revision:before.revision,items:[]})).items,[]);

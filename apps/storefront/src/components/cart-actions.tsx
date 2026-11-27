@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import type { Locale, Offer, ProductAvailability } from '@/lib/alsvid-api';
 import { UI } from '@/lib/ui-text';
 import { parcelComponent } from '@/lib/account-text';
-import { guestCartKey, notifyCartChanged, readGuestCart } from './cart-storage';
+import { notifyCartChanged, readGuestCart, synchronizeOwnerCart, updateGuestCart, clearGuestCartIfUnchanged, assertGuestCartEditable } from './cart-storage';
 import { openCartDrawerEvent } from './cart-drawer';
 import { uuidv7 } from '@/lib/uuid';
 
@@ -96,9 +96,9 @@ export function CartActions({ locale, productId, offers, availability, giftPrevi
       if(!fresh||!(Number(amountCents(fresh.unitPrice))>0)||fresh.unitPrice!==selectedOffer.unitPrice)throw new Error('offer changed');
       const freshAvailable=freshStock?.items?.find((item:{sku:string;available:boolean})=>item.sku===selectedOffer.sku)?.available;
       if(freshAvailable===false||(!freshStock?.items?.length&&freshStock?.available===false))throw new Error('unavailable');
-      if(!auth.ok&&auth.status!==401&&auth.status!==403)throw new Error('auth unavailable');
+      if(!auth.ok&&auth.status!==401)throw new Error('auth unavailable');
       const user=auth.ok?(await auth.json())?.user:null;
-      const serverCart=user?.role==='owner'?await data(await fetch('/api/portal/storefront/cart',{cache:'no-store'})):null;
+      const serverCart=user?.role==='owner'?await synchronizeOwnerCart(String(user.id)):null;
       if(user?.role==='owner'&&(!Array.isArray(serverCart?.items)||!Number.isSafeInteger(serverCart?.revision)))throw new Error('invalid cart');
       const requested:CartItem={productId,sku:selectedOffer.sku,currency:selectedOffer.currency,quantity};
       const merge=(rows:CartItem[])=>{
@@ -112,19 +112,16 @@ export function CartActions({ locale, productId, offers, availability, giftPrevi
         if(merged.size>50)throw new Error('maximum items');
         return [...merged.values()];
       };
-      const guest:CartItem[]=readGuestCart();
-      const combined=merge([...(serverCart?.items||[]),...guest,requested]);
       if(serverCart){
-        // Do not clear guest items here; the existing cart-page merge flow handles them.
         const items=merge([...serverCart.items,requested]);
-        await data(await fetch('/api/portal/storefront/cart',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({revision:serverCart.revision,items})}));
+        await data(await fetch('/api/portal/storefront/cart',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({revision:serverCart.revision,items,expectedAccountId:String(user.id)})}));
       }else{
         // Guest selections are local; a catalog response is not a server cart acknowledgement.
-        localStorage.setItem(guestCartKey,JSON.stringify(combined));
+        await updateGuestCart(rows=>merge([...rows,requested]));
       }
       notifyCartChanged(); setMessage(t.added);
       if(direct)window.location.assign(cartHref+'?step=checkout');
-      else if(serverCart)window.dispatchEvent(new Event(openCartDrawerEvent));
+      else window.dispatchEvent(new Event(openCartDrawerEvent));
     } catch (error) { setMessage(error instanceof Error && error.message === 'maximum items' ? t.limit : error instanceof Error && error.message === 'maximum quantity' ? t.quantityLimit : t.error); }
     finally { setBusy(false); }
   };
@@ -224,27 +221,16 @@ export function CartPage({ locale, initialStep = 1, initialOrderId }: { locale: 
         if(order.delivery)setDelivery(current=>({...current,...order.delivery}));
         return;
       }
-      const auth = await fetch('/api/auth/status', { cache: 'no-store' }).then(response => response.ok ? response.json() : null).catch(() => null);
+      const authResponse = await fetch('/api/auth/status', { cache: 'no-store' });
+      if (!authResponse.ok && authResponse.status !== 401) throw new Error('auth unavailable');
+      const auth = authResponse.ok ? await authResponse.json() : null;
+      setAccountId('');
       let current: CartItem[] = readGuestCart();
       if (auth?.user?.role === 'owner') {
         setStatus('owner'); setAccountId(String(auth.user.id));
-        const cart = await data(await fetch('/api/portal/storefront/cart', { cache: 'no-store' }));
-        setRevision(cart.revision);
-        const merged = new Map<string, CartItem>();
-        for (const item of [...cart.items, ...current]) {
-          const key = `${item.productId}|${item.sku}|${item.currency}`;
-          const previous = merged.get(key);
-          const quantity = item.quantity + (previous?.quantity || 0);
-          if (quantity > 100) throw new Error('merge_limit');
-          merged.set(key, { ...item, quantity });
-        }
-        if (merged.size > 50) throw new Error('merge_limit');
-        current = [...merged.values()];
-        if (readGuestCart().length) {
-          const result = await data(await fetch('/api/portal/storefront/cart', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ revision: cart.revision, items: current }) }));
-          current = result.items; setRevision(result.revision); localStorage.removeItem(guestCartKey);
-        } else current = cart.items;
-      } else setStatus(auth?.user ? 'ownerOnly' : 'guest');
+        const cart = await synchronizeOwnerCart(String(auth.user.id));
+        setRevision(cart.revision);current=cart.items;
+      } else {assertGuestCartEditable();setStatus(auth?.user ? 'ownerOnly' : 'guest');}
       setItems(current);
       if (!current.length) setStep(previous => previous === 3 ? 3 : 1);
       notifyCartChanged();
@@ -259,7 +245,7 @@ export function CartPage({ locale, initialStep = 1, initialOrderId }: { locale: 
         return [productId, { product: await productResponse.json(), offers: await offersResponse.json() }] as const;
       }));
       setDetails(Object.fromEntries(rows));
-    } catch (cause: any) { setError(cause.message === 'merge_limit' ? t.mergeLimit : t.error); }
+    } catch (cause: any) { setError(cause.message === 'merge_limit' ? t.mergeLimit : cause.message==='pending_merge'?(locale==='zh'?'有尚未确认的购物车合并，请登录原账户重试。':locale==='de'?'Ein Warenkorb wird noch zusammengeführt. Bitte melden Sie sich erneut mit dem ursprünglichen Konto an.':'A cart merge is pending. Sign in to the original account and retry.'):t.error); }
     finally { setLoading(false); }
   };
 
@@ -270,11 +256,11 @@ export function CartPage({ locale, initialStep = 1, initialOrderId }: { locale: 
     setBusy(true); setError('');
     try {
       if (status === 'owner') {
-        const result = await data(await fetch('/api/portal/storefront/cart', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ revision, items: next }) }));
+        const result = await data(await fetch('/api/portal/storefront/cart', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ revision, items: next, expectedAccountId: accountId }) }));
         setRevision(result.revision); setItems(result.items);
         notifyCartChanged();
       } else {
-        localStorage.setItem(guestCartKey, JSON.stringify(next)); setItems(next); notifyCartChanged();
+        await updateGuestCart(rows=>{if(JSON.stringify(rows)!==JSON.stringify(items))throw Error('cart changed');return next}); setItems(next); notifyCartChanged();
       }
       setSuccess(false);
     } catch { setError(t.error); }
@@ -294,7 +280,7 @@ export function CartPage({ locale, initialStep = 1, initialOrderId }: { locale: 
     event.preventDefault(); if (busy || status==='ownerOnly' || !available || currencies.length !== 1) return;
     setBusy(true); setError('');
     try {
-      const isGuest=status==='guest';
+      const isGuest=status==='guest';if(isGuest)assertGuestCartEditable();
       const key = isGuest?'alsvid-guest-order-pending-v1':`alsvid-order-request-v1:${accountId}:${revision}`;
       let requestId = localStorage.getItem(key);
       if (!requestId || !/^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(requestId)) { requestId = uuidv7(); localStorage.setItem(key, requestId); }
@@ -310,7 +296,7 @@ export function CartPage({ locale, initialStep = 1, initialOrderId }: { locale: 
       }
       const result = isGuest?await guestOrderRequest('submit',{id:requestId,token,delivery:{...delivery,email},items:requestItems}):await data(await fetch('/api/portal/storefront/orders', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: requestId, cartRevision: revision, delivery, items: requestItems }) }));
       if (!result || result.id !== requestId || typeof result.status !== 'string') throw new Error('invalid response');
-      if(isGuest){setGuestCredential(token);setGuestDetail(result);if(JSON.stringify(readGuestCart())===JSON.stringify(items))localStorage.removeItem(guestCartKey);}
+      if(isGuest){setGuestCredential(token);setGuestDetail(result);await clearGuestCartIfUnchanged(items).catch(()=>{});}
       localStorage.removeItem(key); setOrderId(result.id); setSubmittedStatus(result.status); setItems([]); setSuccess(true); navigateStep(3); window.history.replaceState(null,'','/'+locale+'/cart?order='+encodeURIComponent(result.id)); notifyCartChanged();
     } catch (cause: any) { setError(cause.message === 'unavailable' ? t.unavailable : t.submitError); }
     finally { setBusy(false); }

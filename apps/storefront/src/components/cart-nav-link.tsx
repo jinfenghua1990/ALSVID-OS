@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react';
 import type { Locale } from '@/lib/alsvid-api';
 import { openCartDrawerEvent } from './cart-drawer';
 import { UI } from '@/lib/ui-text';
-import { cartChangedEvent, guestCartKey, guestCartQuantity } from './cart-storage';
+import { cartChangedEvent, guestCartKey, guestCartQuantity, synchronizeOwnerCart } from './cart-storage';
 
 export function CartNavLink({ locale }: { locale: Locale }) {
   const [quantity, setQuantity] = useState(0);
@@ -17,19 +17,27 @@ export function CartNavLink({ locale }: { locale: Locale }) {
       const current = ++revision;
       setQuantity(guestCartQuantity());
       try {
-        const auth = await fetch('/api/auth/status', { cache: 'no-store' }).then(response => response.ok ? response.json() : null);
-        if (auth?.user?.role !== 'owner') return;
-        const cart = await fetch('/api/portal/storefront/cart', { cache: 'no-store' }).then(response => response.ok ? response.json() : null);
-        if (current === revision && Array.isArray(cart?.items)) setQuantity(cart.items.reduce((total: number, item: { quantity?: number }) => total + (Number(item.quantity) || 0), guestCartQuantity()));
+        const response = await fetch('/api/auth/status', { cache: 'no-store' });
+        if (!response.ok) return;
+        const auth = await response.json();
+        if (current !== revision || auth?.user?.role !== 'owner') return;
+        const cart = await synchronizeOwnerCart(String(auth.user.id));
+        if (current === revision && Array.isArray(cart?.items)) setQuantity(cart.items.reduce((total: number, item: { quantity?: number }) => total + (Number(item.quantity) || 0), 0));
       } catch { /* Keep the locally stored guest count when account services are unavailable. */ }
     };
     const onStorage = (event: StorageEvent) => { if (event.key === guestCartKey) void refresh(); };
     void refresh();
     window.addEventListener(cartChangedEvent, refresh);
     window.addEventListener('storage', onStorage);
+    window.addEventListener('focus', refresh);
+    const onVisible = () => { if (document.visibilityState === 'visible') void refresh(); };
+    document.addEventListener('visibilitychange', onVisible);
     return () => {
+      revision++;
       window.removeEventListener(cartChangedEvent, refresh);
       window.removeEventListener('storage', onStorage);
+      window.removeEventListener('focus', refresh);
+      document.removeEventListener('visibilitychange', onVisible);
     };
   }, []);
 

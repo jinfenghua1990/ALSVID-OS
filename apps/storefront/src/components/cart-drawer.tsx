@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import type { Locale, Offer } from '@/lib/alsvid-api';
-import { cartChangedEvent, guestCartKey, readGuestCart } from './cart-storage';
+import { cartChangedEvent, guestCartKey, readGuestCart, synchronizeOwnerCart, assertGuestCartEditable } from './cart-storage';
 
 export const openCartDrawerEvent = 'alsvid:open-cart-drawer';
 type Item = { productId:string; sku:string; currency:string; quantity:number };
@@ -52,11 +52,12 @@ export function CartDrawer({locale}:{locale:Locale}) {
       if(auth.ok){
         const user=(await auth.json())?.user;
         if(user?.role==='owner'){
-          const cart=await json('/api/portal/storefront/cart');
+          const cart=await synchronizeOwnerCart(String(user.id));
           if(!Array.isArray(cart?.items))throw new Error('invalid cart');
-          items=[...cart.items,...items];
-        }
-      }else if(auth.status!==401&&auth.status!==403)throw new Error('auth unavailable');
+          items=cart.items;
+        }else assertGuestCartEditable();
+      }else if(auth.status!==401)throw new Error('auth unavailable');
+      if(!auth.ok)assertGuestCartEditable();
       const merged=new Map<string,Item>();
       for(const item of items){
         const key=JSON.stringify([item.productId,item.sku,item.currency]);

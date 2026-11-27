@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import type { Locale, Offer, ProductAvailability } from '@/lib/alsvid-api';
 import { UI } from '@/lib/ui-text';
+import { parcelComponent } from '@/lib/account-text';
 import { guestCartKey, notifyCartChanged, readGuestCart } from './cart-storage';
 import { openCartDrawerEvent } from './cart-drawer';
 import { uuidv7 } from '@/lib/uuid';
@@ -167,9 +168,9 @@ function amountCents(value: string) {
 }
 
 const orderStatuses:Record<Locale,Record<string,string>>={
- zh:{submitted:'申请已提交，尚未付款',quoted:'已报价',accepted:'报价已接受',allocated:'库存已分配，等待付款',partially_paid:'部分付款',paid:'已付款',shipped:'已发货',delivered:'已收货',cancelled:'订单已取消',declined:'报价已拒绝'},
- en:{submitted:'Request submitted, not paid',quoted:'Quote issued',accepted:'Quote accepted',allocated:'Stock allocated, awaiting payment',partially_paid:'Partially paid',paid:'Paid',shipped:'Shipped',delivered:'Delivered',cancelled:'Order cancelled',declined:'Quote declined'},
- de:{submitted:'Anfrage eingereicht, nicht bezahlt',quoted:'Angebot erstellt',accepted:'Angebot angenommen',allocated:'Bestand reserviert, Zahlung offen',partially_paid:'Teilweise bezahlt',paid:'Bezahlt',shipped:'Versandt',delivered:'Zugestellt',cancelled:'Bestellung storniert',declined:'Angebot abgelehnt'},
+ zh:{submitted:'申请已提交，尚未付款',quoted:'已报价',accepted:'报价已接受',allocated:'库存已分配，等待付款',partially_paid:'部分付款',paid:'已付款',partially_shipped:'部分发货',shipped:'已发货',delivered:'已收货',cancelled:'订单已取消',declined:'报价已拒绝'},
+ en:{submitted:'Request submitted, not paid',quoted:'Quote issued',accepted:'Quote accepted',allocated:'Stock allocated, awaiting payment',partially_paid:'Partially paid',paid:'Paid',partially_shipped:'Partially shipped',shipped:'Shipped',delivered:'Delivered',cancelled:'Order cancelled',declined:'Quote declined'},
+ de:{submitted:'Anfrage eingereicht, nicht bezahlt',quoted:'Angebot erstellt',accepted:'Angebot angenommen',allocated:'Bestand reserviert, Zahlung offen',partially_paid:'Teilweise bezahlt',paid:'Bezahlt',partially_shipped:'Teilweise versandt',shipped:'Versandt',delivered:'Zugestellt',cancelled:'Bestellung storniert',declined:'Angebot abgelehnt'},
 };
 const guestOrderCopy = {
  zh:{email:'联系邮箱',guest:'无需注册即可提交订购申请，也可以登录账号。',lookup:'查询访客订单',credential:'订单查询凭证',save:'请妥善保存订单编号和查询凭证；凭证可用于其他设备查询订单，请勿分享。',open:'查询',accept:'接受报价',decline:'拒绝报价',receive:'确认收货',quote:'报价总额',tracking:'运单号'},
@@ -200,7 +201,7 @@ export function CartPage({ locale, initialStep = 1, initialOrderId }: { locale: 
   const [lookupId,setLookupId]=useState(initialOrderId||'');
   const [lookupToken,setLookupToken]=useState('');
   const [guestCredential,setGuestCredential]=useState('');
-  const [guestDetail,setGuestDetail]=useState<{quote?:{id:string;totalMinor:string};currency?:string;shipment?:{trackingNo:string}}|null>(null);
+  const [guestDetail,setGuestDetail]=useState<{quote?:{id:string;totalMinor:string};currency?:string;shipment?:{trackingNo:string};parcels?:{id:string;component:string;carrier:string;trackingNo:string;receivedAt?:string;items:{sku:string;quantity:number}[]}[]}|null>(null);
   const flow = transactionCopy[locale];
   const navigateStep = (next: 1 | 2 | 3) => {
     setStep(next);
@@ -323,9 +324,9 @@ export function CartPage({ locale, initialStep = 1, initialOrderId }: { locale: 
     try{const order=await guestOrderRequest('lookup',{id,token});if(order?.id!==id)throw Error('invalid order');localStorage.setItem(guestTokenKey(id),token);window.location.assign('/'+locale+'/cart?order='+encodeURIComponent(id));}
     catch{setError(t.submitError)}finally{setBusy(false)}
   };
-  const actGuest=async(action:'respond'|'receive',decision?:'accept'|'decline')=>{
+  const actGuest=async(action:'respond'|'receive',decision?:'accept'|'decline',parcelId?:string)=>{
     if(busy||!guestCredential)return;setBusy(true);setError('');
-    try{await guestOrderRequest(action,{id:orderId,token:guestCredential,...(decision?{decision,quoteId:guestDetail?.quote?.id}:{})});const result=await guestOrderRequest('lookup',{id:orderId,token:guestCredential});setGuestDetail(result);setSubmittedStatus(result.status);}
+    try{await guestOrderRequest(action,{id:orderId,token:guestCredential,...(decision?{decision,quoteId:guestDetail?.quote?.id}:{}),...(parcelId?{parcelId}:{})});const result=await guestOrderRequest('lookup',{id:orderId,token:guestCredential});setGuestDetail(result);setSubmittedStatus(result.status);}
     catch{setError(t.submitError)}finally{setBusy(false)}
   };
   const loginHref = `/${locale}/account?returnTo=${encodeURIComponent(`/${locale}/cart`)}`;
@@ -338,7 +339,7 @@ export function CartPage({ locale, initialStep = 1, initialOrderId }: { locale: 
     {loading && <p role="status">{t.loading}</p>}
     {!loading && status !== 'owner' && items.length > 0 && <section className="cart-notice"><p>{status==='guest'?g.guest:t.login}</p><a className="button" href={loginHref}>{t.loginButton}</a></section>}
     {!loading && error && <p className="cart-error" role="alert">{error} <button type="button" onClick={() => void load()}>{t.retry}</button></p>}
-    {!loading && success && step === 3 && <section className="cart-success" role="status"><h2>{orderStatuses[locale][submittedStatus]||submittedStatus}</h2>{submittedStatus==='submitted'&&<p>{t.success}</p>}<p>{flow.order}: <strong>{orderId}</strong></p>{delivery.address&&<p>{delivery.name} · {delivery.address} · {delivery.postalCode} {delivery.city} · {delivery.country}</p>}{guestCredential?<><p>{g.credential}: <code style={{overflowWrap:'anywhere'}}>{guestCredential}</code></p><p>{g.save}</p>{guestDetail?.quote&&<p>{g.quote}: {guestDetail.currency} {(Number(guestDetail.quote.totalMinor)/100).toFixed(2)}</p>}{submittedStatus==='quoted'&&guestDetail?.quote&&<div><button type="button" disabled={busy} onClick={()=>void actGuest('respond','accept')}>{g.accept}</button> <button type="button" disabled={busy} onClick={()=>void actGuest('respond','decline')}>{g.decline}</button></div>}{guestDetail?.shipment&&<p>{g.tracking}: {guestDetail.shipment.trackingNo}</p>}{submittedStatus==='shipped'&&<button type="button" disabled={busy} onClick={()=>void actGuest('receive')}>{g.receive}</button>}</>:<Link className="button" href={`/${locale}/account`}>{flow.orders}</Link>}</section>}
+    {!loading && success && step === 3 && <section className="cart-success" role="status"><h2>{orderStatuses[locale][submittedStatus]||submittedStatus}</h2>{submittedStatus==='submitted'&&<p>{t.success}</p>}<p>{flow.order}: <strong>{orderId}</strong></p>{delivery.address&&<p>{delivery.name} · {delivery.address} · {delivery.postalCode} {delivery.city} · {delivery.country}</p>}{guestCredential?<><p>{g.credential}: <code style={{overflowWrap:'anywhere'}}>{guestCredential}</code></p><p>{g.save}</p>{guestDetail?.quote&&<p>{g.quote}: {guestDetail.currency} {(Number(guestDetail.quote.totalMinor)/100).toFixed(2)}</p>}{submittedStatus==='quoted'&&guestDetail?.quote&&<div><button type="button" disabled={busy} onClick={()=>void actGuest('respond','accept')}>{g.accept}</button> <button type="button" disabled={busy} onClick={()=>void actGuest('respond','decline')}>{g.decline}</button></div>}{guestDetail?.parcels?.map(p=><div key={p.id}><p>{parcelComponent(p.component,locale)} · {p.carrier} · {g.tracking}: {p.trackingNo}</p><p>{(p.items||[]).map(i=>i.sku+' × '+i.quantity).join(' · ')}</p>{p.receivedAt?<p>{orderStatuses[locale].delivered}</p>:<button type="button" disabled={busy} onClick={()=>void actGuest('receive',undefined,p.id)}>{g.receive}</button>}</div>)}{!guestDetail?.parcels?.length&&guestDetail?.shipment&&<p>{g.tracking}: {guestDetail.shipment.trackingNo}</p>}{!guestDetail?.parcels?.length&&submittedStatus==='shipped'&&<button type="button" disabled={busy} onClick={()=>void actGuest('receive')}>{g.receive}</button>}</>:<Link className="button" href={`/${locale}/account`}>{flow.orders}</Link>}</section>}
     {!loading&&!success&&<form className="cart-checkout" onSubmit={openGuestOrder}><h2>{g.lookup}</h2><label>{flow.order}<input required maxLength={36} value={lookupId} onChange={e=>setLookupId(e.target.value)}/></label><label>{g.credential}<input required type="password" autoComplete="off" maxLength={64} value={lookupToken} onChange={e=>setLookupToken(e.target.value)}/></label><button type="submit" disabled={busy}>{g.open}</button></form>}
     {!loading && !error && !success && !items.length && <section className="cart-notice"><p>{t.empty}</p><a className="button" href={`/${locale}/e-bikes`}>{t.browse}</a></section>}
     {!loading && !error && !success && items.length > 0 && <>

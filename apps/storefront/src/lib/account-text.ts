@@ -84,6 +84,7 @@ export const ORDER_STATUS: Record<string, Text> = {
   allocated: { de: 'Reserviert', en: 'Reserved', zh: '已配货' },
   partially_paid: { de: 'Teilweise bezahlt', en: 'Partially paid', zh: '部分付款' },
   paid: { de: 'Bezahlt', en: 'Paid', zh: '已付款' },
+  partially_shipped: { de: 'Teilweise versandt', en: 'Partially shipped', zh: '部分发货' },
   shipped: { de: 'Versandt', en: 'Shipped', zh: '已发货' },
   delivered: { de: 'Geliefert', en: 'Delivered', zh: '已签收' },
   cancelled: { de: 'Storniert', en: 'Cancelled', zh: '已取消' },
@@ -302,3 +303,5 @@ export const SECURITY = {
   sessionTitle: { de: 'Sitzung', en: 'Session', zh: '会话' },
   logout: { de: 'Jetzt abmelden', en: 'Sign out now', zh: '立即退出登录' },
 };
+
+export function parcelComponent(component:string,locale:Locale){const labels:Record<string,Record<Locale,string>>={body:{zh:'车体（不含电池）',en:'Bike without battery',de:'Fahrrad ohne Akku'},battery:{zh:'电池',en:'Battery',de:'Akku'},accessory:{zh:'配件',en:'Accessories',de:'Zubehör'}};return labels[component]?.[locale]||component;}

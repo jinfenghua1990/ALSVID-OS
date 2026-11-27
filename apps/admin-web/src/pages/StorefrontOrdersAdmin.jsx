@@ -12,6 +12,7 @@ const STATUS = {
   allocated: ['待收款', 'warn'],
   partially_paid: ['部分收款', 'warn'],
   paid: ['待发货', 'danger'],
+  partially_shipped: ['部分发货', 'warn'],
   shipped: ['已发货', 'ok'],
   delivered: ['已完成', 'mute'],
   cancelled: ['已取消', 'mute'],
@@ -68,6 +69,17 @@ function Badge({ status }) {
 }
 
 const emptyCounts = {};
+const componentLabel={body:'车体（不含电池）',battery:'电池',accessory:'配件'};
+function remainingParcelItems(order,component){
+ return (order.orderLines||[]).filter(i=>i.kind==='vehicle'?component!=='accessory':component==='accessory').map(i=>{
+ const sent=(order.parcels||[]).filter(p=>p.component===component).flatMap(p=>p.items||[]).filter(x=>x.itemId===i.id).reduce((n,x)=>n+Number(x.quantity),0);
+ return {itemId:i.id,sku:i.sku,remaining:Math.max(0,Number(i.quantity)-sent),quantity:''};
+ }).filter(i=>i.remaining>0);
+}
+function shipForm(order){
+ const component=['body','battery','accessory'].find(x=>remainingParcelItems(order,x).length)||'body';
+ return {type:'ship',orderId:order.id,parcelId:uuidv7(),component,carrier:'',trackingNo:'',batteryApproved:false,order,items:remainingParcelItems(order,component)};
+}
 
 export default function StorefrontOrdersAdmin({ active = true, onDirtyChange, onGotoReviews }) {
   const [rows, setRows] = useState([]);
@@ -170,7 +182,7 @@ export default function StorefrontOrdersAdmin({ active = true, onDirtyChange, on
 
   const submitReversal = () => run(() => post(`/api/storefront/orders/${encodeURIComponent(form.orderId)}/payments/${encodeURIComponent(form.paymentId)}/reverse`, form, '收款更正'), '收款更正');
 
-  const submitShip = () => run(() => post(`/api/storefront/orders/${encodeURIComponent(form.orderId)}/ship`, { carrier: form.carrier, trackingNo: form.trackingNo }, '发运'), '发运出库');
+  const submitShip = () => run(() => post(`/api/storefront/orders/${encodeURIComponent(form.orderId)}/ship`, { parcelId:form.parcelId,component:form.component,carrier:form.carrier,trackingNo:form.trackingNo,batteryApproved:form.batteryApproved,items:form.items.filter(i=>Number(i.quantity)>0).map(i=>({itemId:i.itemId,quantity:Number(i.quantity)})) }, '发运'), '发运出库');
 
   const submitCancel = () => run(() => post(`/api/storefront/orders/${encodeURIComponent(form.orderId)}/cancel`, { reason: form.reason }, '取消'), '取消订单');
 
@@ -224,8 +236,8 @@ export default function StorefrontOrdersAdmin({ active = true, onDirtyChange, on
     if (['allocated', 'partially_paid'].includes(status)) {
       return <button type="button" className="shop-link is-strong" disabled={busy} onClick={() => setForm({ type: 'payment', orderId: order.id, id: uuidv7(), amount: '', method: 'bank_transfer', reference: '', receivedOn: '', note: '', verified: false })}>登记收款</button>;
     }
-    if (status === 'paid') {
-      return <button type="button" className="shop-link is-strong" disabled={busy} onClick={() => setForm({ type: 'ship', orderId: order.id, carrier: '', trackingNo: '' })}>发货出库</button>;
+    if (['paid','partially_shipped'].includes(status)) {
+      return <button type="button" className="shop-link is-strong" disabled={busy} onClick={() => setForm(shipForm(order))}>登记包裹发运</button>;
     }
     return null;
   };
@@ -436,7 +448,10 @@ function renderForm({ form, setForm, warehouses, busy, actions }) {
   </>;
 
   if (form.type === 'ship') return <>
-    <p className="hint" />
+    <p className="hint">按包裹登记；整车车体与电池分别发运，全部组件发出后扣减该商品行整车库存。</p>
+    <Row label="包裹类型"><select value={form.component} onChange={e=>patch({component:e.target.value,items:remainingParcelItems(form.order,e.target.value),batteryApproved:false})}>{Object.entries(componentLabel).map(([key,label])=><option key={key} value={key} disabled={!remainingParcelItems(form.order,key).length}>{label}</option>)}</select></Row>
+    {form.items.map((i,index)=><Row key={i.itemId} label={i.sku+'（剩余 '+i.remaining+'）'}><input type="number" min="0" max={i.remaining} value={i.quantity} onChange={e=>patch({items:form.items.map((x,j)=>j===index?{...x,quantity:e.target.value}:x)})}/></Row>)}
+    {form.component==='battery'&&<label className="shop-form__check"><input type="checkbox" checked={form.batteryApproved} onChange={e=>patch({batteryApproved:e.target.checked})}/>已核实承运商接受符合要求的电池运输</label>}
     <Row label="承运商"><input maxLength={120} value={form.carrier} onChange={e => patch({ carrier: e.target.value })} placeholder="DHL / 顺丰 / 海运…" /></Row>
     <Row label="运单号"><input maxLength={120} value={form.trackingNo} onChange={e => patch({ trackingNo: e.target.value })} /></Row>
     <div className="shop-modal__foot">{ok('确认发货')}</div>
@@ -549,7 +564,7 @@ function OrderDetail({ order, warehouses, busy, setForm, onReviewReturn }) {
         <p>{order.delivery?.address}</p>
         <p>{order.delivery?.postalCode} {order.delivery?.city} · {order.delivery?.country}</p>
         <h5>物流</h5>
-        {order.shipment ? <><p>{order.shipment.carrier} · {order.shipment.trackingNo}</p><p className="shop-grid__muted">发运 {stamp(order.shipment.shippedAt)}</p></> : <p className="shop-grid__muted">尚未发运</p>}
+        {(order.parcels||[]).length?order.parcels.map(p=><div key={p.id}><p>{componentLabel[p.component]} · {p.carrier} · {p.trackingNo}</p><p className="shop-grid__muted">{(p.items||[]).map(i=>i.sku+' × '+i.quantity).join('；')} · 发运 {stamp(p.shippedAt)} · {p.receivedAt?'签收 '+stamp(p.receivedAt):'未签收'}</p></div>):order.shipment ? <><p>{order.shipment.carrier} · {order.shipment.trackingNo}</p><p className="shop-grid__muted">发运 {stamp(order.shipment.shippedAt)}</p></> : <p className="shop-grid__muted">尚未发运</p>}
         {order.receipt && <p className="shop-grid__muted">签收 {stamp(order.receipt.receivedAt)}{order.receipt.note ? ` · ${order.receipt.note}` : ''}</p>}
         {order.cancelReason && <><h5>取消原因</h5><p>{order.cancelReason}</p></>}
         {(order.allocationItems || []).some(i => i.warehouseName) && <><h5>预占仓库</h5><p>{(order.allocationItems || []).map(i => `${i.sku} · ${i.warehouseName || '—'}`).join('；')}</p></>}

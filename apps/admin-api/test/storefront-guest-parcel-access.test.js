@@ -1,0 +1,26 @@
+'use strict';
+const {test}=require('node:test');
+const assert=require('node:assert/strict');
+const Fastify=require('fastify');
+const {apiAccessHook}=require('../access-policy');
+const {registerGuestCheckoutRoutes}=require('../storefront-guest-checkout');
+const {registerStorefrontParcelRoutes}=require('../storefront-orders');
+test('guest order routes require verified email tokens and claim also requires owner role',async t=>{
+ const app=Fastify(),seen=[];
+ app.addHook('onRequest',apiAccessHook({user:async role=>role?{role,id:'synthetic',username:'guest@example.invalid'}:null},req=>req.headers['test-role']));
+ const guest={authenticate:async token=>{if(token!=='Bearer verified')throw Object.assign(Error('invalid'),{statusCode:401});return 'guest@example.invalid';}};
+ const orders={submitGuest:async(email,b)=>{seen.push([email,b]);return {ok:true}},claimGuest:async()=>({claimed:true}),planParcels:async()=>({ok:true}),receiveParcel:async()=>({ok:true})};
+ registerGuestCheckoutRoutes(app,guest,orders);
+ registerStorefrontParcelRoutes(app,orders);
+ t.after(()=>app.close());
+ const post=(url,headers={})=>app.inject({method:'POST',url,headers,payload:{}});
+ assert.equal((await post('/api/public/guest-checkout/submit')).statusCode,401);
+ assert.equal((await post('/api/public/guest-checkout/submit',{authorization:'Bearer verified'})).statusCode,200);
+ assert.equal(seen.length,1);
+ assert.equal(seen[0][0],'guest@example.invalid');
+ assert.equal((await post('/api/portal/storefront/guest-claim',{'x-guest-authorization':'Bearer verified'})).statusCode,401);
+ assert.equal((await post('/api/portal/storefront/guest-claim',{'test-role':'dealer','x-guest-authorization':'Bearer verified'})).statusCode,403);
+ assert.equal((await post('/api/portal/storefront/guest-claim',{'test-role':'owner','x-guest-authorization':'Bearer verified'})).statusCode,200);
+ assert.equal((await post('/api/storefront/orders/id/parcels',{'test-role':'viewer'})).statusCode,403);
+ assert.equal((await post('/api/storefront/orders/id/parcels',{'test-role':'admin'})).statusCode,200);
+});

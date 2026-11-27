@@ -31,6 +31,7 @@ type Rule = { method: string; pattern: RegExp };
 // 匿名可访问：与 8089 的 publicCatalog / publicLocations / publicDealerApplication /
 // publicColourInterest / publicTestRide 配置一一对应。
 const PUBLIC_RULES: Rule[] = [
+  { method: 'POST', pattern: /^\/api\/public\/guest-checkout\/(start|verify|submit|lookup|respond|receive|receive-parcel)$/ },
   { method: 'GET', pattern: /^\/api\/catalog\/homepage$/ },
   { method: 'GET', pattern: /^\/api\/catalog\/products$/ },
   { method: 'GET', pattern: /^\/api\/catalog\/products\/[^/]+$/ },
@@ -59,6 +60,7 @@ const PUBLIC_RULES: Rule[] = [
 // 这里只做「入口收敛」——不放行任何 dealer / supplier / 后台运营端点，
 // 也不放行 /api/storefront/*（同前缀的管理端订单操作）与 /api/auth/setup（管理员初始化）。
 const CONSUMER_RULES: Rule[] = [
+  { method: 'POST', pattern: /^\/api\/portal\/storefront\/guest-claim$/ },
   { method: 'GET', pattern: /^\/api\/auth\/status$/ },
   { method: 'POST', pattern: /^\/api\/auth\/login$/ },
   { method: 'GET', pattern: /^\/api\/auth\/registration$/ },
@@ -69,7 +71,7 @@ const CONSUMER_RULES: Rule[] = [
   { method: 'GET', pattern: /^\/api\/portal\/storefront\/orders$/ },
   { method: 'GET', pattern: /^\/api\/portal\/storefront\/orders\/[0-9a-fA-F-]{36}$/ },
   { method: 'POST', pattern: /^\/api\/portal\/storefront\/orders$/ },
-  { method: 'POST', pattern: /^\/api\/portal\/storefront\/orders\/[^/]+\/(respond|receive|returns|reviews)$/ },
+  { method: 'POST', pattern: /^\/api\/portal\/storefront\/orders\/[^/]+\/(respond|receive|receive-parcel|returns|reviews)$/ },
   { method: 'GET', pattern: /^\/api\/portal\/vehicles$/ },
   { method: 'GET', pattern: /^\/api\/portal\/vehicle-requests$/ },
   { method: 'POST', pattern: /^\/api\/portal\/vehicle-requests$/ },
@@ -173,6 +175,15 @@ async function proxy(request: NextRequest, segments: string[]) {
   if (contentType) headers.set('content-type', contentType);
   const cookie = request.headers.get('cookie');
   if (cookie) headers.set('cookie', cookie);
+  // Only the dedicated guest routes may forward the short-lived verified email token.
+  if (/^\/api\/public\/guest-checkout\/(submit|lookup|respond|receive|receive-parcel)$/.test(pathname)) {
+    const token = request.headers.get('authorization');
+    if (token && /^Bearer [A-Za-z0-9_-]{43}$/.test(token)) headers.set('authorization', token);
+  }
+  if (pathname === '/api/portal/storefront/guest-claim') {
+    const token = request.headers.get('x-guest-authorization');
+    if (token && /^Bearer [A-Za-z0-9_-]{43}$/.test(token)) headers.set('x-guest-authorization', token);
+  }
   // 来源已校验，这里改写为后端源以通过 8089 公开表单接口的同源校验；
   // 客户端原始 Origin 不向下游透传。
   headers.set('origin', API_ORIGIN);

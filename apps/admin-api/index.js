@@ -30,7 +30,8 @@ const { createCmsStore, registerCmsRoutes } = require('./cms');
 const { createStorefrontListingStore, registerStorefrontListingRoutes } = require('./storefront-listings');
 const {createShippingRateTemplates,registerShippingRateTemplateRoutes}=require('./shipping-rate-templates');
 const { createStorefrontCart, registerStorefrontCartRoutes } = require('./storefront-cart');
-const { createStorefrontOrders, registerStorefrontOrderRoutes } = require('./storefront-orders');
+const { createStorefrontOrders, registerStorefrontOrderRoutes, registerStorefrontParcelRoutes } = require('./storefront-orders');
+const { createGuestCheckout, registerGuestCheckoutRoutes } = require('./storefront-guest-checkout');
 const { createStorefrontReviews, registerStorefrontReviewRoutes } = require('./storefront-reviews');
 const { createPortalStore, registerPortalRoutes } = require('./portal');
 const { createDealerReturns, registerDealerReturnRoutes } = require('./dealer-returns');
@@ -267,6 +268,8 @@ registerStorefrontCartRoutes(app,process.env.DATABASE_URL ? createStorefrontCart
 registerShippingRateTemplateRoutes(app,process.env.DATABASE_URL ? createShippingRateTemplates(process.env.DATABASE_URL) : null);
 const orderStore = process.env.DATABASE_URL ? createStorefrontOrders(process.env.DATABASE_URL) : null;
 registerStorefrontOrderRoutes(app, orderStore);
+registerStorefrontParcelRoutes(app, orderStore);
+registerGuestCheckoutRoutes(app, process.env.DATABASE_URL ? createGuestCheckout(process.env.DATABASE_URL) : null, orderStore);
 // 支付回调确认后复用订单收款口径（recordPayment）推进状态并触发 Purchase 事件
 if (orderStore) payments.setOrderStore(orderStore);
 registerStorefrontReviewRoutes(app,process.env.DATABASE_URL ? createStorefrontReviews(process.env.DATABASE_URL) : null);

@@ -13,6 +13,7 @@ type ReturnItem = { returnItemId: string; itemId: string; sku: string; quantity:
 type ReturnRequest = { id: string; status: string; reason: string; reviewNote: string | null; createdAt: string; items: ReturnItem[] };
 type Quote = { id: string; revision: number; shippingMinor: string; taxMinor: string; totalMinor: string; note: string; createdAt: string };
 type Shipment = { carrier: string; trackingNo: string; shippedAt: string | null };
+type Parcel = { id:string; component:'whole'|'body'|'battery'; carrier:string|null; trackingNo:string|null; dispatchedAt:string|null; receivedAt:string|null };
 type Review = { id: string; rating: number; content: string; reply: string | null; repliedAt: string | null };
 export type Order = {
   id: string;
@@ -28,6 +29,7 @@ export type Order = {
   returns: ReturnRequest[];
   receipt: { note: string | null; receivedAt: string | null } | null;
   shipment: Shipment | null;
+  parcels: Parcel[];
   cancelReason: string | null;
   quote: Quote | null;
   review: Review | null;
@@ -45,6 +47,7 @@ function normalizeOrder(raw: Order): Order {
     review: raw.review ?? null,
     receipt: raw.receipt ?? null,
     shipment: raw.shipment ?? null,
+    parcels: Array.isArray(raw.parcels) ? raw.parcels : [],
   };
 }
 
@@ -174,7 +177,8 @@ function OrderCard({ locale, order, onChanged }: { locale: Locale; order: Order;
   );
 
   const canRespond = order.status === 'quoted' && order.quote;
-  const canReceive = order.status === 'shipped';
+  const canReceive = order.status === 'shipped' && order.parcels.every(p=>!!p.receivedAt);
+  const parcelText = {zh:{whole:'整件',body:'车体',battery:'电池',pending:'待发运',sent:'已发运',received:'已签收',confirm:'确认包裹签收'},en:{whole:'Complete item',body:'Bike body',battery:'Battery',pending:'Awaiting dispatch',sent:'Dispatched',received:'Received',confirm:'Confirm parcel receipt'},de:{whole:'Komplettartikel',body:'Fahrrad ohne Akku',battery:'Akku',pending:'Versand ausstehend',sent:'Versandt',received:'Erhalten',confirm:'Paketerhalt bestätigen'}}[locale];
   const canReturn = (order.status === 'shipped' || order.status === 'delivered')
     && !order.returns.some((request) => request.status === 'pending');
   const canReview = order.status === 'delivered' && !order.review;
@@ -214,7 +218,8 @@ function OrderCard({ locale, order, onChanged }: { locale: Locale; order: Order;
       </div>}
     </section>}
 
-    {order.shipment && <section className="account-subpanel">
+    {order.parcels.length>0&&<section className="account-subpanel"><h4>{ORDERS.shipment[locale]}</h4>{order.parcels.map(p=><div key={p.id}><p>{parcelText[p.component]} · {p.receivedAt?parcelText.received:p.dispatchedAt?parcelText.sent:parcelText.pending}{p.trackingNo?' · '+p.carrier+' '+p.trackingNo:''}</p>{p.dispatchedAt&&!p.receivedAt&&<button className="account-ghost" type="button" disabled={busy} onClick={()=>void run(()=>postJson('/api/portal/storefront/orders/'+order.id+'/receive-parcel',{parcelId:p.id}),ORDERS.receiptFailed[locale])}>{parcelText.confirm}</button>}</div>)}</section>}
+    {!order.parcels.length&&order.shipment && <section className="account-subpanel">
       <h4>{ORDERS.shipment[locale]}</h4>
       <dl className="account-facts">
         <div><dt>{ORDERS.carrier[locale]}</dt><dd>{order.shipment.carrier || '—'}</dd></div>

@@ -151,6 +151,11 @@ const cartCopy = {
   zh: { title: '购物车', note: '此为不具约束力的订购申请，库存、税费与运费将由 ALSVID 确认，不会产生付款。', loading: '正在加载购物车…', empty: '购物车是空的。', browse: '浏览整车', login: '请使用已开通的车主账号登录，以安全提交订购申请。', loginButton: '登录并提交申请', error: '购物车或商品数据加载失败。', mergeLimit: '购物车条目或数量过多，无法合并。访客购物车仍已保留。', retry: '重试', remove: '移除', quantity: '数量', save: '保存数量', subtotal: '商品小计', request: '提交订购申请', name: '姓名', phone: '电话', country: '国家', city: '城市', postalCode: '邮编', address: '地址', success: '申请已提交，ALSVID 将确认价格、库存与配送。', submitError: '申请发送失败，请检查网络后重试。', unavailable: '某商品或价格已不可用，请移除后重新添加。' },
 } satisfies Record<Locale, Record<string, string>>;
 
+const guestCopy = {
+ zh:{title:'免注册下单',email:'邮箱',code:'邮箱验证码',send:'发送验证码',verify:'验证邮箱',verified:'邮箱已验证',lookup:'查询访客订单',order:'订单编号',claim:'登录后认领订单',accept:'接受报价',decline:'拒绝报价',receive:'确认收货',error:'验证或订单操作失败，请重试。'},
+ en:{title:'Guest checkout',email:'Email',code:'Verification code',send:'Send code',verify:'Verify email',verified:'Email verified',lookup:'Find guest order',order:'Order number',claim:'Sign in to claim order',accept:'Accept quote',decline:'Decline quote',receive:'Confirm receipt',error:'Verification or order action failed. Please retry.'},
+ de:{title:'Als Gast bestellen',email:'E-Mail',code:'Bestätigungscode',send:'Code senden',verify:'E-Mail bestätigen',verified:'E-Mail bestätigt',lookup:'Gastbestellung suchen',order:'Bestellnummer',claim:'Anmelden und Bestellung übernehmen',accept:'Angebot annehmen',decline:'Angebot ablehnen',receive:'Erhalt bestätigen',error:'Bestätigung oder Bestellaktion fehlgeschlagen. Bitte erneut versuchen.'},
+} as const;
 const transactionCopy = {
   zh: { cart:'购物车', checkout:'结算', complete:'申请结果', next:'前往结算', back:'返回购物车', order:'申请编号', pending:'订购申请已受理 · 尚未付款', orders:'查看我的订单', shipping:'运费与税费待确认，暂不支持在线付款。', review:'确认商品及收货信息' },
   en: { cart:'Cart', checkout:'Checkout', complete:'Request result', next:'Continue to checkout', back:'Back to cart', order:'Request number', pending:'Order request received · not paid', orders:'View my orders', shipping:'Shipping and taxes await confirmation. Online payment is not available.', review:'Review items and delivery details' },
@@ -173,6 +178,27 @@ const orderStatuses:Record<Locale,Record<string,string>>={
 };
 export function CartPage({ locale, initialStep = 1, initialOrderId }: { locale: Locale; initialStep?: 1 | 2; initialOrderId?: string }) {
   const t = cartCopy[locale];
+  const g = guestCopy[locale];
+  const [guestEmail,setGuestEmail]=useState('');
+  const [guestCode,setGuestCode]=useState('');
+  const [guestChallenge,setGuestChallenge]=useState('');
+  const [guestToken,setGuestToken]=useState('');
+  const [guestBusy,setGuestBusy]=useState(false);
+  const [guestError,setGuestError]=useState('');
+  const [lookupId,setLookupId]=useState(initialOrderId||'');
+  const [guestOrder,setGuestOrder]=useState<any>(null);
+  const guestRequest=async (action:string,body:object,token='')=>data(await fetch('/api/public/guest-checkout/'+action,{method:'POST',headers:{'Content-Type':'application/json',...(token?{Authorization:'Bearer '+token}:{})},body:JSON.stringify(body),cache:'no-store'}));
+  const guestAction=async(action:string,parcelId?:string)=>{
+    if(guestBusy)return;
+    setGuestBusy(true);setGuestError('');
+    try{
+      if(action==='start'){setGuestToken('');setGuestChallenge('');const r=await guestRequest('start',{email:guestEmail,locale});setGuestChallenge(r.challengeId);}
+      else if(action==='verify'){const r=await guestRequest('verify',{email:guestEmail,challengeId:guestChallenge,code:guestCode});setGuestToken(r.accessToken);}
+      else if(action==='lookup'){setGuestOrder(null);const r=await guestRequest('lookup',{orderId:lookupId.trim().toLowerCase()},guestToken);setGuestOrder(r);}
+      else if(action==='claim'){await data(await fetch('/api/portal/storefront/guest-claim',{method:'POST',headers:{'Content-Type':'application/json','X-Guest-Authorization':'Bearer '+guestToken},body:JSON.stringify({orderId:guestOrder?.id||lookupId.trim().toLowerCase()})}));window.location.assign('/'+locale+'/account/orders');}
+      else if(guestOrder){await guestRequest(action==='receive'||action==='receive-parcel'?action:'respond',{orderId:guestOrder.id,quoteId:guestOrder.quote?.id,decision:action,note:'',parcelId},guestToken);setGuestOrder(await guestRequest('lookup',{orderId:guestOrder.id},guestToken));}
+    }catch{setGuestError(g.error)}finally{setGuestBusy(false)}
+  };
   const [items, setItems] = useState<CartItem[]>([]);
   const [details, setDetails] = useState<Record<string, { product: CartProduct; offers: CartOffer[] }>>({});
   const [revision, setRevision] = useState(0);
@@ -198,7 +224,11 @@ export function CartPage({ locale, initialStep = 1, initialOrderId }: { locale: 
     setLoading(true); setError('');
     try {
       if(initialOrderId){
-        const order=await data(await fetch('/api/portal/storefront/orders/'+encodeURIComponent(initialOrderId),{cache:'no-store'}));
+        const auth=await fetch('/api/auth/status',{cache:'no-store'}).then(r=>r.ok?r.json():null).catch(()=>null);
+        if(auth?.user?.role!=='owner'){setStatus(auth?.user?'ownerOnly':'guest');setLookupId(initialOrderId);return;}
+        const response=await fetch('/api/portal/storefront/orders/'+encodeURIComponent(initialOrderId),{cache:'no-store'});
+        if(response.status===404){setStatus('owner');setLookupId(initialOrderId);return;}
+        const order=await data(response);
         if(order?.id!==initialOrderId || typeof order.status!=='string')throw Error('invalid order');
         setOrderId(order.id);setSubmittedStatus(order.status);setStatus('owner');setSuccess(true);setStep(3);
         if(order.delivery)setDelivery(current=>({...current,...order.delivery}));
@@ -271,10 +301,11 @@ export function CartPage({ locale, initialStep = 1, initialOrderId }: { locale: 
   }
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault(); if (busy || !available || currencies.length !== 1) return;
+    event.preventDefault(); if (busy || !available || currencies.length !== 1 || (status!=='owner'&&(status!=='guest'||!guestToken))) return;
     setBusy(true); setError('');
     try {
-      const key = `alsvid-order-request-v1:${accountId}:${revision}`;
+      const guestFingerprint = status==='guest' ? Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(JSON.stringify([guestEmail.trim().toLowerCase(),items,delivery]))))).map(b=>b.toString(16).padStart(2,'0')).join('') : '';
+      const key = status==='guest'?'alsvid-guest-request-v1:'+guestFingerprint:`alsvid-order-request-v1:${accountId}:${revision}`;
       let requestId = localStorage.getItem(key);
       if (!requestId || !/^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(requestId)) { requestId = uuidv7(); localStorage.setItem(key, requestId); }
       const requestItems = items.map(item => {
@@ -282,14 +313,16 @@ export function CartPage({ locale, initialStep = 1, initialOrderId }: { locale: 
         if (!offer) throw new Error('unavailable');
         return { ...item, unitPrice: offer.unitPrice };
       });
-      const result = await data(await fetch('/api/portal/storefront/orders', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: requestId, cartRevision: revision, delivery, items: requestItems }) }));
+      const result = status==='guest'
+        ? await guestRequest('submit',{id:requestId,delivery,items:requestItems},guestToken)
+        : await data(await fetch('/api/portal/storefront/orders', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: requestId, cartRevision: revision, delivery, items: requestItems }) }));
       if (!result || result.id !== requestId || typeof result.status !== 'string') throw new Error('invalid response');
-      localStorage.removeItem(key); setOrderId(result.id); setSubmittedStatus(result.status); setItems([]); setSuccess(true); navigateStep(3); window.history.replaceState(null,'','/'+locale+'/cart?order='+encodeURIComponent(result.id)); notifyCartChanged();
+      localStorage.removeItem(key); if(status==='guest'){localStorage.removeItem(guestCartKey);setLookupId(result.id);} setOrderId(result.id); setSubmittedStatus(result.status); setItems([]); setSuccess(true); navigateStep(3); window.history.replaceState(null,'','/'+locale+'/cart?order='+encodeURIComponent(result.id)); notifyCartChanged();
     } catch (cause: any) { setError(cause.message === 'unavailable' ? t.unavailable : t.submitError); }
     finally { setBusy(false); }
   };
 
-  const loginHref = `/${locale}/account?returnTo=${encodeURIComponent(`/${locale}/cart`)}`;
+  const loginHref = `/${locale}/account?returnTo=${encodeURIComponent(`/${locale}/cart${lookupId?'?order='+encodeURIComponent(lookupId):''}`)}`;
   return <main className="container cart-page">
     <p className="eyebrow">ALSVID / {UI.cart[locale]}</p>
     <nav className="transaction-steps" aria-label={flow.review} style={{display:'flex',alignItems:'center',gap:'clamp(12px,4vw,48px)',margin:'0 0 28px',flexWrap:'wrap'}}>
@@ -297,9 +330,26 @@ export function CartPage({ locale, initialStep = 1, initialOrderId }: { locale: 
     </nav>
     <h1>{step===1?flow.cart:step===2?flow.checkout:flow.complete}</h1>{step!==3&&<p className="lede">{t.note}</p>}
     {loading && <p role="status">{t.loading}</p>}
-    {!loading && status !== 'owner' && items.length > 0 && <section className="cart-notice"><p>{t.login}</p><a className="button" href={loginHref}>{t.loginButton}</a></section>}
+    {!loading && status !== 'owner' && items.length > 0 && <section className="cart-notice"><a className="cart-view-link" href={loginHref}>{t.loginButton}</a></section>}
+    {!loading && (status==='guest'||(initialOrderId&&!success&&status==='owner')) && (step===2||step===3||!items.length) && <section className="cart-checkout" aria-label={g.title}>
+      <h2>{step===2&&items.length?g.title:g.lookup}</h2>
+      <label>{g.email}<input type="email" autoComplete="email" disabled={guestBusy} value={guestEmail} maxLength={254} onChange={e=>{setGuestEmail(e.target.value);setGuestChallenge('');setGuestToken('');setGuestOrder(null)}} /></label>
+      <button type="button" disabled={guestBusy||!guestEmail} onClick={()=>void guestAction('start')}>{g.send}</button>
+      {guestChallenge&&!guestToken&&<><label>{g.code}<input inputMode="numeric" autoComplete="one-time-code" maxLength={8} value={guestCode} onChange={e=>setGuestCode(e.target.value)}/></label><button type="button" disabled={guestBusy||!/^\d{8}$/.test(guestCode)} onClick={()=>void guestAction('verify')}>{g.verify}</button></>}
+      {guestToken&&<p role="status">{g.verified}</p>}
+      {step!==2&&guestToken&&<><label>{g.order}<input value={lookupId} maxLength={36} onChange={e=>setLookupId(e.target.value)}/></label><button type="button" disabled={guestBusy||!lookupId} onClick={()=>void guestAction('lookup')}>{g.lookup}</button>
+      {guestOrder&&<section><p>{g.order}: {guestOrder.id}</p><p>{orderStatuses[locale][guestOrder.status]||guestOrder.status}</p>
+      {guestOrder.quote&&<p>{guestOrder.currency} {(Number(guestOrder.quote.totalMinor)/100).toFixed(2)}</p>}
+      {guestOrder.status==='quoted'&&<><button type="button" disabled={guestBusy} onClick={()=>void guestAction('accept')}>{g.accept}</button><button type="button" disabled={guestBusy} onClick={()=>void guestAction('decline')}>{g.decline}</button></>}
+      {(guestOrder.parcels||[]).map((p:any)=><div key={p.id}><p>{({zh:{whole:'整件',body:'车体',battery:'电池'},en:{whole:'Complete item',body:'Bike body',battery:'Battery'},de:{whole:'Komplettartikel',body:'Fahrrad ohne Akku',battery:'Akku'}}[locale] as Record<string,string>)[p.component]} · {p.trackingNo||'—'} {p.carrier||''} {p.receivedAt?g.receive+' ✓':''}</p>{p.dispatchedAt&&!p.receivedAt&&<button type="button" disabled={guestBusy} onClick={()=>void guestAction('receive-parcel',p.id)}>{g.receive}</button>}</div>)}
+      {guestOrder.status==='shipped'&&(guestOrder.parcels||[]).every((p:any)=>p.receivedAt)&&<button type="button" disabled={guestBusy} onClick={()=>void guestAction('receive')}>{g.receive}</button>}
+      {!guestOrder.parcels?.length&&guestOrder.shipment&&<p>{guestOrder.shipment.carrier} · {guestOrder.shipment.trackingNo}</p>}
+      {status==='owner'?<button type="button" disabled={guestBusy} onClick={()=>void guestAction('claim')}>{g.claim}</button>:<Link href={loginHref}>{g.claim}</Link>}
+      </section>}</>}
+      {guestError&&<p role="alert">{guestError}</p>}
+    </section>}
     {!loading && error && <p className="cart-error" role="alert">{error} <button type="button" onClick={() => void load()}>{t.retry}</button></p>}
-    {!loading && !error && status === 'owner' && success && step === 3 && <section className="cart-success" role="status"><h2>{orderStatuses[locale][submittedStatus]||submittedStatus}</h2>{submittedStatus==='submitted'&&<p>{t.success}</p>}<p>{flow.order}: <strong>{orderId}</strong></p>{delivery.address&&<p>{delivery.name} · {delivery.address} · {delivery.postalCode} {delivery.city} · {delivery.country}</p>}<Link className="button" href={`/${locale}/account`}>{flow.orders}</Link></section>}
+    {!loading && !error && success && step === 3 && <section className="cart-success" role="status"><h2>{orderStatuses[locale][submittedStatus]||submittedStatus}</h2>{submittedStatus==='submitted'&&<p>{t.success}</p>}<p>{flow.order}: <strong>{orderId}</strong></p>{delivery.address&&<p>{delivery.name} · {delivery.address} · {delivery.postalCode} {delivery.city} · {delivery.country}</p>}{status==='owner'&&<Link className="button" href={`/${locale}/account`}>{flow.orders}</Link>}</section>}
     {!loading && !error && !success && !items.length && <section className="cart-notice"><p>{t.empty}</p><a className="button" href={`/${locale}/e-bikes`}>{t.browse}</a></section>}
     {!loading && !error && !success && items.length > 0 && <>
       {step===1&&<div className="cart-lines">{items.map((item, index) => {
@@ -318,7 +368,7 @@ export function CartPage({ locale, initialStep = 1, initialOrderId }: { locale: 
       {step===1 && available && currencies.length===1 && <button className="button" type="button" disabled={busy||Object.keys(quantities).length>0} onClick={()=>navigateStep(2)}>{flow.next}</button>}
       {step===2 && <button type="button" className="cart-view-link" onClick={()=>navigateStep(1)} disabled={busy}>{flow.back}</button>}
       {step===2 && <p>{flow.shipping}</p>}
-      {step===2 && status === 'owner' && available && currencies.length === 1 && <form className="cart-checkout" onSubmit={submit}><h2>{t.request}</h2>{(Object.keys(delivery) as (keyof typeof delivery)[]).map(field => <label key={field}>{t[field]}<input required maxLength={field === 'address' ? 500 : field === 'phone' ? 80 : field==='postalCode'?40:field==='country'?100:120} value={delivery[field]} onChange={event => setDelivery(current => ({ ...current, [field]: event.target.value }))} /></label>)}<button className="button" disabled={busy}>{busy ? '…' : t.request}</button></form>}
+      {step===2 && (status === 'owner'||(status==='guest'&&!!guestToken)) && available && currencies.length === 1 && <form className="cart-checkout" onSubmit={submit}><h2>{t.request}</h2>{(Object.keys(delivery) as (keyof typeof delivery)[]).map(field => <label key={field}>{t[field]}<input required maxLength={field === 'address' ? 500 : field === 'phone' ? 80 : field==='postalCode'?40:field==='country'?100:120} value={delivery[field]} onChange={event => setDelivery(current => ({ ...current, [field]: event.target.value }))} /></label>)}<button className="button" disabled={busy}>{busy ? '…' : t.request}</button></form>}
     </>}
   </main>;
 }

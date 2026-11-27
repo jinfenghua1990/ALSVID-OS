@@ -44,6 +44,7 @@ const { createColourInterestStore, registerColourInterestRoutes } = require('./c
 const { createPublicLocationsStore, registerPublicLocationRoutes } = require('./public-locations');
 const { createTestRideStore, registerTestRideRoutes } = require('./test-rides');
 const { createTestRideAssignments, registerTestRideAssignmentRoutes } = require('./test-ride-assignments');
+const {createStoreAppointments,registerStoreAppointmentRoutes}=require('./store-appointments');
 const { createProcurementStore, registerProcurementRoutes } = require('./procurement');
 
 const PORT = Number(process.env.PORT || 8089);
@@ -170,6 +171,7 @@ registerColourInterestRoutes(app, process.env.DATABASE_URL ? createColourInteres
 registerPublicLocationRoutes(app, process.env.DATABASE_URL ? createPublicLocationsStore(process.env.DATABASE_URL) : null);
 registerTestRideRoutes(app, process.env.DATABASE_URL ? createTestRideStore(process.env.DATABASE_URL) : null);
 registerTestRideAssignmentRoutes(app, process.env.DATABASE_URL ? createTestRideAssignments(process.env.DATABASE_URL) : null);
+registerStoreAppointmentRoutes(app,process.env.DATABASE_URL?createStoreAppointments(process.env.DATABASE_URL):null);
 registerProcurementRoutes(app, process.env.DATABASE_URL ? createProcurementStore(process.env.DATABASE_URL) : null);
 const objectStorage = createObjectStorage();
 const traffic = require('./traffic');

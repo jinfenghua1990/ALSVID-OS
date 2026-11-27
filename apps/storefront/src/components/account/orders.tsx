@@ -6,13 +6,14 @@ import type { Locale } from '@/lib/alsvid-api';
 import { formatDate, formatDateTime, money } from '@/lib/format';
 import { uuidv7 } from '@/lib/uuid';
 import { ApiError, apiList, postJson } from './account-api';
-import { COMMON, ORDERS, ORDER_STATUS, RETURN_STATUS, pick, pickStatus } from '@/lib/account-text';
+import { parcelComponent, COMMON, ORDERS, ORDER_STATUS, RETURN_STATUS, pick, pickStatus } from '@/lib/account-text';
 
 type OrderLine = { id: string; sku: string; quantity: number };
 type ReturnItem = { returnItemId: string; itemId: string; sku: string; quantity: number; receivedQuantity: number };
 type ReturnRequest = { id: string; status: string; reason: string; reviewNote: string | null; createdAt: string; items: ReturnItem[] };
 type Quote = { id: string; revision: number; shippingMinor: string; taxMinor: string; totalMinor: string; note: string; createdAt: string };
 type Shipment = { carrier: string; trackingNo: string; shippedAt: string | null };
+type Parcel = Shipment & {id:string;component:string;receivedAt:string|null;items:{itemId:string;sku:string;quantity:number}[]};
 type Review = { id: string; rating: number; content: string; reply: string | null; repliedAt: string | null };
 export type Order = {
   id: string;
@@ -28,6 +29,7 @@ export type Order = {
   returns: ReturnRequest[];
   receipt: { note: string | null; receivedAt: string | null } | null;
   shipment: Shipment | null;
+  parcels: Parcel[];
   cancelReason: string | null;
   quote: Quote | null;
   review: Review | null;
@@ -45,6 +47,7 @@ function normalizeOrder(raw: Order): Order {
     review: raw.review ?? null,
     receipt: raw.receipt ?? null,
     shipment: raw.shipment ?? null,
+    parcels: Array.isArray(raw.parcels)?raw.parcels:[],
   };
 }
 
@@ -145,8 +148,8 @@ function OrderCard({ locale, order, onChanged }: { locale: Locale; order: Order;
     ORDERS.quoteFailed[locale],
   );
 
-  const confirmReceipt = () => run(
-    () => postJson(`/api/portal/storefront/orders/${order.id}/receive`, { note: '' }),
+  const confirmReceipt = (parcelId?:string) => run(
+    () => postJson(`/api/portal/storefront/orders/${order.id}/receive`, { note: '', ...(parcelId?{parcelId}:{}) }),
     ORDERS.receiptFailed[locale],
   );
 
@@ -174,7 +177,7 @@ function OrderCard({ locale, order, onChanged }: { locale: Locale; order: Order;
   );
 
   const canRespond = order.status === 'quoted' && order.quote;
-  const canReceive = order.status === 'shipped';
+  const canReceive = order.status === 'shipped' && !order.parcels.length;
   const canReturn = (order.status === 'shipped' || order.status === 'delivered')
     && !order.returns.some((request) => request.status === 'pending');
   const canReview = order.status === 'delivered' && !order.review;
@@ -214,7 +217,8 @@ function OrderCard({ locale, order, onChanged }: { locale: Locale; order: Order;
       </div>}
     </section>}
 
-    {order.shipment && <section className="account-subpanel">
+    {order.parcels.length>0&&<section className="account-subpanel"><h4>{ORDERS.shipment[locale]}</h4>{order.parcels.map(p=><div key={p.id}><p>{parcelComponent(p.component,locale)} · {p.carrier} · {p.trackingNo}</p><p>{(p.items||[]).map(i=>i.sku+' × '+i.quantity).join(' · ')}</p>{p.receivedAt?<p>{ORDERS.receipt[locale]} · {formatDateTime(p.receivedAt,locale)}</p>:<button className="button" type="button" disabled={busy} onClick={()=>void confirmReceipt(p.id)}>{ORDERS.confirmReceipt[locale]}</button>}</div>)}</section>}
+    {!order.parcels.length&&order.shipment && <section className="account-subpanel">
       <h4>{ORDERS.shipment[locale]}</h4>
       <dl className="account-facts">
         <div><dt>{ORDERS.carrier[locale]}</dt><dd>{order.shipment.carrier || '—'}</dd></div>

@@ -55,7 +55,7 @@ export function CartDrawer({locale}:{locale:Locale}) {
           const cart=await synchronizeOwnerCart(String(user.id));
           if(!Array.isArray(cart?.items))throw new Error('invalid cart');
           items=cart.items;
-        }
+        }else assertGuestCartEditable();
       }else if(auth.status!==401)throw new Error('auth unavailable');
       if(!auth.ok)assertGuestCartEditable();
       const merged=new Map<string,Item>();

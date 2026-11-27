@@ -14,7 +14,7 @@ export function readGuestCart():StoredCartItem[] {
     return Array.isArray(rows) ? rows.filter(validItem).slice(0,50) : [];
   } catch { return []; }
 }
-export function guestCartQuantity(){return readGuestCart().reduce((total,item)=>total+item.quantity,0)}
+export function guestCartQuantity(){try{return pending()?0:readGuestCart().reduce((total,item)=>total+item.quantity,0)}catch{return 0}}
 export function notifyCartChanged(){window.dispatchEvent(new Event(cartChangedEvent))}
 function pending():Batch|null{
  const raw=localStorage.getItem(pendingKey);if(!raw)return null;
@@ -38,7 +38,7 @@ export function clearGuestCartIfUnchanged(items:StoredCartItem[]){
 async function requestCart(accountId:string,batch?:Batch):Promise<Cart>{
  const response=await fetch('/api/portal/storefront/cart'+(batch?'':'?expectedAccountId='+encodeURIComponent(accountId)),batch?{method:'PUT',cache:'no-store',headers:{'Content-Type':'application/json'},body:JSON.stringify({expectedAccountId:accountId,mergeId:batch.id,items:batch.items})}:{cache:'no-store'});
  const body=await response.json().catch(()=>null);
- if(!response.ok)throw Error(body?.error||'cart unavailable');
+ if(!response.ok)throw Object.assign(Error(body?.error||'cart unavailable'),{definitiveRejection:response.status===409&&body?.code==='CART_MERGE_REJECTED'});
  if(!Array.isArray(body?.items)||!body.items.every(validItem)||!Number.isSafeInteger(body.revision)||batch&&body.mergeId!==batch.id)throw Error('invalid cart acknowledgement');
  return body;
 }
@@ -53,7 +53,12 @@ export function synchronizeOwnerCart(accountId:string):Promise<Cart>{
    localStorage.setItem(pendingKey,JSON.stringify(batch));
   }
   if(!batch)return requestCart(accountId);
-  const result=await requestCart(accountId,batch);
+  let result:Cart;
+  try{result=await requestCart(accountId,batch)}catch(e){
+   // Only an explicit server rollback acknowledgement unlocks editing. Unknown network outcomes keep the batch.
+   if((e as {definitiveRejection?:boolean})?.definitiveRejection&&pending()?.id===batch.id)localStorage.removeItem(pendingKey);
+   throw e;
+  }
   // Never remove newer local data. In a conflicting legacy tab, retain it and stop.
   if(JSON.stringify(readGuestCart())!==JSON.stringify(batch.items)&&readGuestCart().length)throw Error('pending_merge');
   localStorage.removeItem(guestCartKey);

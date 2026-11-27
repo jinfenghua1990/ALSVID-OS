@@ -82,6 +82,7 @@ function registerGuestCheckoutRoutes(app,guest,orders){
   route('lookup',async(req,b)=>orders.getGuest(await guest.authenticate(req.headers.authorization),b.orderId));
   route('respond',async(req,b)=>orders.respond(null,b.orderId,b,await guest.authenticate(req.headers.authorization)));
   route('receive',async(req,b)=>orders.receive(null,b.orderId,b,await guest.authenticate(req.headers.authorization)));
+  route('receive-parcel',async(req,b)=>orders.receiveParcel(null,b.orderId,b,await guest.authenticate(req.headers.authorization)));
   app.post('/api/portal/storefront/guest-claim',{config:{portalRoles:['owner']},bodyLimit:4096},async(req,reply)=>{
     reply.header('Cache-Control','no-store');
     if(!guest||!orders)return reply.code(503).send({error:'访客下单暂未开放'});

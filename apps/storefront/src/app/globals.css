@@ -333,22 +333,22 @@ h1 { max-width:900px; margin:14px 0 20px; font-size:clamp(42px,7vw,92px); font-w
 /* Storefront region IDs are stable across all locales and products. */
 .site-announcement{background:#202020;color:white;text-align:center;font-size:13px;padding:9px 16px;line-height:1.5;overflow-wrap:anywhere}
 .site-announcement a{color:inherit;text-decoration:underline;text-underline-offset:3px}
-.site-footer.site-footer--global{background:#fcfdfc;border-top:1px solid #e2e8e4;padding:48px 24px 28px;color:#5a6860;font-size:13px;line-height:1.6}
-.site-footer-inner{max-width:1180px;margin:0 auto;width:100%;display:flex;flex-direction:column;gap:36px}
-.site-footer-main{display:flex;justify-content:space-between;align-items:flex-start;gap:40px;flex-wrap:wrap}
-.site-footer-navs{display:flex;gap:clamp(32px,5vw,60px);flex-wrap:wrap;flex:1 1 auto}
-.site-footer-nav-col{display:flex;flex-direction:column;gap:12px;min-width:130px}
-.site-footer-col-title{font-size:13px;font-weight:700;color:#182820;letter-spacing:0.02em;text-transform:uppercase}
+.site-footer.site-footer--global{background:#f8faf9;border-top:1px solid #e2e8e4;padding:48px 24px 32px;color:#5a6860;font-size:13px;line-height:1.6}
+.site-footer-inner{max-width:1120px;margin:0 auto;width:100%;display:flex;flex-direction:column;gap:36px}
+.site-footer-main{display:flex;justify-content:flex-start;align-items:flex-start;gap:clamp(36px,6vw,72px);flex-wrap:wrap}
+.site-footer-navs{display:flex;gap:clamp(28px,4vw,52px);flex-wrap:wrap;flex:0 1 auto}
+.site-footer-nav-col{display:flex;flex-direction:column;gap:12px;width:130px;min-width:110px}
+.site-footer-col-title{font-size:12px;font-weight:700;color:#182820;letter-spacing:0.04em;text-transform:uppercase}
 .site-footer-col-links{display:flex;flex-direction:column;gap:8px}
 .site-footer-col-links a{color:#58675f;text-decoration:none;font-size:13px;transition:color .15s ease}
 .site-footer-col-links a:hover{color:#163826;text-decoration:underline}
 
-.site-footer-newsletter-section{flex:0 1 360px;max-width:400px;display:flex;flex-direction:column;gap:10px}
+.site-footer-newsletter-section{margin-left:auto;flex:0 1 340px;max-width:380px;display:flex;flex-direction:column;gap:10px}
 .site-footer-newsletter-desc{font-size:12px;color:#6b7b72;margin:0;line-height:1.5}
 .site-footer-newsletter-form{display:flex;gap:8px;margin-top:2px}
-.site-footer-newsletter-form input{flex:1;height:38px;padding:0 12px;border:1px solid #cdd6d0;border-radius:4px;font-size:13px;background:#fff;color:#182820;outline:none;transition:border-color .15s}
+.site-footer-newsletter-form input{flex:1;height:36px;padding:0 12px;border:1px solid #cdd6d0;border-radius:4px;font-size:13px;background:#fff;color:#182820;outline:none;transition:border-color .15s}
 .site-footer-newsletter-form input:focus{border-color:#163826}
-.site-footer-newsletter-form button{height:38px;padding:0 18px;background:#163826;color:#fff;border:none;border-radius:4px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;transition:background .15s}
+.site-footer-newsletter-form button{height:36px;padding:0 16px;background:#163826;color:#fff;border:none;border-radius:4px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;transition:background .15s}
 .site-footer-newsletter-form button:hover{background:#23543b}
 .site-footer-newsletter-links{display:flex;gap:12px;flex-wrap:wrap;font-size:12px;margin-top:4px}
 .site-footer-newsletter-links a{color:#6b7b72;text-decoration:none}
@@ -360,7 +360,7 @@ h1 { max-width:900px; margin:14px 0 20px; font-size:clamp(42px,7vw,92px); font-w
 .site-footer-social a{color:inherit;display:inline-flex;align-items:center;transition:all 0.15s ease}
 .site-footer-social a:hover{color:#163826;transform:translateY(-1px)}
 
-.site-footer-bottom{display:flex;align-items:center;justify-content:space-between;gap:20px;flex-wrap:wrap;border-top:1px solid #e5ebe7;padding-top:22px;font-size:12px}
+.site-footer-bottom{display:flex;align-items:center;justify-content:space-between;gap:20px;flex-wrap:wrap;border-top:1px solid #e5ebe7;padding-top:20px;font-size:12px}
 .site-footer-brand-row{display:flex;align-items:center;gap:18px;color:#708077}
 .site-footer-legal{display:flex;flex-wrap:wrap;gap:16px;font-size:12px}
 .site-footer-legal a{color:#627269;text-decoration:none}

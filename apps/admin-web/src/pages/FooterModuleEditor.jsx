@@ -253,10 +253,16 @@ export default function FooterModuleEditor({ locale: initialLocale = 'zh', onClo
                   </div>
 
                   <div className="footer-editor__links-list">
+                    {(group.links || []).length > 0 && (
+                      <div style={{ display: 'flex', gap: 8, fontSize: 11, color: '#667d70', paddingBottom: 2 }}>
+                        <span style={{ width: 140, flexShrink: 0 }}>链接文字</span>
+                        <span style={{ flex: '0 1 340px' }}>跳转页面 / 网址</span>
+                      </div>
+                    )}
                     {(group.links || []).map((link, j) => (
                       <div className="footer-editor__link" key={j}>
-                        <input className="footer-editor__input--name" aria-label="链接名称" maxLength={80} placeholder="链接名称（如：联系我们）" value={link.label || ''} onChange={e => patchGroup(i, { links: group.links.map((row, k) => (k === j ? { ...row, label: e.target.value } : row)) })}/>
-                        <input className="footer-editor__input--href" aria-label="链接地址" maxLength={500} placeholder="链接路径（如：/zh/about 或 https://…）" value={link.href || ''} onChange={e => patchGroup(i, { links: group.links.map((row, k) => (k === j ? { ...row, href: e.target.value } : row)) })}/>
+                        <input className="footer-editor__input--name" aria-label="链接名称" maxLength={80} placeholder="如：联系我们" value={link.label || ''} onChange={e => patchGroup(i, { links: group.links.map((row, k) => (k === j ? { ...row, label: e.target.value } : row)) })}/>
+                        <input className="footer-editor__input--href" aria-label="链接地址" maxLength={500} placeholder="如：/zh/dealers" value={link.href || ''} onChange={e => patchGroup(i, { links: group.links.map((row, k) => (k === j ? { ...row, href: e.target.value } : row)) })}/>
                         <button type="button" className="btn small" onClick={() => patchGroup(i, { links: group.links.filter((_, k) => k !== j) })}>
                           移除
                         </button>

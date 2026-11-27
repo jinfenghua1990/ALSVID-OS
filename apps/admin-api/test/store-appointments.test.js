@@ -27,3 +27,18 @@ test('anonymous booking routes do not grant admin scheduling permissions',async 
  assert.equal((await app.inject({method:'POST',url:'/api/store-appointments/slots',headers:{'test-role':'viewer'},payload:{}})).statusCode,403);
  assert.equal((await app.inject({method:'POST',url:'/api/store-appointments/slots',headers:{'test-role':'admin'},payload:{}})).statusCode,200);
 });
+
+test('dealer appointment routes are restricted to dealer identity and forward no admin authority',async t=>{
+ const app=Fastify(),calls=[];t.after(()=>app.close());
+ app.addHook('onRequest',apiAccessHook({user:async role=>role?{role,id:'test-'+role}:null},r=>r.headers['test-role']));
+ registerStoreAppointmentRoutes(app,{dealerList:async user=>({id:user.id}),createSlot:async(body,user)=>{calls.push([body,user]);return {id:'slot'}},change:async(id,body,guest,user)=>{calls.push([id,body,guest,user]);return {id}}});
+ const path='/api/portal/dealer/center/store-appointments';
+ assert.equal((await app.inject(path)).statusCode,401);
+ for(const role of ['owner','admin','viewer','supplier'])assert.equal((await app.inject({url:path,headers:{'test-role':role}})).statusCode,403);
+ assert.equal((await app.inject({url:path,headers:{'test-role':'dealer'}})).statusCode,200);
+ assert.equal((await app.inject({method:'POST',url:path+'/slots',headers:{'test-role':'dealer'},payload:{membershipId:uuidv7()}})).statusCode,200);
+ assert.equal(calls[0][1].role,'dealer');
+ assert.equal((await app.inject({method:'POST',url:path+'/'+uuidv7()+'/status',headers:{'test-role':'dealer'},payload:{membershipId:uuidv7(),status:'confirmed'}})).statusCode,200);
+ assert.equal(calls[1][2],false);assert.equal(calls[1][3].role,'dealer');
+ assert.equal((await app.inject({method:'POST',url:'/api/store-appointments/slots',headers:{'test-role':'dealer'},payload:{}})).statusCode,403);
+});

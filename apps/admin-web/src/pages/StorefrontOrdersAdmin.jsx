@@ -170,7 +170,8 @@ export default function StorefrontOrdersAdmin({ active = true, onDirtyChange, on
 
   const submitReversal = () => run(() => post(`/api/storefront/orders/${encodeURIComponent(form.orderId)}/payments/${encodeURIComponent(form.paymentId)}/reverse`, form, '收款更正'), '收款更正');
 
-  const submitShip = () => run(() => post(`/api/storefront/orders/${encodeURIComponent(form.orderId)}/ship`, { carrier: form.carrier, trackingNo: form.trackingNo }, '发运'), '发运出库');
+  const submitShip = () => run(() => post(`/api/storefront/orders/${encodeURIComponent(form.orderId)}/ship`, { carrier: form.carrier, trackingNo: form.trackingNo, parcelId: form.parcelId }, '发运'), '发运登记');
+  const submitParcelPlan = () => run(() => post(`/api/storefront/orders/${encodeURIComponent(form.orderId)}/parcels`, {parcels:form.items.flatMap(item => (item.split?['body','battery']:['whole']).map(component=>({id:uuidv7(),component,items:[{itemId:item.id,quantity:item.quantity}]})))}, '包裹计划'), '包裹计划');
 
   const submitCancel = () => run(() => post(`/api/storefront/orders/${encodeURIComponent(form.orderId)}/cancel`, { reason: form.reason }, '取消'), '取消订单');
 
@@ -225,7 +226,10 @@ export default function StorefrontOrdersAdmin({ active = true, onDirtyChange, on
       return <button type="button" className="shop-link is-strong" disabled={busy} onClick={() => setForm({ type: 'payment', orderId: order.id, id: uuidv7(), amount: '', method: 'bank_transfer', reference: '', receivedOn: '', note: '', verified: false })}>登记收款</button>;
     }
     if (status === 'paid') {
-      return <button type="button" className="shop-link is-strong" disabled={busy} onClick={() => setForm({ type: 'ship', orderId: order.id, carrier: '', trackingNo: '' })}>发货出库</button>;
+      const parcels=order.parcels||[];
+      const pending=parcels.find(p=>!p.dispatchedAt);
+      if(pending)return <button type="button" className="shop-link is-strong" disabled={busy} onClick={()=>setForm({type:'ship',orderId:order.id,parcelId:pending.id,carrier:'',trackingNo:''})}>继续分包发运</button>;
+      return <><button type="button" className="shop-link is-strong" disabled={busy} onClick={() => setForm({ type: 'ship', orderId: order.id, carrier: '', trackingNo: '' })}>整单发货</button><button type="button" className="shop-link" disabled={busy} onClick={()=>setForm({type:'parcelPlan',orderId:order.id,items:(order.allocationItems||[]).map(i=>({...i,split:false}))})}>分包计划</button></>;
     }
     return null;
   };
@@ -364,7 +368,7 @@ export default function StorefrontOrdersAdmin({ active = true, onDirtyChange, on
           <div className="modal-head"><h3>{FORM_TITLES[form.type] || '订单操作'}</h3><button type="button" className="btn small" disabled={busy} onClick={() => setForm(null)}>关闭</button></div>
           <div className="modal-body">
             {error && <p className="shop-modal__error" role="alert">{error}</p>}
-            {renderForm({ form, setForm, warehouses, busy, actions: { submitQuote, submitAllocation, submitPayment, submitReversal, submitShip, submitCancel, submitReturnReview, submitReturnReceipt, submitRestock, submitDisposal, submitRefund, submitRefundReversal, submitCancelRefund, submitCancelRefundReversal } })}
+            {renderForm({ form, setForm, warehouses, busy, actions: { submitQuote, submitAllocation, submitPayment, submitReversal, submitShip, submitParcelPlan, submitCancel, submitReturnReview, submitReturnReceipt, submitRestock, submitDisposal, submitRefund, submitRefundReversal, submitCancelRefund, submitCancelRefundReversal } })}
           </div>
         </div>
       </div>
@@ -377,7 +381,8 @@ const FORM_TITLES = {
   allocation: '选择仓库并预占库存',
   payment: '登记线下收款',
   reversal: '更正错误收款登记',
-  ship: '确认发货并出库',
+  ship: '登记包裹或订单发运',
+  parcelPlan:'车体与电池分包计划',
   cancel: '取消订单',
   returnReview: '退货申请审核',
   returnReceipt: '登记实际退货收货',
@@ -435,6 +440,11 @@ function renderForm({ form, setForm, warehouses, busy, actions }) {
     <div className="shop-modal__foot">{ok('确认更正')}</div>
   </>;
 
+  if (form.type === 'parcelPlan') return <>
+    <p className="hint">按商品选择是否分为车体与电池，发运后不可修改计划。</p>
+    {form.items.map((item,index)=><Row key={item.id} label={item.sku+' × '+item.quantity}><label><input type="checkbox" checked={item.split} onChange={e=>patch({items:form.items.map((x,i)=>i===index?{...x,split:e.target.checked}:x)})}/> 车体与电池分开</label></Row>)}
+    <div className="shop-modal__foot">{ok('保存包裹计划')}</div>
+  </>;
   if (form.type === 'ship') return <>
     <p className="hint" />
     <Row label="承运商"><input maxLength={120} value={form.carrier} onChange={e => patch({ carrier: e.target.value })} placeholder="DHL / 顺丰 / 海运…" /></Row>
@@ -526,6 +536,7 @@ const FORM_ACTIONS = {
   payment: 'submitPayment',
   reversal: 'submitReversal',
   ship: 'submitShip',
+  parcelPlan:'submitParcelPlan',
   cancel: 'submitCancel',
   returnReview: 'submitReturnReview',
   returnReceipt: 'submitReturnReceipt',
@@ -549,7 +560,7 @@ function OrderDetail({ order, warehouses, busy, setForm, onReviewReturn }) {
         <p>{order.delivery?.address}</p>
         <p>{order.delivery?.postalCode} {order.delivery?.city} · {order.delivery?.country}</p>
         <h5>物流</h5>
-        {order.shipment ? <><p>{order.shipment.carrier} · {order.shipment.trackingNo}</p><p className="shop-grid__muted">发运 {stamp(order.shipment.shippedAt)}</p></> : <p className="shop-grid__muted">尚未发运</p>}
+        {(order.parcels||[]).length ? order.parcels.map(p=><p key={p.id}>{({body:'车体',battery:'电池',whole:'整件'})[p.component]} · {p.receivedAt?'已签收':p.dispatchedAt?'已发运':'待发运'}{p.trackingNo?' · '+p.carrier+' '+p.trackingNo:''}{order.status==='paid'&&!p.dispatchedAt&&<button type="button" className="shop-link" disabled={busy} onClick={()=>setForm({type:'ship',orderId:order.id,parcelId:p.id,carrier:'',trackingNo:''})}>登记发运</button>}</p>) : order.shipment ? <><p>{order.shipment.carrier} · {order.shipment.trackingNo}</p><p className="shop-grid__muted">发运 {stamp(order.shipment.shippedAt)}</p></> : <p className="shop-grid__muted">尚未发运</p>}
         {order.receipt && <p className="shop-grid__muted">签收 {stamp(order.receipt.receivedAt)}{order.receipt.note ? ` · ${order.receipt.note}` : ''}</p>}
         {order.cancelReason && <><h5>取消原因</h5><p>{order.cancelReason}</p></>}
         {(order.allocationItems || []).some(i => i.warehouseName) && <><h5>预占仓库</h5><p>{(order.allocationItems || []).map(i => `${i.sku} · ${i.warehouseName || '—'}`).join('；')}</p></>}

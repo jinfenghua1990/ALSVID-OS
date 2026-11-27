@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { api } from '../api.js';
+import StoreAppointmentsAdmin from './StoreAppointmentsAdmin.jsx';
 import { TestRideAssignment, TestRideLocationAuthorizations } from './TestRideAssignments.jsx';
 
 const STATUS = { NEW: '待处理', REVIEWING: '处理中', CONTACTED: '已联系', CLOSED: '已关闭' };
@@ -60,6 +61,7 @@ export default function TestRidesAdmin({ active = true, user }) {
     <h2>试骑意向</h2>
     <p>这里只记录客户意向，不代表试骑时间、地点、订单或付款已确认。列表显示最近 200 条。</p>
     <TestRideLocationAuthorizations />
+    <StoreAppointmentsAdmin />
     <button type="button" className="btn" disabled={busy} onClick={() => load().catch(() => {})}>刷新列表</button>
     {loadError && <p role="alert" className="error-text">列表读取失败：{loadError} <button type="button" className="btn small" onClick={() => load().catch(() => {})}>重试</button></p>}
     {error && <p role="alert" className="error-text">{error}</p>}

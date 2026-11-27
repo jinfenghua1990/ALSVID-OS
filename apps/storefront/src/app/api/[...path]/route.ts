@@ -31,6 +31,8 @@ type Rule = { method: string; pattern: RegExp };
 // 匿名可访问：与 8089 的 publicCatalog / publicLocations / publicDealerApplication /
 // publicColourInterest / publicTestRide 配置一一对应。
 const PUBLIC_RULES: Rule[] = [
+  {method:'GET',pattern:/^\/api\/public\/store-appointments\/slots$/},
+  {method:'POST',pattern:/^\/api\/public\/store-appointments\/(book|lookup|cancel)$/},
   { method: 'POST', pattern: /^\/api\/guest\/storefront\/orders\/(submit|lookup|respond|receive)$/ },
   { method: 'GET', pattern: /^\/api\/catalog\/homepage$/ },
   { method: 'GET', pattern: /^\/api\/catalog\/products$/ },

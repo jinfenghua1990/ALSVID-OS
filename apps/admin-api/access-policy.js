@@ -19,6 +19,7 @@ function apiAccessHook(auth,sessionToken){
   if(req.routeOptions.config.publicLocations===true&&['GET','HEAD'].includes(req.method)){await attachUser(req);return;}
   if(req.routeOptions.config.publicDealerApplication===true&&req.method==='POST')return;
   if(req.routeOptions.config.publicColourInterest===true&&req.method==='POST')return;
+  if(req.routeOptions.config.publicStoreAppointment===true&&((['GET','HEAD'].includes(req.method)&&pathname==='/api/public/store-appointments/slots')||(req.method==='POST'&&/^\/api\/public\/store-appointments\/(book|lookup|cancel)$/.test(pathname))))return;
   if(req.routeOptions.config.publicTestRide===true&&req.method==='POST')return;
   if(req.routeOptions.config.publicGuestOrder===true&&req.method==='POST'&&/^\/api\/guest\/storefront\/orders\/(submit|lookup|respond|receive)$/.test(pathname))return;
   if(req.routeOptions.config.publicEcomEvent===true&&req.method==='POST')return;

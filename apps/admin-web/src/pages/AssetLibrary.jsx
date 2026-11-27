@@ -460,6 +460,8 @@ export default function AssetLibrary({ active = true, user, initialCategory = 's
             <div className="shop-media__ops">
               <button type="button" className="btn small" onClick={() => openDetail(asset.id)}>详情</button>
               <button type="button" className="btn small" onClick={() => copyLink(asset)}>复制链接</button>
+              {/* 下载走服务端 ?download=1：它会带 Content-Disposition，浏览器直接落盘而不是开新标签预览 */}
+              <a className="btn small" href={api.assetUrl(asset.id, { download: true })} download title="下载原文件">下载</a>
             </div>
           </article>)}
         </div>
@@ -561,6 +563,13 @@ export default function AssetLibrary({ active = true, user, initialCategory = 's
             {detail.kind === 'image' && <img src={api.assetUrl(detail.id)} alt={detail.label || detail.fileName || '素材预览'} style={{ maxWidth: '100%', maxHeight: 320, objectFit: 'contain' }} />}
             {detail.kind === 'video' && <video src={api.assetUrl(detail.id)} controls style={{ maxWidth: '100%', maxHeight: 320 }} />}
             {detail.kind !== 'image' && detail.kind !== 'video' && <p><a href={api.assetUrl(detail.id)} target="_blank" rel="noreferrer">打开预览</a></p>}
+            {/* 图片/视频就在眼前，下载入口放在预览正下方，不用退回列表再找；
+                ?download=1 由服务端下 Content-Disposition，落盘的是原图而不是缩略图。 */}
+            <div className="row" style={{ justifyContent: 'center', gap: 8, marginTop: 8 }}>
+              <a className="btn small" href={api.assetUrl(detail.id, { download: true })} download title="下载原始文件">
+                {detail.kind === 'image' ? '下载原图' : detail.kind === 'video' ? '下载视频' : '下载文件'}
+              </a>
+            </div>
           </div>
 
           <div className="al-card__badges" style={{ marginBottom: 12 }}>
@@ -637,7 +646,7 @@ export default function AssetLibrary({ active = true, user, initialCategory = 's
               <td>{version.note || '—'}</td>
               <td>{version.createdBy || '—'}</td>
               <td>{version.createdAt ? new Date(version.createdAt).toLocaleString('zh-CN') : '—'}</td>
-              <td><a className="btn small" href={api.assetUrl(detail.id, { version: version.version })} target="_blank" rel="noreferrer">下载</a></td>
+              <td><a className="btn small" href={api.assetUrl(detail.id, { version: version.version, download: true })} download>下载</a></td>
             </tr>)}</tbody>
           </table>
 

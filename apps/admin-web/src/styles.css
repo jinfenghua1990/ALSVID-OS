@@ -877,7 +877,7 @@ tr.detail-row.is-collapsed > td { border-bottom:0 !important; }
 .shop-media__name { display:block; font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .shop-media__meta { display:flex; justify-content:space-between; gap:6px; font-size:11px; color:var(--text-sub); margin-top:4px; }
 .shop-media__ops { display:flex; gap:4px; padding:0 8px 8px; }
-.shop-media__ops button { flex:1; padding:4px 0; font-size:11px; }
+.shop-media__ops button, .shop-media__ops a { flex:1; padding:4px 0; font-size:11px; text-align:center; }
 .shop-media__foot { display:flex; justify-content:space-between; align-items:center; margin-top:14px; padding-top:10px; border-top:1px solid var(--border); font-size:12px; color:var(--text-sub); }
 .shop-media__preview { position:fixed; inset:0; background:rgba(20,28,36,.72); z-index:150; display:flex; align-items:center; justify-content:center; padding:32px; }
 .shop-media__preview img { max-width:90vw; max-height:82vh; object-fit:contain; background:#fff; }

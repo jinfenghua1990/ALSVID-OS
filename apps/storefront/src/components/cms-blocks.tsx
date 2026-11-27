@@ -2,6 +2,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import type { CmsBlock, Locale } from '@/lib/alsvid-api';
 import { publicApiUrl, publicAssetUrl } from '@/lib/alsvid-api';
+import { A1UltraShowcase } from './a1-ultra-showcase';
 
 function siteHref(href: string, locale: Locale) {
   return href.replace(/^\/www\/(de|en)\/products(?:\/|$)/, (_, lang: Locale) => `/${lang}/e-bikes/`);
@@ -18,6 +19,20 @@ export function CmsBlocks({ blocks, locale, moduleIds = {} }: { blocks: CmsBlock
     const { props = {}, data = {} } = block;
     const moduleId=moduleIds[block.id]||moduleIds[block.componentKey];
     if (block.componentKey === 'hero') {
+      if (block.id === 'b-home-a1-ultra') {
+        return (
+          <A1UltraShowcase
+            key={block.id}
+            locale={locale}
+            moduleId={moduleId}
+            eyebrow={props.eyebrow}
+            title={props.title}
+            intro={props.intro}
+            ctaLabel={props.ctaLabel}
+            ctaHref={props.ctaHref}
+          />
+        );
+      }
       const hasBg = Boolean(props.imageId);
       if (!hasBg) {
         return (

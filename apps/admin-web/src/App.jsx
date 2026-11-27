@@ -63,12 +63,12 @@ const normalizeDomain = key => LEGACY_DOMAIN[key] || key;
 const SHOP_NAV = [
   { title: '概览', items: [{ key: 'overview', label: '商城概览' }, { key: 'module-ledger', label: '模块台账' }] },
   { title: '流量运营', items: [{ key: 'seo-traffic', label: 'SEO 与流量中心' }] },
-  { title: '商品管理', items: [{ key: 'products', label: '商品列表' }, { key: 'pricing', label: '价格设置' }, { key: 'media', label: '素材库' }] },
+  { title: '商品管理', items: [{ key: 'products', label: '商品列表' }, { key: 'pricing', label: '价格设置' }, { key: 'media', label: '素材库' }, { key: 'assets-v2', label: '素材库 V2', adminOnly: true }] },
   { title: '店铺装修', items: [{ key: 'unified-design', label: '统一装修工作台' }, { key: 'product-design', label: '商品装修' }, { key: 'pages', label: '页面管理' }] },
   { title: '交易管理', items: [{ key: 'orders', label: '订单管理' }, { key: 'payments', label: '线上支付' }, { key: 'reviews', label: '评价管理' }] },
 ];
 
-const SHOP_SECTION_TITLES = { overview: '商城概览', 'module-ledger': '模块台账', 'seo-traffic': 'SEO 与流量中心', traffic: '流量', payments: '线上支付', products: '商品列表', 'product-design': '商品装修', pricing: '价格设置', 'unified-design':'统一装修工作台', 'home-design': '首页装修', homepage: '首页装修', pages: '页面管理', media: '素材库', orders: '订单管理', reviews: '评价管理' };
+const SHOP_SECTION_TITLES = { overview: '商城概览', 'module-ledger': '模块台账', 'seo-traffic': 'SEO 与流量中心', traffic: '流量', payments: '线上支付', products: '商品列表', 'product-design': '商品装修', pricing: '价格设置', 'unified-design':'统一装修工作台', 'home-design': '首页装修', homepage: '首页装修', pages: '页面管理', media: '素材库', 'assets-v2': '素材库 V2', orders: '订单管理', reviews: '评价管理' };
 const MARKETING_SECTIONS = [['overview', '市场概览'], ['ads', '站外推广'], ['materials', '营销素材'], ['ai', 'AI 内容生成'], ['channels', '推广渠道管理'], ['social', '社交媒体管理'], ['publishing', '内容发布管理'], ['brand', '品牌推广'], ['coupons', '优惠券管理'], ['referrals', '推荐返利'], ['messaging', '消息与触达']];
 
 // 侧栏二级导航图标：与顶栏同一线性语言（24 网格 / 1.5 描边）
@@ -165,13 +165,14 @@ function restoreWorkspaces(storageKey) {
 }
 
 export default function App({ user, onLogout }) {
+  const assetV2Route = /^\/admin\/mall\/assets-v2\/?$/.test(window.location.pathname);
   const standaloneParams = new URLSearchParams(window.location.search);
   const standaloneStorefront = standaloneParams.get('adminWindow') === 'storefront-design';
   // 独立编辑窗口：edit=home 直达首页可视化编辑器；edit=page 带 pageId 直达该页面的 CMS 编辑器。
   // 不带 edit 时保持原行为（版本列表 + 预览），供需要时单独打开独立预览窗口。
   const standaloneEdit = standaloneParams.get('edit');
   const standalonePageId = standaloneParams.get('pageId') || '';
-  const standaloneInitialView = standaloneStorefront
+  const standaloneInitialView = assetV2Route ? { type: 'catalog', section: 'assets-v2' } : standaloneStorefront
     ? (standaloneEdit === 'home' ? {type:'catalog',section:'home-design'}
       : standaloneEdit === 'page' && standalonePageId ? {type:'catalog',section:'pages',pageId:standalonePageId}
       : {type:'catalog',section:'design'})
@@ -208,7 +209,7 @@ export default function App({ user, onLogout }) {
     try { localStorage.setItem('alsvid-v2-accent', accent); } catch {}
   }, [accent]);
   useEffect(() => () => { delete document.documentElement.dataset.accent; }, []);
-  const [domain, setDomain] = useState(()=>standaloneStorefront ? 'mall' : restoredWorkspaces?.domain||'product');
+  const [domain, setDomain] = useState(()=>standaloneStorefront || assetV2Route ? 'mall' : restoredWorkspaces?.domain||'product');
   const [serviceSection, setServiceSection] = useState(()=>restoredWorkspaces?.view?.section||'vin');
   const navRef = useRef(null);
   const pillRef = useRef(null);
@@ -405,7 +406,7 @@ export default function App({ user, onLogout }) {
 
       {!standaloneStorefront && <aside className="side">
         <div className="side__title">{domainLabel}</div>
-        {domain === 'mall' ? SHOP_NAV.map(group => <React.Fragment key={group.title}><div className="side__group">{group.title}</div>{group.items.map(item => <button key={item.key} type="button" className={'side__item' + (view.type === 'catalog' && (view.section || 'overview') === item.key ? ' is-active' : '')} onClick={() => setView({ type: 'catalog', section: item.key })}>{sideIcon(item.label)}{item.label}</button>)}</React.Fragment>)
+        {domain === 'mall' ? SHOP_NAV.map(group => <React.Fragment key={group.title}><div className="side__group">{group.title}</div>{group.items.filter(item => !item.adminOnly || user.role === 'admin').map(item => <button key={item.key} type="button" className={'side__item' + (view.type === 'catalog' && (view.section || 'overview') === item.key ? ' is-active' : '')} onClick={() => setView({ type: 'catalog', section: item.key })}>{sideIcon(item.label)}{item.label}</button>)}</React.Fragment>)
         : domain === 'product' ? <>
             <button className={'side__item' + (view.type === 'list' && view.kind === 'vehicle' ? ' is-active' : '')} onClick={() => setView({ type: 'list', kind: 'vehicle' })}>{sideIcon('整车产品')}整车产品</button>
             <button className={'side__item' + (view.type === 'list' && view.kind === 'part' ? ' is-active' : '')} onClick={() => setView({ type: 'list', kind: 'part' })}>{sideIcon('零配件')}零配件</button>

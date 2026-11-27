@@ -204,7 +204,14 @@ export const api = {
   },
   addAssetLink: (id, body) => req('POST', `/api/assets/${encodeURIComponent(id)}/links`, body),
   removeAssetLink: linkId => req('DELETE', `/api/assets/links/${encodeURIComponent(linkId)}`),
-  assetUrl: (id, { version = '', download = false } = {}) => `/api/assets/${encodeURIComponent(id)}/file${version ? `?version=${encodeURIComponent(version)}` : download ? '?download=1' : ''}`,
+  // version 与 download 可以同时用（历史版本也要能下载）；旧写法三选一，同时传时 download 会被丢掉。
+  assetUrl: (id, { version = '', download = false } = {}) => {
+    const query = new URLSearchParams();
+    if (version) query.set('version', version);
+    if (download) query.set('download', '1');
+    const search = query.toString();
+    return `/api/assets/${encodeURIComponent(id)}/file${search ? `?${search}` : ''}`;
+  },
   assetThumbnailUrl: (id, checksum) => `/api/assets/${encodeURIComponent(id)}/thumbnail?checksum=${encodeURIComponent(checksum || '')}`,
   cmsPages: ({type='',locale='',q='',path=''}={}) => req('GET',`/api/cms/pages?type=${encodeURIComponent(type)}&locale=${encodeURIComponent(locale)}&q=${encodeURIComponent(q)}&path=${encodeURIComponent(path)}`),
   cmsPage: id => req('GET',`/api/cms/pages/${encodeURIComponent(id)}`),

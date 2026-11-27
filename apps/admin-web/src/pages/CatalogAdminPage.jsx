@@ -1,6 +1,7 @@
 import StorefrontOrdersAdmin from './StorefrontOrdersAdmin.jsx';
 import StorefrontReviewsAdmin from './StorefrontReviewsAdmin.jsx';
 import AssetLibrary from './AssetLibrary.jsx';
+import AssetWorkspaceV2 from './AssetWorkspaceV2.jsx';
 import CmsPageManager from './CmsPageManager.jsx';
 import PageManager from './PageManager.jsx';
 import ShopOverview, { ShopPageHead } from './ShopOverview.jsx';
@@ -50,6 +51,7 @@ export default function CatalogAdminPage({ user, active = true, workspaceKey, on
     <ShopPageHead />
     <AssetLibrary active={active} user={user} initialCategory="storefront"/>
   </>;
+  if (section === 'assets-v2') return user?.role === 'admin' ? <AssetWorkspaceV2 embedded /> : <p>仅管理员可访问素材资产中心。</p>;
   if (section === 'pricing') return <ShopPricingPage/>;
   if (section === 'product-design') return <>
     <ShopPageHead actions={<button type="button" className="btn small" onClick={() => onSectionChange?.('design')}>← 返回店铺装修</button>} />

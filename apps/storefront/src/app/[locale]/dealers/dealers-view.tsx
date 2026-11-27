@@ -279,6 +279,7 @@ export function DealersView({ locale }: DealersViewProps) {
     <div className="dealers-page" style={{ color: 'var(--color-text, #111827)' }}>
       {/* ─── D01 · 首屏主视觉 ─── */}
       <section
+        data-module-id="ALSVID-D01"
         className="dealer-hero"
         style={{
           position: 'relative',
@@ -334,59 +335,17 @@ export function DealersView({ locale }: DealersViewProps) {
               fontSize: 'clamp(16px, 2vw, 19px)',
               color: 'rgba(255, 255, 255, 0.78)',
               lineHeight: 1.6,
-              margin: '0 auto 40px',
+              margin: '0 auto',
               maxWidth: 680,
             }}
           >
             {t.heroLede}
           </p>
-
-          {/* D01 双跳转按钮：页面内平滑滚动跳转 */}
-          <div style={{ display: 'flex', gap: 16, justifyContent: 'center', flexWrap: 'wrap' }}>
-            <a
-              href="#dealer-partner"
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 8,
-                background: '#ffffff',
-                color: '#111827',
-                padding: '14px 28px',
-                borderRadius: 30,
-                fontSize: 15,
-                fontWeight: 600,
-                textDecoration: 'none',
-                transition: 'all 0.2s ease',
-              }}
-            >
-              {t.btnBecomeDealer}
-            </a>
-            <a
-              href="#dealer-search"
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 8,
-                background: 'rgba(255, 255, 255, 0.12)',
-                color: '#ffffff',
-                border: '1px solid rgba(255, 255, 255, 0.28)',
-                padding: '14px 28px',
-                borderRadius: 30,
-                fontSize: 15,
-                fontWeight: 600,
-                textDecoration: 'none',
-                backdropFilter: 'blur(8px)',
-                transition: 'all 0.2s ease',
-              }}
-            >
-              {t.btnFindDealer}
-            </a>
-          </div>
         </div>
       </section>
 
       {/* ─── D03 · 经销商合作优势（保持不变） ─── */}
-      <section style={{ padding: '88px 24px', background: 'var(--color-surface, #ffffff)' }}>
+      <section data-module-id="ALSVID-D03" style={{ padding: '88px 24px', background: 'var(--color-surface, #ffffff)' }}>
         <div style={{ maxWidth: 1180, margin: '0 auto' }}>
           <div style={{ textAlign: 'center', marginBottom: 56 }}>
             <p style={{ letterSpacing: '0.16em', fontSize: 13, fontWeight: 600, color: '#059669', marginBottom: 8 }}>
@@ -439,6 +398,7 @@ export function DealersView({ locale }: DealersViewProps) {
       {/* ─── D04 · 经销商合作中心（承接「成为经销商 ↓」） ─── */}
       <section
         id="dealer-partner"
+        data-module-id="ALSVID-D04"
         style={{
           padding: '88px 24px',
           background: 'radial-gradient(ellipse at bottom, #111827 0%, #030712 100%)',
@@ -726,6 +686,7 @@ export function DealersView({ locale }: DealersViewProps) {
       {/* ─── D02 · 全球经销商查询（承接「查找经销商 ↓」） ─── */}
       <section
         id="dealer-search"
+        data-module-id="ALSVID-D02"
         style={{
           padding: '88px 24px',
           background: 'var(--color-surface, #ffffff)',

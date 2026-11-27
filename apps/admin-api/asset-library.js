@@ -115,6 +115,28 @@ function integer(value, fallback, min, max) {
   return Math.min(max, Math.max(min, Math.trunc(number)));
 }
 function unique(values) { return [...new Set(values)]; }
+
+// 下载文件名：历史素材的 file_name 有不带后缀的（早期上传没保留扩展名），
+// 直接拿它当附件名，浏览器会落一个「无格式文件」，双击打不开。
+// 这里按 Content-Type 补齐扩展名，并同时给出 ASCII filename 与 UTF-8 filename* 两种写法，
+// 兼容老浏览器；ASCII 那一份做严格白名单，避免引号/换行把响应头劈开。
+const EXT_BY_TYPE = {
+  'image/jpeg': '.jpg', 'image/png': '.png', 'image/webp': '.webp', 'image/avif': '.avif',
+  'image/gif': '.gif', 'image/svg+xml': '.svg',
+  'video/mp4': '.mp4', 'video/webm': '.webm', 'application/pdf': '.pdf',
+};
+function downloadName(fileName, contentType) {
+  const raw = String(fileName || '').trim().replace(/[\\/\u0000-\u001f\u007f]/g, '_').slice(0, 180);
+  const base = raw || 'asset';
+  const ext = EXT_BY_TYPE[String(contentType || '').toLowerCase()] || '';
+  if (!ext || /\.[A-Za-z0-9]{1,5}$/.test(base)) return base;
+  return base + ext;
+}
+function contentDisposition(type, fileName, contentType) {
+  const name = downloadName(fileName, contentType);
+  const ascii = name.replace(/[^\x20-\x7e]/g, '_').replace(/["\\]/g, '_') || 'asset';
+  return `${type}; filename="${ascii}"; filename*=UTF-8''${encodeURIComponent(name)}`;
+}
 function folderTail(column) { return `regexp_replace(${column},'^.*/','')`; }
 function usageOfFolder(folder) {
   const tail = String(folder || '').split('/').map(part => part.trim()).filter(Boolean).pop() || '';
@@ -275,7 +297,9 @@ function createAssetLibraryStore(url, objectStorage) {
       const filters = [category ? 'category=$1' : '', view].filter(Boolean);
       if (query.productId) {
         values.push(String(query.productId).trim().slice(0,200));
-        filters.push(`EXISTS (SELECT 1 FROM asset_links pl WHERE pl.asset_id=media_assets.id AND pl.target_type='product' AND pl.target_id=${values.length})`);
+        // 必须写成占位符 $n；之前直接把 values.length 拼进 SQL，变成 target_id=1 与 text 列比较，
+        // PostgreSQL 直接报 "operator does not exist: text = integer"，整个目录接口 500。
+        filters.push(`EXISTS (SELECT 1 FROM asset_links pl WHERE pl.asset_id=media_assets.id AND pl.target_type='product' AND pl.target_id=$${values.length})`);
       }
       if (query.scope === 'shared') filters.push(`(folder='${SHARED_ROOT}' OR folder LIKE '${SHARED_ROOT}/%')`);
       else if (query.scope === 'unclassified') filters.push(`NOT EXISTS (SELECT 1 FROM asset_links ul WHERE ul.asset_id=media_assets.id AND ul.target_type='product') AND NOT (folder='${SHARED_ROOT}' OR folder LIKE '${SHARED_ROOT}/%')`);
@@ -710,7 +734,7 @@ function registerAssetLibraryRoutes(app, store) {
     const version = req.query.version == null ? null : integer(req.query.version, 0, 1, 100000);
     const result = await store.file(req.params.id, version);
     reply.header('X-Content-Type-Options', 'nosniff').header('Cache-Control', 'private, max-age=86400');
-    if (req.query.download === '1') reply.header('Content-Disposition', `attachment; filename*=UTF-8''${encodeURIComponent(result.asset.fileName || result.asset.id)}`);
+    if (req.query.download === '1') reply.header('Content-Disposition', contentDisposition('attachment', result.asset.fileName || result.asset.id, result.asset.contentType));
     return reply.type(result.asset.contentType).send(result.object.Body);
   });
   route('GET', '/api/assets/:id/thumbnail', async (req, reply) => {

@@ -17,7 +17,114 @@ export function CmsBlocks({ blocks, locale, moduleIds = {} }: { blocks: CmsBlock
   return <div className="cms-blocks">{blocks.filter(block => block.visible !== false).map(block => {
     const { props = {}, data = {} } = block;
     const moduleId=moduleIds[block.id]||moduleIds[block.componentKey];
-    if (block.componentKey === 'hero') return <section className="container hero" key={block.id} data-module-id={moduleId}><p className="eyebrow">{props.eyebrow}</p><h1>{props.title}</h1><p className="lede">{props.intro}</p>{props.ctaLabel && <CtaLink locale={locale} href={props.ctaHref}>{props.ctaLabel} →</CtaLink>}</section>;
+    if (block.componentKey === 'hero') {
+      const hasBg = Boolean(props.imageId);
+      if (!hasBg) {
+        return (
+          <section className="container hero" key={block.id} data-module-id={moduleId}>
+            <p className="eyebrow">{props.eyebrow}</p>
+            <h1>{props.title}</h1>
+            <p className="lede">{props.intro}</p>
+            {props.ctaLabel && <CtaLink locale={locale} href={props.ctaHref}>{props.ctaLabel} →</CtaLink>}
+          </section>
+        );
+      }
+      return (
+        <section
+          key={block.id}
+          data-module-id={moduleId}
+          style={{
+            position: 'relative',
+            minHeight: '88vh',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'flex-start',
+            padding: '80px clamp(24px, 6vw, 120px)',
+            overflow: 'hidden',
+            color: props.theme === 'light' ? '#111827' : '#ffffff',
+            background: '#0d1210',
+            boxSizing: 'border-box'
+          }}
+        >
+          <div style={{ position: 'absolute', inset: 0, zIndex: 1 }}>
+            <Image
+              src={publicAssetUrl(props.imageId)}
+              alt={props.title || ''}
+              fill
+              priority
+              style={{ objectFit: 'cover', objectPosition: 'center' }}
+              sizes="100vw"
+            />
+            <div
+              style={{
+                position: 'absolute',
+                inset: 0,
+                background: props.theme === 'light'
+                  ? 'linear-gradient(to right, rgba(255,255,255,0.88) 0%, rgba(255,255,255,0.4) 55%, transparent 100%)'
+                  : 'linear-gradient(to right, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.45) 55%, transparent 100%)'
+              }}
+            />
+          </div>
+          <div style={{ position: 'relative', zIndex: 2, maxWidth: 640 }}>
+            {props.eyebrow && (
+              <p style={{
+                color: props.theme === 'light' ? '#059669' : '#34d399',
+                fontSize: 13,
+                fontWeight: 600,
+                letterSpacing: '0.2em',
+                textTransform: 'uppercase',
+                margin: '0 0 14px'
+              }}>
+                {props.eyebrow}
+              </p>
+            )}
+            <h1 style={{
+              color: 'inherit',
+              margin: '0 0 18px',
+              fontWeight: 700,
+              fontSize: 'clamp(36px, 5.5vw, 68px)',
+              lineHeight: 1.08,
+              letterSpacing: '-0.02em'
+            }}>
+              {props.title}
+            </h1>
+            {props.intro && (
+              <p style={{
+                color: props.theme === 'light' ? '#4b5563' : 'rgba(255,255,255,0.82)',
+                fontSize: 'clamp(16px, 1.8vw, 20px)',
+                lineHeight: 1.6,
+                margin: '0 0 28px'
+              }}>
+                {props.intro}
+              </p>
+            )}
+            {props.ctaLabel && (
+              <div>
+                <CtaLink locale={locale} href={props.ctaHref}>
+                  <span
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 8,
+                      background: props.theme === 'light' ? '#111827' : '#ffffff',
+                      color: props.theme === 'light' ? '#ffffff' : '#111827',
+                      padding: '14px 28px',
+                      borderRadius: 30,
+                      fontSize: 15,
+                      fontWeight: 600,
+                      textDecoration: 'none',
+                      boxShadow: '0 4px 16px rgba(0,0,0,0.18)'
+                    }}
+                  >
+                    {props.ctaLabel} →
+                  </span>
+                </CtaLink>
+              </div>
+            )}
+          </div>
+        </section>
+      );
+    }
     if (block.componentKey === 'twoColumn') return <section className="container cms-two-column" key={block.id} data-module-id={moduleId}>{props.imageId && <Image src={publicAssetUrl(props.imageId)} alt={props.imageAlt || ''} width={1000} height={760} sizes="(max-width:720px) 90vw, 45vw"/>}<div><h2>{props.title}</h2>{String(props.body || '').split('\n').filter(Boolean).map((line: string, i: number) => <p key={i}>{line}</p>)}</div></section>;
     if (block.componentKey === 'image') return props.imageId ? <section className="container cms-image" key={block.id}>
       {props.href ? <CtaLink locale={locale} href={props.href}><Image src={publicAssetUrl(props.imageId)} alt={props.alt || ''} width={1600} height={1000} sizes="(max-width:900px) 94vw, 1200px"/></CtaLink> : <Image src={publicAssetUrl(props.imageId)} alt={props.alt || ''} width={1600} height={1000} sizes="(max-width:900px) 94vw, 1200px"/>}

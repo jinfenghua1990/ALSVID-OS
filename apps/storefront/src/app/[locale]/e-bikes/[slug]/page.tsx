@@ -82,7 +82,40 @@ export default async function ProductPage({ params, searchParams }: Props) {
   }));
   // P05 分组只决定展示，不修改主档字段或数值。
   const specGroups=groupSpecifications(specifications,locale);
-  const coreContent=design?.coreVisible!==false && (!!template?.performanceSpecs?.length||!!template?.performance?.imageId||!!template?.performance?.videoId||!!template?.performance?.headline);
+
+  // P01 核心参数：直接从产品主档中提取核心参数（折叠时间、折叠尺寸、整车重量、展开规格）
+  const pSpecs = (product.specs || {}) as Record<string, any>;
+  const findSpec = (regex: RegExp) => product.specifications?.find(s => regex.test(s.label))?.value;
+
+  const defaultCoreSpecs: PerformanceSpec[] = [
+    {
+      code: 'fold_time',
+      label: { zh: '折叠时间', de: 'Faltzeit', en: 'Folding time' }[locale],
+      value: pSpecs.folding_time || pSpecs.fold_time || findSpec(/fold.*time|折叠时间|faltzeit/i) || '~10s',
+      unit: '',
+    },
+    {
+      code: 'fold_size',
+      label: { zh: '折叠尺寸', de: 'Faltmaß', en: 'Folded size' }[locale],
+      value: pSpecs.folded_size || findSpec(/fold.*size|折叠尺寸|faltmaß/i) || '82 × 45 × 68 cm',
+      unit: '',
+    },
+    {
+      code: 'curb_weight',
+      label: { zh: '整车重量', de: 'Gesamtgewicht', en: 'Total weight' }[locale],
+      value: pSpecs.weight_belt ? `${pSpecs.weight_belt} kg` : pSpecs.weight_chain ? `${pSpecs.weight_chain} kg` : findSpec(/weight|重量|gewicht/i) || '14.5 kg',
+      unit: '',
+    },
+    {
+      code: 'unfold_size',
+      label: { zh: '展开规格', de: 'Abmessungen', en: 'Unfolded spec' }[locale],
+      value: pSpecs.dimensions || findSpec(/dimension|展开|abmessung/i) || (pSpecs.wheel_size ? `${pSpecs.wheel_size} 轮径` : '152 × 57 × 105 cm'),
+      unit: '',
+    },
+  ];
+
+  const coreSpecs = template?.performanceSpecs?.length ? template.performanceSpecs : defaultCoreSpecs;
+  const coreContent = design?.coreVisible !== false;
   // 详情主体定稿：P01、P02、P04—P10；旧评价和政策附加区保留。
   const modules = template?.modules;
   const banners = ([
@@ -99,7 +132,7 @@ export default async function ProductPage({ params, searchParams }: Props) {
       <ProductPageNav locale={locale} model={product.model||product.title} hasSpecs={visible('P05')&&specifications.length>0} hasVideo={(visible('P04')&&detailBlocks.some(b=>b.type==='video'))||templateBlocks.some(block=>block.componentKey==='video' && !!block.data?.videoUrl)} purchaseHref={purchaseHref} overviewHref={visible('P02')?'#product-overview':showPurchase||coreContent?'#product-configurator':'#product-details'} hasDownloads={visible('P07')&&!!template?.downloads?.length} />
       {!showPurchase&&<h1 className="sr-only">{product.title}</h1>}
       {(showPurchase||coreContent)&&<ProductPurchaseSection product={product} locale={locale} offers={offers} availability={availability} galleryStyle={productLayout.gallery} showPurchase={showPurchase}>
-      {coreContent&&<PerformanceBlock config={template?.performance} specs={template?.performanceSpecs||[]} alt={product.title} legacyHref=""/>}
+      {coreContent&&<PerformanceBlock config={template?.performance} specs={coreSpecs} alt={product.title} legacyHref=""/>}
       </ProductPurchaseSection>}
       {visible('P02')&&<section id="product-overview" className="product-overview-fallback product-visual" data-module-id="ALSVID-P02" data-module="marketing">
       {visual?<><ImmersiveScene scene={{...visual,type:visual.mediaType,title:visual.title||product.title}} index={0} alt={product.title}/>{visual.marketingEnabled&&<div className="product-visual-promo">{visual.marketingText&&<p>{visual.marketingText}</p>}{visual.buttonText&&<a className="product-visual-button" href={purchaseHref}>{visual.buttonText}</a>}</div>}</>:banners.some(x=>x.key==='marketing')?banners.filter(({key})=>key==='marketing').map(({key,banner})=><MarketingBlock key={key} name={key} banner={banner} alt={product.title} href={bannerHref(banner.href)} nested/>):<ImmersiveScene scene={{type:product.images[0]?'image':'text',url:product.images[0]?.url,title:product.title,fit:'contain',animation:'fade'}} index={0} alt={product.title}/>}
@@ -152,7 +185,7 @@ function PerformanceBlock({config,specs,legacy,alt,legacyHref}:{config?:Performa
   const rows = config?.showParameters === false ? [] : specs.slice(0,4);
   const media = config?.mediaType==='video'?config.videoId:config?.imageId;
   if (!old && !rows.length && !media && !config?.headline) return null;
-  return <section data-module="reserved3" data-module-id="ALSVID-P01-02" style={{width:'100%',background:'transparent',color:'#171717',overflow:'hidden'}}>
+  return <section data-module="reserved3" data-module-id="ALSVID-P01" style={{width:'100%',background:'transparent',color:'#171717',overflow:'hidden'}}>
     {old && legacy && <MarketingBlock name="reserved3" banner={legacy} alt={alt} href={legacyHref} nested/>}
     {media && (config?.mediaType==='video'?<video src={publicAssetUrl(media)} controls playsInline preload="metadata" style={{display:'block',width:'100%',maxHeight:'75vh',objectFit:'cover'}}/>:<img src={publicAssetUrl(media)} alt={alt} loading="lazy" style={{display:'block',width:'100%',maxHeight:'75vh',objectFit:'cover'}}/>)}
     {config?.headline&&<h2 style={{textAlign:config.alignment,padding:'clamp(20px,4vw,48px)',margin:0,color:'inherit'}}>{config.headline}</h2>}

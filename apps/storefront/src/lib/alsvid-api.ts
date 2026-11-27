@@ -18,6 +18,7 @@ export type CatalogProduct = {
   images: { id: string; url: string }[];
   prices: { currency: string; unitPrice: string; referencePrice?: string|null }[];
   specifications: { label: string; value: string }[];
+  specs?: Record<string, any>;
   detailBlocks?: ProductScene[];
   design?: ProductDesign | null;
 };

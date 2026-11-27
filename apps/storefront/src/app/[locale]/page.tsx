@@ -58,18 +58,17 @@ const HERO: Record<Locale, { title: string; lede: string; cta: string; selected:
   },
 };
 
-function homepageModuleIds(blocks: { id: string; componentKey: string; visible?: boolean }[]) {
-  const ids: Record<string,string> = {};
-  const assign=(id:string,keys:string[])=>{const block=blocks.find(row=>row.visible!==false&&keys.includes(row.componentKey));if(block)ids[block.id]=id;};
-  assign('ALSVID-G03-01',['hero','carousel','video']);
-  assign('ALSVID-G03-02',['twoColumn']);
-  assign('ALSVID-G03-03',['features','specs']);
-  assign('ALSVID-G03-04',['productGallery','comparison']);
-  assign('ALSVID-G03-05',['article']);
-  assign('ALSVID-H01',['hero','carousel','video']);
-  assign('ALSVID-H02',['productGallery']);
-  assign('ALSVID-H03',['features']);
-  assign('ALSVID-H04',['twoColumn','article']);
+function homepageModuleIds(blocks: { id: string; componentKey: string; moduleId?: string; visible?: boolean }[]) {
+  const ids: Record<string, string> = {};
+  const activeBlocks = blocks.filter(b => b.visible !== false);
+  const slots = ['ALSVID-G03-01', 'ALSVID-G03-02', 'ALSVID-G03-03', 'ALSVID-G03-04', 'ALSVID-G03-05'];
+  activeBlocks.forEach((block, idx) => {
+    if (block.moduleId) {
+      ids[block.id] = block.moduleId;
+    } else if (idx < slots.length) {
+      ids[block.id] = slots[idx];
+    }
+  });
   return ids;
 }
 

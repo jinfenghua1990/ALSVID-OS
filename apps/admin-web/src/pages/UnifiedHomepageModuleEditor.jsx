@@ -15,15 +15,15 @@ const COMPONENT_LABELS = {
 };
 
 const moduleChoices = {
-  'ALSVID-G03-01': [['hero', '全幅巨幕主视觉（主推款）'], ['video', '视频大屏主视觉'], ['carousel', '图片轮播']],
-  'ALSVID-G03-02': [['twoColumn', '分屏图文（折叠/通勤场景）'], ['hero', '第二款车型全幅宣传'], ['features', '车型核心卖点']],
-  'ALSVID-G03-03': [['features', '核心技术与工程优势'], ['specs', '整车硬核参数'], ['twoColumn', '电机/电池技术拆解']],
-  'ALSVID-G03-04': [['productGallery', '矩阵式车型陈列（多款选车）'], ['comparison', '多车型参数横向对比']],
-  'ALSVID-G03-05': [['article', '品牌故事与愿景'], ['twoColumn', '全球经销商与骑行生态']],
-  'ALSVID-H01': [['hero', '单图主视觉'], ['carousel', '图片轮播'], ['video', '视频主视觉']],
-  'ALSVID-H02': [['productGallery', '车型展示']],
-  'ALSVID-H03': [['features', '核心技术与优势']],
-  'ALSVID-H04': [['twoColumn', '图文故事'], ['article', '品牌故事']],
+  'ALSVID-G03-01': [['hero', '第 1 款车型全幅独立宣传（A1 ULTRA 旗舰款）'], ['video', '视频大屏主视觉'], ['carousel', '图片轮播']],
+  'ALSVID-G03-02': [['hero', '第 2 款车型全幅独立宣传（L1 PRO 中置电机款）'], ['twoColumn', '分屏图文（折叠/通勤场景）']],
+  'ALSVID-G03-03': [['hero', '第 3 款车型全幅独立宣传（A1 经典款）'], ['features', '核心技术与工程优势']],
+  'ALSVID-G03-04': [['hero', '第 4 款车型全幅独立宣传（L1 轻量款）'], ['productGallery', '矩阵式车型陈列']],
+  'ALSVID-G03-05': [['article', '品牌故事与愿景背书'], ['twoColumn', '全球经销商与骑行生态']],
+  'ALSVID-H01': [['hero', '第 1 款车型宣传（A1 ULTRA）']],
+  'ALSVID-H02': [['hero', '第 2 款车型宣传（L1 PRO）']],
+  'ALSVID-H03': [['hero', '第 3 款车型宣传（A1）']],
+  'ALSVID-H04': [['hero', '第 4 款车型宣传（L1）']],
 };
 
 // 默认组件数据结构
@@ -71,20 +71,33 @@ export default function UnifiedHomepageModuleEditor({ moduleId, locale, onWorksp
 
   const dirty = doc !== null && JSON.stringify(doc) !== baseline;
 
-  // 定位属于当前模块的 block
+  // 根据当前模块 ID 计算对应车型槽位索引 (0~4)
+  const targetSlotIndex = useMemo(() => {
+    if (moduleId === 'ALSVID-G03-01' || moduleId === 'ALSVID-H01') return 0;
+    if (moduleId === 'ALSVID-G03-02' || moduleId === 'ALSVID-H02') return 1;
+    if (moduleId === 'ALSVID-G03-03' || moduleId === 'ALSVID-H03') return 2;
+    if (moduleId === 'ALSVID-G03-04') return 3;
+    if (moduleId === 'ALSVID-G03-05' || moduleId === 'ALSVID-H04') return 4;
+    return 0;
+  }, [moduleId]);
+
+  // 定位属于当前模块的 block：优先按 moduleId 显式绑定，次之按槽位索引，再次按组件类别
   const block = useMemo(() => {
     if (!doc?.blocks?.length) return null;
+    const explicit = doc.blocks.find(row => row.moduleId === moduleId);
+    if (explicit) return explicit;
+    if (doc.blocks[targetSlotIndex]) return doc.blocks[targetSlotIndex];
     const allowedKeys = choices.map(([key]) => key);
     return doc.blocks.find(row => allowedKeys.includes(row.componentKey)) || null;
-  }, [doc, choices]);
+  }, [doc, moduleId, targetSlotIndex, choices]);
 
   const patchBlock = useCallback(patch => {
     if (!doc || !block) return;
     setDoc(current => ({
       ...current,
-      blocks: current.blocks.map(row => row.id === block.id ? { ...row, ...patch } : row)
+      blocks: current.blocks.map(row => row.id === block.id ? { ...row, ...patch, moduleId } : row)
     }));
-  }, [doc, block]);
+  }, [doc, block, moduleId]);
 
   const patchProps = patch => patchBlock({ props: { ...block.props, ...patch } });
 
@@ -421,6 +434,24 @@ export default function UnifiedHomepageModuleEditor({ moduleId, locale, onWorksp
                     </label>
                     <label className="udw-field">跳转链接（支持直接跳到选配页）
                       <input maxLength={500} value={block.props.ctaHref || ''} onChange={e => patchProps({ ctaHref: e.target.value })} placeholder="/zh/e-bikes/a1-ultra?configure=1" />
+                    </label>
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 12, marginTop: 8 }}>
+                    <label className="udw-field">全幅 KV 宣传大片（从媒体库选择）
+                      <select value={block.props.imageId || ''} onChange={e => patchProps({ imageId: e.target.value })}>
+                        <option value="">— 选择全屏大片（如：欧洲城市广场哑光黑折叠实拍大片） —</option>
+                        {images.map(img => (
+                          <option key={img.id} value={img.id}>
+                            {img.label || img.fileName || img.id}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="udw-field">视觉背景主题
+                      <select value={block.props.theme || 'dark'} onChange={e => patchProps({ theme: e.target.value })}>
+                        <option value="dark">沉浸深黑调（推荐·纯白字）</option>
+                        <option value="light">极简纯净亮调（深色字）</option>
+                      </select>
                     </label>
                   </div>
                 </>

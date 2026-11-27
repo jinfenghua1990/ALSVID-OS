@@ -9,6 +9,7 @@ const { isUuidv7, uuidv7 } = require('./uuidv7');
 const { findLegacyUsages } = require('./media-assets');
 const { thumbnailKey, makeThumbnail } = require('./asset-thumbnail');
 const { buildZip } = require('./asset-zip');
+const { readZipBody, createZipGate } = require('./asset-zip-guard');
 
 const CONTENT_TYPES = {
   'image/jpeg': { kind: 'image', max: 10 * 1024 * 1024 },
@@ -22,10 +23,9 @@ const CONTENT_TYPES = {
 const CATEGORIES = ['product', 'marketing', 'page', 'other'];
 const VISIBILITIES = ['public', 'internal'];
 const STATUSES = ['draft', 'published', 'archived'];
-// 批量打包下载的上限：一次最多 60 个、合计不超过 200MB。
-// 打包是内存里拼字节，不是流式写盘，不设上限会把进程内存顶爆。
+// 暂时保留 STORE ZIP，限制单次原始字节及并发，避免内存峰值过高。
 const MAX_ZIP_FILES = 60;
-const MAX_ZIP_BYTES = 200 * 1024 * 1024;
+const MAX_ZIP_BYTES = 50 * 1024 * 1024;
 const TARGET_TYPES = ['product', 'sku', 'part', 'page', 'campaign'];
 const LINK_ROLES = ['hero', 'gallery', 'detail', 'package', 'certificate', 'drawing', 'banner', 'kv'];
 const CHANNELS = ['product', 'storefront'];
@@ -604,24 +604,33 @@ function createAssetLibraryStore(url, objectStorage) {
       return { asset: { ...asset, contentType, fileName }, object: await objectStorage.get(objectKey), objectKey };
     },
 
-    // 批量下载：把选中素材原始文件打成一个 zip。
-    // 单张下载走 /api/assets/:id/file?download=1，这里只负责「多个」这一种情况。
-    // 上限是硬约束：对象存储里单图最大 10MB、视频 30MB，不设上限一次就能把内存吃满。
+    // 批量下载：先检查全部素材，再按实际读取字节限制内存，不返回不完整的 ZIP。
     async zip(ids) {
       if (!objectStorage) fail('对象存储尚未配置', 503);
-      const list = unique((Array.isArray(ids) ? ids : []).map(id => String(id == null ? '' : id).trim()).filter(Boolean));
-      if (!list.length) fail('请先选择要下载的素材');
-      if (list.length > MAX_ZIP_FILES) fail(`一次最多打包 ${MAX_ZIP_FILES} 个素材，请分批下载`);
+      if (!Array.isArray(ids) || !ids.length) fail('请先选择要下载的素材');
+      if (ids.length > MAX_ZIP_FILES) fail(`一次最多打包 ${MAX_ZIP_FILES} 个素材，请分批下载`);
+      if (ids.some(id => typeof id !== 'string' || !isUuidv7(id))) fail('素材编号无效');
+      const list = unique(ids);
+      const assets = [];
+      let expected = 0;
+      for (const id of list) {
+        const asset = await load(id);
+        const bytes = Number(asset.sizeBytes);
+        if (!Number.isSafeInteger(bytes) || bytes < 0) fail('素材大小记录无效', 409);
+        expected += bytes;
+        if (expected > MAX_ZIP_BYTES) fail('所选素材总体积过大，请分批下载', 413);
+        assets.push(asset);
+      }
       const entries = [];
       let total = 0;
-      for (const id of list) {
-        if (!isUuidv7(id)) continue;
-        // 已被删除/无权限的素材直接跳过，不因为一个坏 id 让整包失败
-        let asset;
-        try { asset = await load(id); } catch (_) { continue; }
+      for (const asset of assets) {
         const object = await objectStorage.get(asset.objectKey);
-        const data = Buffer.from(await object.Body.transformToByteArray());
-        if (total + data.length > MAX_ZIP_BYTES) fail('所选素材总体积过大，请分批下载');
+        if (Number(object.ContentLength) > MAX_ZIP_BYTES - total) {
+          object.Body?.destroy?.();
+          fail('所选素材总体积过大，请分批下载', 413);
+        }
+        const data = await readZipBody(object.Body, MAX_ZIP_BYTES - total);
+        if (data.length !== Number(asset.sizeBytes)) fail('素材大小已变化，请重新加载后下载', 409);
         total += data.length;
         entries.push({
           name: downloadName(asset.fileName || asset.label || asset.id, asset.contentType),
@@ -629,7 +638,6 @@ function createAssetLibraryStore(url, objectStorage) {
           mtime: asset.updatedAt ? new Date(asset.updatedAt) : new Date(),
         });
       }
-      if (!entries.length) fail('所选素材都不存在或已被删除', 404);
       return { buffer: buildZip(entries), count: entries.length, bytes: total };
     },
 
@@ -728,6 +736,7 @@ function createAssetLibraryStore(url, objectStorage) {
 }
 
 function registerAssetLibraryRoutes(app, store) {
+  const acquireZip = createZipGate();
   app.get('/api/public/home-media/:id', {config:{publicCatalog:true}}, async (req, reply) => {
     if (!store) return reply.code(503).send({error:'素材库服务暂不可用'});
     try {
@@ -774,13 +783,18 @@ function registerAssetLibraryRoutes(app, store) {
   // 批量下载：前端勾选后 POST {ids:[...]}，返回一个 zip。
   // 用 POST 而不是 GET，是因为选几十个 id 拼进 query 会超长。
   route('POST', '/api/assets/download-zip', async (req, reply) => {
-    const result = await store.zip((req.body || {}).ids);
-    const now = new Date();
-    const pad = value => String(value).padStart(2, '0');
-    const stamp = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}`;
-    reply.header('X-Content-Type-Options', 'nosniff').header('Cache-Control', 'no-store');
-    reply.header('Content-Disposition', contentDisposition('attachment', `alsvid-素材-${stamp}.zip`, 'application/zip'));
-    return reply.type('application/zip').send(result.buffer);
+    // 全局 access-policy 已限制内部 POST 为管理员，此处再做显式防御。
+    if (req.user?.role !== 'admin') fail('没有访问权限', 403);
+    const prepared = acquireZip(reply.raw);
+    try {
+      const result = await store.zip((req.body || {}).ids);
+      const now = new Date();
+      const pad = value => String(value).padStart(2, '0');
+      const stamp = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}`;
+      reply.header('X-Content-Type-Options', 'nosniff').header('Cache-Control', 'no-store');
+      reply.header('Content-Disposition', contentDisposition('attachment', `alsvid-素材-${stamp}.zip`, 'application/zip'));
+      return reply.type('application/zip').send(result.buffer);
+    } finally { prepared(); }
   });
   route('GET', '/api/assets/:id/thumbnail', async (req, reply) => {
     const result = await store.thumbnail(req.params.id, String(req.query.checksum || ''));

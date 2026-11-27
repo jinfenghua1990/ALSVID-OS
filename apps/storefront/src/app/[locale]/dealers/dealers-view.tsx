@@ -1,11 +1,13 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
+import { uuidv7 } from '@/lib/uuid';
 import Link from 'next/link';
-import type { Locale } from '@/lib/alsvid-api';
+import type { Locale, PublicLocation } from '@/lib/alsvid-api';
 
 interface DealersViewProps {
   locale: Locale;
+  portalUrl?: string;
 }
 
 const I18N = {
@@ -17,15 +19,15 @@ const I18N = {
     btnFindDealer: '查找经销商 ↓',
 
     advantagesHeading: '为什么与 ALSVID 携手',
-    advantagesSub: '依托卓越工程技术与欧洲本地化交付体系，赋能每一位商业合作伙伴',
-    adv1Title: '欧洲本地仓直发',
-    adv1Desc: '德国法兰克福核心仓现货直发，整车及配件 48-72 小时快速交付，极大降低资金与库存周转压力。',
-    adv2Title: '整车高品质与高毛利',
-    adv2Desc: '航空碳纤维车架与专利折叠结构，结合严格的德国研发标准与统一零售控价，保障充裕盈利空间。',
-    adv3Title: '严格区域保护机制',
-    adv3Desc: '遵循规范的商圈及区域独家授权规则，杜绝恶性价格内卷，保障长期稳定经营效益。',
-    adv4Title: '官方技术与售后赋能',
-    adv4Desc: '专业原厂工程团队提供维修培训支持，核心零部件 2 年质保，质保期内零配件极速索赔调拨。',
+    advantagesSub: '了解 ALSVID 的产品、合作方式与服务支持。',
+    adv1Title: '产品与供应',
+    adv1Desc: '了解整车、配件及供应合作。',
+    adv2Title: '产品合作',
+    adv2Desc: '了解产品系列和合作条件。',
+    adv3Title: '区域合作',
+    adv3Desc: '申请合作时可沟通所在地区和合作范围。',
+    adv4Title: '技术与售后',
+    adv4Desc: '了解产品技术资料及售后服务安排。',
 
     partnerHeading: '经销商合作中心',
     partnerSub: '无论是新伙伴申请入驻，还是已签约伙伴开展业务，均可由此开启',
@@ -33,20 +35,20 @@ const I18N = {
     applyCardDesc: '欢迎拥有自行车、电动出行或高端户外生活方式经验的经营者加入 ALSVID 全球网络。',
     applyBtn: '申请合作 →',
     applyFormTitle: '提交商业合作申请',
-    applySuccess: '申请已成功提交！我们的商务团队将在 2 个工作日内通过邮件或电话与您联系。',
+    applySuccess: '申请已成功提交。',
     portalCardTitle: '经销商业务中心',
     portalCardDesc: '已签约合作伙伴专用系统。支持在线批量订货、物流跟踪、车辆 VIN 管理与对账。',
     portalBtn: '经销商登录 →',
 
     searchHeading: '全球经销商与服务中心查询',
-    searchSub: '体验 ALSVID 纯粹电助力骑行质感，感受秒级折叠与轻量化工程美学',
+    searchSub: '查找已授权公开的销售和服务网点。',
     filterAllCountries: '全部国家 / 地区',
     filterDE: '德国 🇩🇪 (Deutschland)',
     filterAT: '奥地利 🇦🇹 (Österreich)',
     filterCH: '瑞士 🇨🇭 (Schweiz)',
     filterFR: '法国 🇫🇷 (France)',
     searchPlaceholder: '输入城市、地区或邮编搜索…',
-    noStoreNotice: '当前城市暂无展示门店，欢迎在线预约流动试骑，或申请成为当地授权服务商。',
+    noStoreNotice: '没有找到符合条件的网点。',
     bookTestRide: '预约到店试骑',
     directions: '地图导航',
     storeStatus: '官方认证体验店',
@@ -54,20 +56,20 @@ const I18N = {
   de: {
     heroEyebrow: 'GLOBAL DEALERS',
     heroTitle: 'ALSVID Händlernetzwerk',
-    heroLede: 'Finden Sie einen autorisierten ALSVID Showroom in Ihrer Nähe oder werden Sie exklusiver Partner in Ihrer Region.',
+    heroLede: 'Finden Sie einen autorisierten ALSVID Standort oder informieren Sie sich über eine Partnerschaft.',
     btnBecomeDealer: 'Händler werden ↓',
     btnFindDealer: 'Händler finden ↓',
 
     advantagesHeading: 'Ihre Vorteile als ALSVID Partner',
-    advantagesSub: 'Erstklassige Ingenieurskunst kombiniert mit europäischer Logistik und verlässlicher Partnerschaft',
-    adv1Title: 'Europäisches Zentrallager',
-    adv1Desc: 'Direktlieferung aus Frankfurt am Main innerhalb von 48 bis 72 Stunden. Minimieren Sie Ihr Lagerrisiko.',
-    adv2Title: 'Hohe Margen & Preisstabilität',
-    adv2Desc: 'Premium Carbon-Falträder mit geschützter Preispolitik für nachhaltig planbare Rentabilität.',
-    adv3Title: 'Exklusiver Gebietsschutz',
-    adv3Desc: 'Faire Standortplanung und verlässlicher Gebietsschutz für eine langfristige partnerschaftliche Entwicklung.',
-    adv4Title: 'Technischer Support & Garantie',
-    adv4Desc: 'Werksschulungen, schnelle Ersatzteilversorgung und 2 Jahre Garantie direkt durch unser deutsches Fachteam.',
+    advantagesSub: 'Informieren Sie sich über Produkte, Zusammenarbeit und Service.',
+    adv1Title: 'Produkte und Versorgung',
+    adv1Desc: 'Informieren Sie sich über Fahrräder, Zubehör und Liefermöglichkeiten.',
+    adv2Title: 'Produktpartnerschaft',
+    adv2Desc: 'Erfahren Sie mehr über das Sortiment und die Bedingungen einer Zusammenarbeit.',
+    adv3Title: 'Regionale Zusammenarbeit',
+    adv3Desc: 'Besprechen Sie Ihre Region und den möglichen Umfang der Zusammenarbeit.',
+    adv4Title: 'Technik und Service',
+    adv4Desc: 'Informieren Sie sich über technische Unterlagen und Serviceleistungen.',
 
     partnerHeading: 'Partner & Händler-Portal',
     partnerSub: 'Zugang für Bewerber und bestehende Vertriebspartner',
@@ -75,20 +77,20 @@ const I18N = {
     applyCardDesc: 'Erweitern Sie Ihr Portfolio um leichte, smarte E-Bikes. Wir freuen uns auf Ihre Bewerbung.',
     applyBtn: 'Jetzt bewerben →',
     applyFormTitle: 'Händleranfrage einreichen',
-    applySuccess: 'Vielen Dank! Ihre Anfrage wurde übermittelt. Unser B2B-Team meldet sich innerhalb von 48 Stunden.',
+    applySuccess: 'Vielen Dank! Ihre Anfrage wurde übermittelt.',
     portalCardTitle: 'B2B Händler-Portal',
     portalCardDesc: 'Für autorisierte Händler: Schnelle Sammelbestellungen, VIN-Zuweisung, Tracking und Rechnungen.',
     portalBtn: 'Händler-Login →',
 
     searchHeading: 'Händlersuche & Probefahrten',
-    searchSub: 'Erleben Sie ALSVID E-Bikes live vor Ort bei unseren zertifizierten Fachhändlern',
+    searchSub: 'Finden Sie zur Veröffentlichung freigegebene Verkaufs- und Servicestandorte.',
     filterAllCountries: 'Alle Länder / Regionen',
     filterDE: 'Deutschland 🇩🇪',
     filterAT: 'Österreich 🇦🇹',
     filterCH: 'Schweiz 🇨🇭',
     filterFR: 'Frankreich 🇫🇷',
     searchPlaceholder: 'Stadt oder Postleitzahl eingeben…',
-    noStoreNotice: 'Noch kein Händler in Ihrer Stadt? Buchen Sie eine mobile Probefahrt oder empfehlen Sie uns einen Partner.',
+    noStoreNotice: 'Keine passenden Standorte gefunden.',
     bookTestRide: 'Probefahrt anfragen',
     directions: 'Route planen',
     storeStatus: 'Zertifizierter Store',
@@ -101,15 +103,15 @@ const I18N = {
     btnFindDealer: 'Find a dealer ↓',
 
     advantagesHeading: 'Why Partner with ALSVID',
-    advantagesSub: 'Engineered for distinction, backed by robust European fulfillment and mutual growth',
-    adv1Title: 'European Central Hub',
-    adv1Desc: 'Fast 48-72 hour delivery directly from our Frankfurt warehouse, minimizing your local inventory holding.',
-    adv2Title: 'Healthy Margen & MAP Protection',
-    adv2Desc: 'Cutting-edge carbon folding e-bikes with strict price policies designed to protect partner profitability.',
-    adv3Title: 'Territory Protection',
-    adv3Desc: 'Structured distribution with geographic exclusivity to safeguard your long-term investment.',
-    adv4Title: 'Factory Support & Warranty',
-    adv4Desc: 'Dedicated technician training, fast-track warranty claims, and continuous spare parts fulfillment.',
+    advantagesSub: 'Explore ALSVID products, partnership opportunities and service support.',
+    adv1Title: 'Products and supply',
+    adv1Desc: 'Learn about bicycles, accessories and supply arrangements.',
+    adv2Title: 'Product partnership',
+    adv2Desc: 'Explore the product range and partnership terms.',
+    adv3Title: 'Regional partnership',
+    adv3Desc: 'Discuss your region and the scope of a potential partnership.',
+    adv4Title: 'Technical and service support',
+    adv4Desc: 'Learn about technical materials and service arrangements.',
 
     partnerHeading: 'Dealer Collaboration Center',
     partnerSub: 'Dedicated access for prospective applicants and certified retail partners',
@@ -117,111 +119,54 @@ const I18N = {
     applyCardDesc: 'Join our expanding network of premium bicycle dealers and mobility specialists across Europe.',
     applyBtn: 'Apply now →',
     applyFormTitle: 'Submit Partnership Application',
-    applySuccess: 'Application submitted! Our commercial team will follow up within 2 business days.',
+    applySuccess: 'Your application has been submitted.',
     portalCardTitle: 'B2B Dealer Center',
     portalCardDesc: 'Direct portal for certified dealers: bulk orders, logistics tracking, VIN allocation, and billing.',
     portalBtn: 'Dealer sign in →',
 
     searchHeading: 'Find Authorized Dealers & Showrooms',
-    searchSub: 'Test ride ALSVID electric bikes and consult with certified technicians in person',
+    searchSub: 'Find authorized sales and service locations.',
     filterAllCountries: 'All Countries / Regions',
     filterDE: 'Germany 🇩🇪',
     filterAT: 'Austria 🇦🇹',
     filterCH: 'Switzerland 🇨🇭',
     filterFR: 'France 🇫🇷',
     searchPlaceholder: 'Enter city or postal code…',
-    noStoreNotice: 'No store found in your area yet. You can request a mobile test ride or apply to become a local partner.',
+    noStoreNotice: 'No matching locations found.',
     bookTestRide: 'Book Test Ride',
     directions: 'Directions',
     storeStatus: 'Certified Store',
   },
 };
 
-const STORES = [
-  {
-    id: 'muc-01',
-    country: 'DE',
-    countryName: { zh: '德国', de: 'Deutschland', en: 'Germany' },
-    city: 'München',
-    zip: '80333',
-    name: 'ALSVID Flagship Experience Center München',
-    address: 'Brienner Straße 14, 80333 München, Germany',
-    phone: '+49 89 2154 8890',
-    hours: 'Mo - Sa: 10:00 - 19:00',
-    models: 'A1 Ultra, L1 Pro, A1, L1',
-  },
-  {
-    id: 'ber-01',
-    country: 'DE',
-    countryName: { zh: '德国', de: 'Deutschland', en: 'Germany' },
-    city: 'Berlin',
-    zip: '10117',
-    name: 'ALSVID Mobility Hub Berlin Mitte',
-    address: 'Friedrichstraße 68, 10117 Berlin, Germany',
-    phone: '+49 30 8922 1140',
-    hours: 'Mo - Sa: 10:00 - 19:00',
-    models: 'A1 Ultra, L1 Pro',
-  },
-  {
-    id: 'ham-01',
-    country: 'DE',
-    countryName: { zh: '德国', de: 'Deutschland', en: 'Germany' },
-    city: 'Hamburg',
-    zip: '20354',
-    name: 'Hanseatic E-Mobility Partner Hamburg',
-    address: 'Große Bleichen 21, 20354 Hamburg, Germany',
-    phone: '+49 40 3345 9912',
-    hours: 'Di - Sa: 10:00 - 18:30',
-    models: 'A1 Ultra, A1, L1',
-  },
-  {
-    id: 'fra-01',
-    country: 'DE',
-    countryName: { zh: '德国', de: 'Deutschland', en: 'Germany' },
-    city: 'Frankfurt',
-    zip: '60313',
-    name: 'ALSVID Service & Distribution Center Frankfurt',
-    address: 'Kaiserstraße 28, 60313 Frankfurt am Main, Germany',
-    phone: '+49 69 7788 4420',
-    hours: 'Mo - Fr: 09:00 - 18:00',
-    models: 'Full Lineup & Spares',
-  },
-  {
-    id: 'vie-01',
-    country: 'AT',
-    countryName: { zh: '奥地利', de: 'Österreich', en: 'Austria' },
-    city: 'Wien',
-    zip: '1010',
-    name: 'Velo Luxury Partner Wien',
-    address: 'Kärntner Ring 12, 1010 Wien, Austria',
-    phone: '+43 1 512 8840',
-    hours: 'Mo - Sa: 10:00 - 18:00',
-    models: 'A1 Ultra, L1 Pro',
-  },
-  {
-    id: 'zur-01',
-    country: 'CH',
-    countryName: { zh: '瑞士', de: 'Schweiz', en: 'Switzerland' },
-    city: 'Zürich',
-    zip: '8001',
-    name: 'Swiss E-Commuter Hub Zürich',
-    address: 'Bahnhofstrasse 45, 8001 Zürich, Switzerland',
-    phone: '+41 44 211 5560',
-    hours: 'Mo - Fr: 09:30 - 18:30, Sa: 09:30 - 17:00',
-    models: 'A1 Ultra, L1 Pro, A1',
-  },
-];
-
-export function DealersView({ locale }: DealersViewProps) {
+export function DealersView({ locale, portalUrl = '' }: DealersViewProps) {
   const t = I18N[locale] || I18N.de;
 
   // D02 筛选交互状态
   const [selectedCountry, setSelectedCountry] = useState('ALL');
   const [searchQuery, setSearchQuery] = useState('');
+  const [locations, setLocations] = useState<PublicLocation[]>([]);
+  const [locationsState, setLocationsState] = useState<'loading' | 'ready' | 'error'>('loading');
+
+  useEffect(() => {
+    const controller = new AbortController();
+    Promise.all(['sales', 'service'].map(async capability => {
+      const response = await fetch(`/api/public/dealer-locations?capability=${capability}`, { signal: controller.signal });
+      if (!response.ok) throw new Error('Locations unavailable');
+      const result = await response.json();
+      if (!Array.isArray(result.data)) throw new Error('Invalid locations');
+      return result.data as PublicLocation[];
+    })).then(groups => {
+      setLocations([...new Map(groups.flat().map(location => [location.id, location])).values()]);
+      setLocationsState('ready');
+    }).catch(() => { if (!controller.signal.aborted) setLocationsState('error'); });
+    return () => controller.abort();
+  }, []);
 
   // D04 申请合作表单展开与提交状态
   const [showApplyForm, setShowApplyForm] = useState(false);
   const [applyBusy, setApplyBusy] = useState(false);
+  const applyRequest = useRef<{ id: string; payload: string } | null>(null);
   const [applySuccess, setApplySuccess] = useState(false);
   const [applyError, setApplyError] = useState('');
   const [applyForm, setApplyForm] = useState({
@@ -235,18 +180,17 @@ export function DealersView({ locale }: DealersViewProps) {
   });
 
   const filteredStores = useMemo(() => {
-    return STORES.filter((store) => {
+    return locations.filter((store) => {
       const matchCountry = selectedCountry === 'ALL' || store.country === selectedCountry;
       const q = searchQuery.trim().toLowerCase();
       const matchQuery =
         !q ||
         store.city.toLowerCase().includes(q) ||
-        store.zip.toLowerCase().includes(q) ||
         store.name.toLowerCase().includes(q) ||
         store.address.toLowerCase().includes(q);
       return matchCountry && matchQuery;
     });
-  }, [selectedCountry, searchQuery]);
+  }, [locations, selectedCountry, searchQuery]);
 
   const handleApplySubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -254,13 +198,16 @@ export function DealersView({ locale }: DealersViewProps) {
     setApplyBusy(true);
     setApplyError('');
     try {
+      const payload = JSON.stringify(applyForm);
+      if (!applyRequest.current || applyRequest.current.payload !== payload) {
+        applyRequest.current = { id: uuidv7(), payload };
+      }
       const res = await fetch('/api/dealer-applications', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...applyForm,
-          locale,
-          partnershipType: 'retail_and_service',
+          id: applyRequest.current.id,
         }),
       });
       if (!res.ok) {
@@ -486,8 +433,8 @@ export function DealersView({ locale }: DealersViewProps) {
                   {t.portalCardDesc}
                 </p>
               </div>
-              <a
-                href="/dealer"
+              {portalUrl ? <a
+                href={portalUrl}
                 style={{
                   display: 'block',
                   background: 'rgba(255, 255, 255, 0.12)',
@@ -503,7 +450,7 @@ export function DealersView({ locale }: DealersViewProps) {
                 }}
               >
                 {t.portalBtn}
-              </a>
+              </a> : <p role="status">{locale === 'zh' ? '经销商登录入口暂不可用' : locale === 'de' ? 'Händler-Login derzeit nicht verfügbar' : 'Dealer sign-in is temporarily unavailable'}</p>}
             </div>
           </div>
 
@@ -637,6 +584,15 @@ export function DealersView({ locale }: DealersViewProps) {
 
                   <div>
                     <label style={{ display: 'block', fontSize: 13, marginBottom: 6, opacity: 0.85 }}>
+                      {locale === 'zh' ? '联系电话 *' : locale === 'de' ? 'Telefonnummer *' : 'Contact phone *'}
+                      <input required type="tel" minLength={3} maxLength={80} value={applyForm.contactPhone}
+                        onChange={(e) => setApplyForm({ ...applyForm, contactPhone: e.target.value })}
+                        style={{ display: 'block', width: '100%', marginTop: 6, padding: '12px 14px', borderRadius: 8, background: 'rgba(0, 0, 0, 0.4)', border: '1px solid rgba(255, 255, 255, 0.25)', color: '#fff', boxSizing: 'border-box' }} />
+                    </label>
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: 13, marginBottom: 6, opacity: 0.85 }}>
                       {locale === 'zh' ? '合作诉求与门店现状（可选）' : locale === 'de' ? 'Nachricht / Portfolio (optional)' : 'Message / Current Business (optional)'}
                     </label>
                     <textarea
@@ -733,8 +689,7 @@ export function DealersView({ locale }: DealersViewProps) {
               <option value="ALL">{t.filterAllCountries}</option>
               <option value="DE">{t.filterDE}</option>
               <option value="AT">{t.filterAT}</option>
-              <option value="CH">{t.filterCH}</option>
-              <option value="FR">{t.filterFR}</option>
+              
             </select>
 
             <input
@@ -754,7 +709,7 @@ export function DealersView({ locale }: DealersViewProps) {
           </div>
 
           {/* 门店网点平铺列表 */}
-          {filteredStores.length > 0 ? (
+          {locationsState !== 'ready' ? <p role="status">{locationsState === 'loading' ? (locale === 'zh' ? '正在加载网点…' : locale === 'de' ? 'Standorte werden geladen…' : 'Loading locations…') : (locale === 'zh' ? '暂时无法获取网点，请稍后重试。' : locale === 'de' ? 'Standorte sind vorübergehend nicht verfügbar.' : 'Locations are temporarily unavailable.')}</p> : filteredStores.length > 0 ? (
             <div
               style={{
                 display: 'grid',
@@ -788,10 +743,10 @@ export function DealersView({ locale }: DealersViewProps) {
                           borderRadius: 20,
                         }}
                       >
-                        ✓ {t.storeStatus}
+                        ✓ {store.sales && store.service ? (locale === 'zh' ? '销售与服务' : locale === 'de' ? 'Verkauf & Service' : 'Sales & service') : store.sales ? (locale === 'zh' ? '销售' : locale === 'de' ? 'Verkauf' : 'Sales') : (locale === 'zh' ? '服务' : 'Service')}
                       </span>
                       <span style={{ fontSize: 13, color: 'var(--color-text-muted, #6b7280)' }}>
-                        {(store.countryName as any)[locale] || store.country}
+                        {store.country === 'DE' ? t.filterDE : store.country === 'AT' ? t.filterAT : store.country}
                       </span>
                     </div>
 
@@ -799,31 +754,9 @@ export function DealersView({ locale }: DealersViewProps) {
                     <p style={{ fontSize: 14, color: 'var(--color-text-muted, #4b5563)', lineHeight: 1.5, margin: '0 0 8px' }}>
                       📍 {store.address}
                     </p>
-                    <p style={{ fontSize: 13, color: 'var(--color-text-subtle, #9ca3af)', margin: '0 0 8px' }}>
-                      🕒 {store.hours}
-                    </p>
-                    <p style={{ fontSize: 13, color: '#059669', fontWeight: 500, margin: '0 0 16px' }}>
-                      🚲 {store.models}
-                    </p>
                   </div>
 
                   <div style={{ display: 'flex', gap: 10, paddingTop: 16, borderTop: '1px solid var(--color-border, #f3f4f6)' }}>
-                    <Link
-                      href={`/${locale}/test-ride`}
-                      style={{
-                        flex: 1,
-                        textAlign: 'center',
-                        background: '#111827',
-                        color: '#ffffff',
-                        padding: '10px 14px',
-                        borderRadius: 8,
-                        fontSize: 13,
-                        fontWeight: 600,
-                        textDecoration: 'none',
-                      }}
-                    >
-                      {t.bookTestRide}
-                    </Link>
                     <a
                       href={`https://maps.google.com/?q=${encodeURIComponent(store.address)}`}
                       target="_blank"

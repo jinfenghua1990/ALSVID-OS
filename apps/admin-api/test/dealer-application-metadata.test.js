@@ -46,3 +46,19 @@ test('retry accepts matching metadata and rejects changed partnership details', 
   await assert.rejects(store.submit({...input,formMetadata:{...input.formMetadata,partnershipType:'retail'}}),error=>error.code==='VERSION_CONFLICT');
   assert.equal(calls.at(-1).sql,'ROLLBACK');
 });
+
+test('public dealer application requires a UUIDv7 and contact phone before saving', async t => {
+  const dbPath=require.resolve('../db-pool'), modulePath=require.resolve('../dealer-applications');
+  const db=require(dbPath), original=db.createPool, calls=[];
+  db.createPool=()=>({async connect(){return {async query(sql,params=[]){calls.push(sql);if(sql.startsWith('SELECT id,company_name'))return {rows:[]};if(sql.startsWith('INSERT INTO dealer_applications('))return {rows:[{id:params[0],status:'pending',createdAt:'synthetic'}]};return {rows:[]};},release(){}}}});
+  delete require.cache[modulePath];
+  t.after(()=>{db.createPool=original;delete require.cache[modulePath]});
+  const store=require('../dealer-applications').createDealerApplications('synthetic-only');
+  const input={id:'01890f3e-7b13-7aa9-b123-123456789abc',companyName:'Example',country:'DE',contactName:'Example',contactPhone:'123',contactEmail:'example@example.invalid'};
+  await assert.rejects(store.submit({...input,id:''}),/招商申请编号无效/);
+  await assert.rejects(store.submit({...input,contactPhone:''}),/招商申请资料无效/);
+  assert.equal(calls.length,0);
+  const result=await store.submit(input);
+  assert.equal(result.status,'pending');
+  assert.ok(calls.some(sql=>sql.startsWith('INSERT INTO dealer_applications(')));
+});

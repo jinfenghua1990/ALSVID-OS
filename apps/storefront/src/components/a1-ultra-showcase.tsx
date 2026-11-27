@@ -18,12 +18,27 @@ interface Hotspot {
 }
 
 const ASSET_IDS = {
-  techBeam: '01a21af8-34db-72f5-80d9-7a09ecb8d894',
-  studio: '01a21aed-911c-7a97-9eec-bcd82159c54e',
-  europeStreet: '01a21af8-2599-7b96-9dc8-1e5a7487f201',
-  sideTransparent: '01a21af8-3f7f-7a98-b795-107f4d8ee25a',
+  techBeam: '01a21be4-96df-72bd-86dd-392c44be6b66',
+  studio: '01a21be4-85fa-7408-a592-7b4d8eb2917e',
+  europeStreet: '01a21be4-ac8a-7c29-bb23-b91b789855db',
+  sideTransparent: '01a21be4-687f-7054-bc26-8ad048722a9f',
   foldedTransparent: '01a21af8-4bfe-7404-9dbd-4ebd108d1b6e',
 };
+
+// 本地静态资源映射：优先读取本地 public/images/a1-ultra 目录，保证零网络与零 API 依赖秒显
+const LOCAL_ASSETS: Record<string, string> = {
+  '01a21be4-96df-72bd-86dd-392c44be6b66': '/images/a1-ultra/a1-ultra-tech-beam-kv-4k.jpg',
+  '01a21be4-85fa-7408-a592-7b4d8eb2917e': '/images/a1-ultra/a1-ultra-studio-kv-4k.jpg',
+  '01a21be4-ac8a-7c29-bb23-b91b789855db': '/images/a1-ultra/a1-ultra-europe-street-kv-4k.jpg',
+  '01a21be4-687f-7054-bc26-8ad048722a9f': '/images/a1-ultra/a1-ultra-side-transparent-4k.png',
+};
+
+function getAssetSrc(id: string): string {
+  if (LOCAL_ASSETS[id]) {
+    return LOCAL_ASSETS[id];
+  }
+  return publicAssetUrl(id);
+}
 
 const UI_TEXT: Record<Locale, {
   modes: Record<ViewMode, string>;
@@ -194,7 +209,7 @@ export function A1UltraShowcase({
         <div style={{ position: 'absolute', inset: 0, zIndex: 1 }}>
           <Image
             key={bgImageId}
-            src={publicAssetUrl(bgImageId)}
+            src={getAssetSrc(bgImageId)}
             alt={title || 'A1 ULTRA'}
             fill
             priority
@@ -379,7 +394,7 @@ export function A1UltraShowcase({
         {mode === 'interactive' && (
           <div style={{ position: 'relative', width: '100%', maxWidth: 680, margin: '0 auto', aspectRatio: bikeState === 'unfolded' ? '980 / 768' : '925 / 862', maxHeight: '62vh' }}>
             <img
-              src={publicAssetUrl(bikeState === 'unfolded' ? ASSET_IDS.sideTransparent : ASSET_IDS.foldedTransparent)}
+              src={getAssetSrc(bikeState === 'unfolded' ? ASSET_IDS.sideTransparent : ASSET_IDS.foldedTransparent)}
               alt={`A1 Ultra ${bikeState}`}
               style={{
                 width: '100%',

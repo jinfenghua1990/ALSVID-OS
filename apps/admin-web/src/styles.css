@@ -1471,6 +1471,12 @@ html[data-accent='blue'] :is(.shop-media__toolbar .btn.primary,.shop-media__drop
 .al-head__title { font-size:14px; font-weight:600; color:var(--text); }
 .al-head__meta { font-size:11.5px; color:var(--text-sub); margin-top:2px; }
 .al-head__spacer { flex:1; }
+/* 素材批量下载条：常驻一行，没勾选时下载按钮置灰但不占额外高度 */
+.al-bulk { display:flex; align-items:center; gap:10px; margin-top:10px; padding:7px 10px; border:1px solid var(--border); border-radius:6px; background:var(--panel); font-size:12px; }
+.al-bulk__all { display:flex; align-items:center; gap:6px; cursor:pointer; user-select:none; }
+.al-bulk__all input { width:15px; height:15px; accent-color:var(--acc); }
+.al-bulk__count { font-size:12px; font-weight:600; color:var(--text); }
+.al-bulk .btn { padding:4px 10px; font-size:11.5px; }
 .al-tabs { display:flex; flex-wrap:wrap; gap:5px; padding-bottom:10px; border-bottom:1px solid var(--border); margin-bottom:10px; }
 .al-tab { border:1px solid var(--border); background:var(--panel); color:var(--text-sub); border-radius:4px; padding:4px 10px; font-size:12px; }
 .al-tab:hover { border-color:var(--acc); color:var(--acc-ink,#35680b); }

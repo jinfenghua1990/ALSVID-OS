@@ -8,6 +8,7 @@ const { currentActor } = require('./audit-context');
 const { isUuidv7, uuidv7 } = require('./uuidv7');
 const { findLegacyUsages } = require('./media-assets');
 const { thumbnailKey, makeThumbnail } = require('./asset-thumbnail');
+const { buildZip } = require('./asset-zip');
 
 const CONTENT_TYPES = {
   'image/jpeg': { kind: 'image', max: 10 * 1024 * 1024 },
@@ -21,6 +22,10 @@ const CONTENT_TYPES = {
 const CATEGORIES = ['product', 'marketing', 'page', 'other'];
 const VISIBILITIES = ['public', 'internal'];
 const STATUSES = ['draft', 'published', 'archived'];
+// 批量打包下载的上限：一次最多 60 个、合计不超过 200MB。
+// 打包是内存里拼字节，不是流式写盘，不设上限会把进程内存顶爆。
+const MAX_ZIP_FILES = 60;
+const MAX_ZIP_BYTES = 200 * 1024 * 1024;
 const TARGET_TYPES = ['product', 'sku', 'part', 'page', 'campaign'];
 const LINK_ROLES = ['hero', 'gallery', 'detail', 'package', 'certificate', 'drawing', 'banner', 'kv'];
 const CHANNELS = ['product', 'storefront'];
@@ -599,6 +604,35 @@ function createAssetLibraryStore(url, objectStorage) {
       return { asset: { ...asset, contentType, fileName }, object: await objectStorage.get(objectKey), objectKey };
     },
 
+    // 批量下载：把选中素材原始文件打成一个 zip。
+    // 单张下载走 /api/assets/:id/file?download=1，这里只负责「多个」这一种情况。
+    // 上限是硬约束：对象存储里单图最大 10MB、视频 30MB，不设上限一次就能把内存吃满。
+    async zip(ids) {
+      if (!objectStorage) fail('对象存储尚未配置', 503);
+      const list = unique((Array.isArray(ids) ? ids : []).map(id => String(id == null ? '' : id).trim()).filter(Boolean));
+      if (!list.length) fail('请先选择要下载的素材');
+      if (list.length > MAX_ZIP_FILES) fail(`一次最多打包 ${MAX_ZIP_FILES} 个素材，请分批下载`);
+      const entries = [];
+      let total = 0;
+      for (const id of list) {
+        if (!isUuidv7(id)) continue;
+        // 已被删除/无权限的素材直接跳过，不因为一个坏 id 让整包失败
+        let asset;
+        try { asset = await load(id); } catch (_) { continue; }
+        const object = await objectStorage.get(asset.objectKey);
+        const data = Buffer.from(await object.Body.transformToByteArray());
+        if (total + data.length > MAX_ZIP_BYTES) fail('所选素材总体积过大，请分批下载');
+        total += data.length;
+        entries.push({
+          name: downloadName(asset.fileName || asset.label || asset.id, asset.contentType),
+          data,
+          mtime: asset.updatedAt ? new Date(asset.updatedAt) : new Date(),
+        });
+      }
+      if (!entries.length) fail('所选素材都不存在或已被删除', 404);
+      return { buffer: buildZip(entries), count: entries.length, bytes: total };
+    },
+
     async thumbnail(id, checksum) {
       const asset = await load(id);
       if (asset.kind !== 'image' || !['image/jpeg','image/png','image/webp','image/avif'].includes(asset.contentType)) fail('该素材不支持缩略图', 415);
@@ -736,6 +770,17 @@ function registerAssetLibraryRoutes(app, store) {
     reply.header('X-Content-Type-Options', 'nosniff').header('Cache-Control', 'private, max-age=86400');
     if (req.query.download === '1') reply.header('Content-Disposition', contentDisposition('attachment', result.asset.fileName || result.asset.id, result.asset.contentType));
     return reply.type(result.asset.contentType).send(result.object.Body);
+  });
+  // 批量下载：前端勾选后 POST {ids:[...]}，返回一个 zip。
+  // 用 POST 而不是 GET，是因为选几十个 id 拼进 query 会超长。
+  route('POST', '/api/assets/download-zip', async (req, reply) => {
+    const result = await store.zip((req.body || {}).ids);
+    const now = new Date();
+    const pad = value => String(value).padStart(2, '0');
+    const stamp = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}`;
+    reply.header('X-Content-Type-Options', 'nosniff').header('Cache-Control', 'no-store');
+    reply.header('Content-Disposition', contentDisposition('attachment', `alsvid-素材-${stamp}.zip`, 'application/zip'));
+    return reply.type('application/zip').send(result.buffer);
   });
   route('GET', '/api/assets/:id/thumbnail', async (req, reply) => {
     const result = await store.thumbnail(req.params.id, String(req.query.checksum || ''));

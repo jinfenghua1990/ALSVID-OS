@@ -365,8 +365,6 @@ h1 { max-width:900px; margin:14px 0 20px; font-size:clamp(42px,7vw,92px); font-w
 .site-footer-legal{display:flex;flex-wrap:wrap;gap:16px;font-size:12px}
 .site-footer-legal a{color:#627269;text-decoration:none}
 .site-footer-legal a:hover{color:#163826;text-decoration:underline}
-.site-footer-payments{display:inline-flex;align-items:center;gap:8px;flex-wrap:wrap}
-.payment-badge{display:inline-block;font-size:10px;font-weight:700;padding:2px 7px;border-radius:3px;background:#edf3ef;color:#284334;letter-spacing:0.03em;border:1px solid #d2ded7}
 .product-page--with-nav{padding-top:0}
 .product-section-nav{position:sticky;top:0;z-index:10;background:#fbfbf9;display:flex;align-items:center;justify-content:space-between;gap:16px;padding:12px 0;margin-bottom:36px;border-bottom:1px solid var(--color-border)}
 .product-section-nav__links{display:flex;flex-wrap:wrap;justify-content:center;gap:8px 18px;font-size:13px}
@@ -472,3 +470,265 @@ h1 { max-width:900px; margin:14px 0 20px; font-size:clamp(42px,7vw,92px); font-w
 .alsvid-cart-drawer-bottom .button { text-align:center; }
 @media(max-width:720px){ .alsvid-cart-drawer { width:100vw; } }
 @media(prefers-reduced-motion:reduce){.alsvid-cart-drawer[open]{animation:none}}
+
+
+/* =========================================================
+   ALSVID 全站深黑极简科技高定顶栏与底栏配色体系
+   基于用户截图像素级复刻：午夜深蓝黑背景、荧光绿顶条与徽标
+   ========================================================= */
+
+/* 1. 顶部导航栏 (Navbar) */
+.site-header.site-header--dark-theme {
+  background: #0d1217;
+  color: #ffffff;
+  border-top: 3px solid #7bc638;
+  border-bottom: 1px solid #1a232d;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px clamp(16px, 4vw, 56px);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.site-header__brand-block {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.site-header__brand-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  text-decoration: none;
+  color: #ffffff;
+}
+
+.site-header__brand-name {
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  color: #ffffff;
+}
+
+.site-header__slogan {
+  font-size: 10px;
+  color: #7e8f9b;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+.site-header__nav {
+  display: flex;
+  align-items: center;
+  gap: clamp(14px, 2.2vw, 32px);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.site-header__nav-item {
+  color: #d1dde6;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  transition: color 0.15s ease;
+  white-space: nowrap;
+}
+
+.site-header__nav-item:hover {
+  color: #ffffff;
+}
+
+.site-header__nav-badge {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 5px;
+  border-radius: 3px;
+  line-height: 1.2;
+}
+
+.site-header__nav-badge--presale {
+  background: #9edb44;
+  color: #0b1a0d;
+}
+
+.site-header__nav-badge--new {
+  background: #e85038;
+  color: #ffffff;
+}
+
+.site-header.site-header--dark-theme .cart-nav-link {
+  color: #d1dde6;
+}
+
+.site-header.site-header--dark-theme .cart-nav-link:hover {
+  color: #ffffff;
+}
+
+.site-header.site-header--dark-theme .cart-nav-count {
+  background: #7bc638;
+  color: #0d1217;
+  font-weight: 700;
+}
+
+.site-header.site-header--dark-theme .locale-switch summary {
+  color: #d1dde6;
+}
+
+.site-header.site-header--dark-theme .mobile-menu summary {
+  color: #ffffff;
+}
+
+.site-nav--dark {
+  background: #0d1217 !important;
+  color: #ffffff !important;
+  border: 1px solid #1a232d;
+}
+
+.site-nav--dark a {
+  color: #d1dde6 !important;
+}
+
+.site-nav--dark a:hover {
+  color: #ffffff !important;
+}
+
+/* 2. 全局页脚 (Footer) */
+.site-footer.site-footer--dark-theme {
+  background: #0d1217;
+  color: #8c9ba5;
+  border-top: 1px solid #1a232d;
+  padding: 56px 24px 36px;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.site-footer--dark-theme .site-footer-inner {
+  max-width: 1200px;
+  margin: 0 auto;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 48px;
+}
+
+.site-footer--dark-theme .site-footer-main {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: clamp(32px, 5vw, 64px);
+  flex-wrap: wrap;
+}
+
+.site-footer-brand-col {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 160px;
+}
+
+.site-footer-brand-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.site-footer-brand-title {
+  font-size: 24px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  color: #ffffff;
+}
+
+.site-footer-slogan {
+  font-size: 11px;
+  color: #758693;
+  letter-spacing: 0.08em;
+}
+
+.site-footer--dark-theme .site-footer-navs {
+  display: flex;
+  gap: clamp(24px, 4vw, 54px);
+  flex-wrap: wrap;
+  flex: 1;
+  justify-content: flex-end;
+}
+
+.site-footer--dark-theme .site-footer-nav-col {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 90px;
+}
+
+.site-footer--dark-theme .site-footer-col-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #ffffff;
+  letter-spacing: 0.04em;
+}
+
+.site-footer--dark-theme .site-footer-col-links {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.site-footer--dark-theme .site-footer-col-links a {
+  color: #8c9ba5;
+  text-decoration: none;
+  font-size: 12px;
+  transition: color 0.15s ease;
+}
+
+.site-footer--dark-theme .site-footer-col-links a:hover {
+  color: #ffffff;
+  text-decoration: none;
+}
+
+.site-footer--dark-theme .site-footer-bottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  flex-wrap: wrap;
+  padding-top: 24px;
+  border-top: 1px solid #1a232d;
+  color: #647480;
+  font-size: 12px;
+}
+
+.site-footer--dark-theme .site-footer-brand-row span {
+  color: #647480;
+}
+
+.site-footer--dark-theme .site-footer-legal {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.site-footer--dark-theme .site-footer-legal a {
+  color: #7e8f9b;
+  text-decoration: none;
+  transition: color 0.15s ease;
+}
+
+.site-footer--dark-theme .site-footer-legal a:hover {
+  color: #ffffff;
+}
+
+@media (max-width: 900px) {
+  .site-header__nav {
+    display: none;
+  }
+  .site-header.site-header--dark-theme .mobile-menu {
+    display: block;
+  }
+  .site-footer--dark-theme .site-footer-navs {
+    justify-content: flex-start;
+  }
+}

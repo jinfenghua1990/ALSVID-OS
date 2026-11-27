@@ -43,5 +43,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function DealersPage({ params }: Props) {
   const { locale } = await params;
-  return <DealersView locale={locale} />;
+  const configured = process.env.ALSVID_DEALER_PORTAL_URL?.trim() || '';
+  let portalUrl = '';
+  try {
+    const url = new URL(configured);
+    if ((url.protocol === 'https:' || (process.env.NODE_ENV !== 'production' && url.protocol === 'http:')) && !url.username && !url.password) portalUrl = url.href;
+  } catch { /* No public portal URL is configured. */ }
+  return <DealersView locale={locale} portalUrl={portalUrl} />;
 }

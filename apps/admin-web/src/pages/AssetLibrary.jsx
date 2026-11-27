@@ -84,6 +84,9 @@ export default function AssetLibrary({ active = true, user, initialCategory = 's
   const [filters, setFilters] = useState({ q: '', kind: '', tag: '', lang: '', market: '', status: '', visibility: '', folder: '' });
   const [page, setPage] = useState(1);
   const [rows, setRows] = useState([]), [total, setTotal] = useState(0);
+  // 批量下载的勾选集合。存 id 数组而不是「只存本页」，这样翻页后前面勾的不会丢 ——
+  // 运营常见的动作是「把这台车的图全下下来」，而那些图往往跨好几页。
+  const [picked, setPicked] = useState([]), [zipBusy, setZipBusy] = useState(false);
   const [loading, setLoading] = useState(false), [error, setError] = useState(''), [message, setMessage] = useState('');
   const [dragOver, setDragOver] = useState(false);
   const [detailId, setDetailId] = useState(''), [detail, setDetail] = useState(null), [detailError, setDetailError] = useState('');
@@ -117,6 +120,37 @@ export default function AssetLibrary({ active = true, user, initialCategory = 's
     if (selection.type === 'unclassified') return '待分类';
     return '全部车型';
   }, [isProductView, category, selection, products]);
+
+  // 勾选与批量打包。单张下载走 <a download>，多张必须走 POST 再落 blob ——
+  // 几十个 id 拼不进 URL，浏览器也不允许一个链接下多个文件。
+  const pickedSet = useMemo(() => new Set(picked), [picked]);
+  const allPickedOnPage = rows.length > 0 && rows.every(row => pickedSet.has(row.id));
+  const togglePick = useCallback(id => setPicked(list => (list.includes(id) ? list.filter(item => item !== id) : [...list, id])), []);
+  const togglePickPage = () => setPicked(
+    allPickedOnPage
+      ? picked.filter(id => !rows.some(row => row.id === id))
+      : [...new Set([...picked, ...rows.map(row => row.id)])]
+  );
+  const downloadPicked = async () => {
+    if (!picked.length || zipBusy) return;
+    setZipBusy(true); setError(''); setMessage('');
+    try {
+      const { blob, filename } = await api.assetsZip(picked);
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url; link.download = filename; link.style.display = 'none';
+      document.body.appendChild(link); link.click(); link.remove();
+      // 立刻 revoke 会让 Safari 和一些 Chrome 版本的下载直接中断，留一分钟再释放
+      setTimeout(() => URL.revokeObjectURL(url), 60000);
+      setMessage(`已打包 ${picked.length} 个素材：${filename}`);
+    } catch (e) {
+      setError(e.message || '打包下载失败');
+    } finally {
+      setZipBusy(false);
+    }
+  };
+  // 换车型 / 换入口时清空勾选，避免把上一个视图的素材带进这次打包
+  useEffect(() => { setPicked([]); }, [category, selection.type, selection.id, fixedProductId]);
 
   const query = useMemo(() => {
     const q = { assetView: category, ...filters, folder: filters.folder === '__none__' ? '' : filters.folder, unfiled: filters.folder === '__none__' ? '1' : '', page, pageSize: PAGE_SIZE };
@@ -440,6 +474,21 @@ export default function AssetLibrary({ active = true, user, initialCategory = 's
       {error && <p className="error-text mt8" role="alert">{error}</p>}
       {message && <p className="hint mt8" role="status">{message}</p>}
 
+      {/* 批量下载条：勾选是跨页累积的，所以「全选本页」只增删本页的 id，不动其他页已选的 */}
+      <div className="al-bulk">
+        <label className="al-bulk__all">
+          <input type="checkbox" checked={allPickedOnPage} disabled={!rows.length} onChange={togglePickPage} />
+          全选本页
+        </label>
+        <b className="al-bulk__count">已选 {picked.length} 个</b>
+        <span className="hint">可跨页勾选，一次最多 60 个</span>
+        <span style={{ marginLeft: 'auto' }} />
+        {picked.length > 0 && <button type="button" className="btn small" onClick={() => setPicked([])} disabled={zipBusy}>清空</button>}
+        <button type="button" className="btn small primary" disabled={!picked.length || zipBusy} onClick={downloadPicked}>
+          {zipBusy ? '正在打包…' : '下载打包（zip）'}
+        </button>
+      </div>
+
       {!rows.length && !loading && <div className={'shop-media__drop' + (dragOver ? ' is-over' : '')}>
         <div className="shop-media__drop-icon">+</div>
         <b>{activeFilter || usage !== 'all' ? '没有匹配的素材' : `${selectionLabel}还没有上传内容`}</b>
@@ -449,7 +498,8 @@ export default function AssetLibrary({ active = true, user, initialCategory = 's
 
       {rows.length > 0 && <>
         <div className="shop-media__grid">
-          {rows.map(asset => <article key={asset.id} className="shop-media__card">
+          {rows.map(asset => <article key={asset.id} className={'shop-media__card' + (pickedSet.has(asset.id) ? ' is-selected' : '')}>
+            <input type="checkbox" className="shop-media__check" checked={pickedSet.has(asset.id)} onChange={() => togglePick(asset.id)} aria-label={`选择 ${asset.label || asset.fileName || '素材'}`} title="勾选后可批量打包下载" />
             <div className="shop-media__thumb" onClick={() => openDetail(asset.id)} title="查看详情"><Thumb asset={asset} /></div>
             <div className="shop-media__info">
               <strong className="shop-media__name" title={asset.fileName}>{asset.label || asset.fileName || '未命名素材'}</strong>

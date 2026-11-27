@@ -130,23 +130,84 @@ const SOURCES = [
 // 初始资产数据
 const INITIAL_ASSETS = [
   {
-    id: 'ast-01',
-    fileName: 'A1 Ultra 旗舰款钛银主视觉图.webp',
-    title: 'A1 Ultra 旗舰款钛银主视觉图.webp',
+    id: '01a21be4-687f-7054-bc26-8ad048722a9f',
+    fileName: 'a1-ultra-side-transparent-4k.png',
+    title: 'A1 Ultra 真实车型正侧面 4K 完美去阴影透明底图',
     folder: 'A1 Ultra',
     version: 'v2 生效',
-    format: 'WEBP',
+    format: 'PNG',
     isPrivate: false,
     status: '已发布',
     refCount: 2,
+    usage: 'transparent',
+    source: 'original',
+    previewType: 'image-url',
+    previewBg: 'checkerboard',
+    sizeBytes: '3.6 MB',
+    dimensions: '3840 × 2160',
+    sku: 'ALS-A1U-TRANSPARENT-4K',
+    r2Key: 'media/01a21be4-687f-7054-bc26-8ad048722a9f',
+    imageUrl: '/images/a1-ultra/a1-ultra-side-transparent-4k.png',
+  },
+  {
+    id: '01a21be4-85fa-7408-a592-7b4d8eb2917e',
+    fileName: 'a1-ultra-studio-kv-4k.jpg',
+    title: 'A1 Ultra 真实车型 4K 工业暗调影棚 KV',
+    folder: 'A1 Ultra',
+    version: 'v2 生效',
+    format: 'JPG',
+    isPrivate: false,
+    status: '已发布',
+    refCount: 3,
     usage: 'hero',
     source: 'mall',
-    previewType: 'bike-vector',
-    previewBg: '#ffffff',
-    sizeBytes: '2.4 MB',
+    previewType: 'image-url',
+    previewBg: '#0d1217',
+    sizeBytes: '1.2 MB',
     dimensions: '3840 × 2160',
-    sku: 'ALS-A1U-TI-01',
-    r2Key: 'media/a1-ultra-titanium-kv-v2.webp',
+    sku: 'ALS-A1U-STUDIO-4K',
+    r2Key: 'media/01a21be4-85fa-7408-a592-7b4d8eb2917e',
+    imageUrl: '/images/a1-ultra/a1-ultra-studio-kv-4k.jpg',
+  },
+  {
+    id: '01a21be4-96df-72bd-86dd-392c44be6b66',
+    fileName: 'a1-ultra-tech-beam-kv-4k.jpg',
+    title: 'A1 Ultra 真实车型 4K 工业科技光束 KV',
+    folder: 'A1 Ultra',
+    version: 'v2 生效',
+    format: 'JPG',
+    isPrivate: false,
+    status: '已发布',
+    refCount: 2,
+    usage: 'detail',
+    source: 'marketing',
+    previewType: 'image-url',
+    previewBg: '#080d14',
+    sizeBytes: '1.4 MB',
+    dimensions: '3840 × 2160',
+    sku: 'ALS-A1U-TECH-BEAM-4K',
+    r2Key: 'media/01a21be4-96df-72bd-86dd-392c44be6b66',
+    imageUrl: '/images/a1-ultra/a1-ultra-tech-beam-kv-4k.jpg',
+  },
+  {
+    id: '01a21be4-ac8a-7c29-bb23-b91b789855db',
+    fileName: 'a1-ultra-europe-street-kv-4k.jpg',
+    title: 'A1 Ultra 真实车型 4K 欧洲老城街景全景 KV',
+    folder: 'A1 Ultra',
+    version: 'v2 生效',
+    format: 'JPG',
+    isPrivate: false,
+    status: '已发布',
+    refCount: 2,
+    usage: 'scene',
+    source: 'marketing',
+    previewType: 'image-url',
+    previewBg: '#eaf4eb',
+    sizeBytes: '2.5 MB',
+    dimensions: '3840 × 2160',
+    sku: 'ALS-A1U-EUROPE-4K',
+    r2Key: 'media/01a21be4-ac8a-7c29-bb23-b91b789855db',
+    imageUrl: '/images/a1-ultra/a1-ultra-europe-street-kv-4k.jpg',
   },
   {
     id: 'ast-02',
@@ -380,6 +441,7 @@ function SceneryIllustration() {
 
 export default function AssetWorkspaceV2({ embedded = false }) {
   // 状态管理
+  const [assets, setAssets] = useState(INITIAL_ASSETS);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [selectedFolder, setSelectedFolder] = useState('all');
   const [selectedUsage, setSelectedUsage] = useState('all');
@@ -394,18 +456,33 @@ export default function AssetWorkspaceV2({ embedded = false }) {
   const [drawerTab, setDrawerTab] = useState('基础信息');
   const [aiQueueOpen, setAiQueueOpen] = useState(false);
 
+  // 回炉重造 (质检驳回) 模态框状态
+  const [reworkModalAsset, setReworkModalAsset] = useState(null);
+  const [reworkReasons, setReworkReasons] = useState([]);
+  const [reworkNotes, setReworkNotes] = useState('');
+  const [isReworking, setIsReworking] = useState(false);
+
+  // 动态统计待审核与待回炉队列数量
+  const reworkQueueCount = useMemo(() => {
+    return assets.filter(a => a.status === '待回炉' || a.status === '待审核').length + 2; // 默认带底量
+  }, [assets]);
+
   // 快捷获取当前目录名称
   const currentFolderName = useMemo(() => {
-    if (aiQueueOpen) return 'AI 待审核队列';
+    if (aiQueueOpen) return 'AI 待审核与回炉重造队列';
     const match = DIRECTORIES.find(d => d.id === selectedFolder);
     return match ? match.title : '全部资产';
   }, [selectedFolder, aiQueueOpen]);
 
   // 过滤资产列表
   const filteredAssets = useMemo(() => {
-    return INITIAL_ASSETS.filter(item => {
+    return assets.filter(item => {
+      // 队列视图：仅展示待回炉或待审核
+      if (aiQueueOpen) {
+        return item.status === '待回炉' || item.status === '待审核' || item.folder === 'A1 Ultra';
+      }
       // 目录过滤
-      if (!aiQueueOpen && selectedFolder !== 'all') {
+      if (selectedFolder !== 'all') {
         const dir = DIRECTORIES.find(d => d.id === selectedFolder);
         if (dir && item.folder !== dir.title) return false;
       }
@@ -417,14 +494,11 @@ export default function AssetWorkspaceV2({ embedded = false }) {
       if (selectedSource !== 'all' && item.source !== selectedSource) {
         return false;
       }
-      // 市场过滤
-      if (marketFilter !== 'all') {
-        // demo 简单匹配
-      }
       // 状态过滤
       if (statusFilter !== 'all') {
         if (statusFilter === 'published' && item.status !== '已发布') return false;
         if (statusFilter === 'private' && !item.isPrivate) return false;
+        if (statusFilter === 'rework' && item.status !== '待回炉') return false;
       }
       // 搜索关键词
       if (searchKeyword.trim()) {
@@ -436,7 +510,50 @@ export default function AssetWorkspaceV2({ embedded = false }) {
       }
       return true;
     });
-  }, [selectedFolder, selectedUsage, selectedSource, marketFilter, statusFilter, searchKeyword, aiQueueOpen]);
+  }, [assets, selectedFolder, selectedUsage, selectedSource, marketFilter, statusFilter, searchKeyword, aiQueueOpen]);
+
+  // 触发单个或批量回炉
+  const handleOpenReworkModal = (asset) => {
+    setReworkModalAsset(asset);
+    setReworkReasons(['底部接触阴影未清']);
+    setReworkNotes('必须严格以实车白底图为原型，彻底去除轮胎下方的接触阴影与灰黑色残留，保留纯白轮廓线条并以 4K 输出。');
+  };
+
+  // 提交回炉操作
+  const handleConfirmRework = (instantAutoFix = false) => {
+    if (!reworkModalAsset) return;
+    setIsReworking(true);
+
+    setTimeout(() => {
+      setAssets(prev => prev.map(a => {
+        if (a.id === reworkModalAsset.id) {
+          return {
+            ...a,
+            status: instantAutoFix ? '已发布' : '待回炉',
+            version: instantAutoFix ? 'v2.1 重造生效' : 'v2.0 返工中',
+            reworkLogs: [
+              ...(a.reworkLogs || []),
+              {
+                time: new Date().toLocaleTimeString(),
+                reasons: reworkReasons,
+                notes: reworkNotes,
+                autoFixed: instantAutoFix,
+              }
+            ]
+          };
+        }
+        return a;
+      }));
+
+      setIsReworking(false);
+      setReworkModalAsset(null);
+      if (instantAutoFix) {
+        alert('✨ AI 回炉重造成功！已为您消除残留阴影并重生成 v2.1 4K 超高清版本，已同步归档。');
+      } else {
+        alert('已成功打回重造！素材已流转至左侧「AI 待审核 / 回炉队列」，线上引用版本受防断链保护继续生效。');
+      }
+    }, 600);
+  };
 
   // 全选/多选逻辑
   const toggleSelectAsset = (id) => {
@@ -732,7 +849,15 @@ export default function AssetWorkspaceV2({ embedded = false }) {
                       )}
 
                       {/* 卡片插画 / 缩略图渲染 */}
-                      {asset.previewType === 'scenery' ? (
+                      {asset.imageUrl ? (
+                        <img 
+                          src={asset.imageUrl} 
+                          alt={asset.title} 
+                          className="aw2-card__img" 
+                          loading="lazy" 
+                          onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                        />
+                      ) : asset.previewType === 'scenery' ? (
                         <SceneryIllustration />
                       ) : (
                         <BikeIllustration stroke="#1b241f" accent="#2ba265" isTransparent={asset.usage === 'transparent'} />
@@ -751,12 +876,27 @@ export default function AssetWorkspaceV2({ embedded = false }) {
                       </div>
 
                       <div className="aw2-card__footer">
-                        {asset.status === '已发布' ? (
+                        {asset.status === '待回炉' ? (
+                          <span className="aw2-status-pill aw2-status-pill--rework">🔴 待回炉</span>
+                        ) : asset.status === '已发布' ? (
                           <span className="aw2-status-pill aw2-status-pill--published">已发布</span>
                         ) : (
                           <span className="aw2-status-pill aw2-status-pill--private">🔒 私有</span>
                         )}
-                        <span className="aw2-ref-count">引用 {asset.refCount} 处</span>
+                        <div className="aw2-card__footer-actions">
+                          <button
+                            type="button"
+                            className="aw2-rework-btn"
+                            title="质检不合格，打回重造"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleOpenReworkModal(asset);
+                            }}
+                          >
+                            ⚡ 回炉
+                          </button>
+                          <span className="aw2-ref-count">引用 {asset.refCount} 处</span>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -832,6 +972,17 @@ export default function AssetWorkspaceV2({ embedded = false }) {
                         <td><code>{asset.sku}</code></td>
                         <td><strong>{asset.refCount} 处</strong></td>
                         <td style={{ textAlign: 'right' }}>
+                          <button
+                            type="button"
+                            className="aw2-row-action aw2-row-action--rework"
+                            title="质检不合格，打回重造"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleOpenReworkModal(asset);
+                            }}
+                          >
+                            ⚡ 回炉
+                          </button>
                           <button 
                             type="button" 
                             className="aw2-row-action"
@@ -873,7 +1024,7 @@ export default function AssetWorkspaceV2({ embedded = false }) {
 
             {/* 抽屉 Tabs */}
             <div className="aw2-drawer__tabs">
-              {['基础信息', 'SKU 关联', '页面引用', '版本历史'].map(tab => (
+              {['基础信息', 'SKU 关联', '页面引用', '版本历史', '质检记录'].map(tab => (
                 <button
                   key={tab}
                   type="button"
@@ -890,7 +1041,13 @@ export default function AssetWorkspaceV2({ embedded = false }) {
               {drawerTab === '基础信息' && (
                 <div className="aw2-drawer__panel">
                   <div className={`aw2-drawer__preview ${activeDrawerAsset.previewBg === 'checkerboard' ? 'is-checkerboard' : ''}`}>
-                    {activeDrawerAsset.previewType === 'scenery' ? (
+                    {activeDrawerAsset.imageUrl ? (
+                      <img 
+                        src={activeDrawerAsset.imageUrl} 
+                        alt={activeDrawerAsset.title} 
+                        className="aw2-drawer__img" 
+                      />
+                    ) : activeDrawerAsset.previewType === 'scenery' ? (
                       <SceneryIllustration />
                     ) : (
                       <BikeIllustration />
@@ -927,6 +1084,13 @@ export default function AssetWorkspaceV2({ embedded = false }) {
                       onClick={() => alert(`已复制 R2 直链地址：https://cdn.alsvidbike.com/${activeDrawerAsset.r2Key}`)}
                     >
                       复制直链 CDN URL
+                    </button>
+                    <button
+                      type="button"
+                      className="aw2-btn aw2-btn--danger"
+                      onClick={() => handleOpenReworkModal(activeDrawerAsset)}
+                    >
+                      ⚡ 质检驳回并回炉重造
                     </button>
                     {activeDrawerAsset.isPrivate && (
                       <button 
@@ -986,8 +1150,162 @@ export default function AssetWorkspaceV2({ embedded = false }) {
                   </div>
                 </div>
               )}
+              {drawerTab === '质检记录' && (
+                <div className="aw2-drawer__panel">
+                  <h3>资产质检与回炉流水</h3>
+                  <div className="aw2-rework-history">
+                    {activeDrawerAsset.reworkLogs && activeDrawerAsset.reworkLogs.length > 0 ? (
+                      activeDrawerAsset.reworkLogs.map((log, idx) => (
+                        <div key={idx} className="aw2-rework-log-item">
+                          <div className="aw2-rework-log-header">
+                            <span className="aw2-rework-log-time">{log.time}</span>
+                            <span className={log.autoFixed ? 'aw2-badge-success' : 'aw2-badge-warning'}>
+                              {log.autoFixed ? 'AI 已修复' : '质检已驳回'}
+                            </span>
+                          </div>
+                          <div className="aw2-rework-log-tags">
+                            {log.reasons.map((r, ri) => (
+                              <span key={ri} className="aw2-rework-tag">{r}</span>
+                            ))}
+                          </div>
+                          <p className="aw2-rework-log-notes">{log.notes}</p>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="aw2-rework-clean-tip">
+                        <span style={{ fontSize: 24 }}>✨</span>
+                        <p>该资产目前无驳回记录，品质达标。</p>
+                        <button
+                          type="button"
+                          className="aw2-btn aw2-btn--outline"
+                          style={{ marginTop: 10 }}
+                          onClick={() => handleOpenReworkModal(activeDrawerAsset)}
+                        >
+                          发起质检复核
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           </aside>
+        </div>
+      )}
+
+      {/* 回炉重造 (质检驳回) 模态弹窗 */}
+      {reworkModalAsset && (
+        <div className="aw2-modal-overlay" onClick={() => !isReworking && setReworkModalAsset(null)}>
+          <div className="aw2-modal" onClick={e => e.stopPropagation()}>
+            <div className="aw2-modal__head">
+              <div>
+                <span className="aw2-modal__eyebrow">QUALITY CONTROL · WORKFLOW LINK</span>
+                <h3>⚡ 质检驳回与回炉重造</h3>
+              </div>
+              <button
+                type="button"
+                className="aw2-modal__close"
+                disabled={isReworking}
+                onClick={() => setReworkModalAsset(null)}
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="aw2-modal__body">
+              <div className="aw2-rework-asset-brief">
+                <div className="aw2-rework-asset-thumb">
+                  {reworkModalAsset.imageUrl ? (
+                    <img src={reworkModalAsset.imageUrl} alt={reworkModalAsset.title} />
+                  ) : (
+                    <span>🖼️</span>
+                  )}
+                </div>
+                <div>
+                  <strong>{reworkModalAsset.title}</strong>
+                  <p>当前版本: <code>{reworkModalAsset.version}</code> · 引用: {reworkModalAsset.refCount} 处 · SKU: {reworkModalAsset.sku}</p>
+                </div>
+              </div>
+
+              <div className="aw2-form-group">
+                <label className="aw2-form-label">质检缺陷项（可多选，将作为回炉任务的整改要求）</label>
+                <div className="aw2-defect-grid">
+                  {[
+                    '底部接触阴影未清',
+                    '车身原型不一致(非实拍碳纤维车架)',
+                    '边缘毛刺/白边残留',
+                    '轮圈辐条细节被过度擦除',
+                    '分辨率未达标(需4K超清)',
+                    '暗黑底色透光度异常'
+                  ].map(reason => {
+                    const checked = reworkReasons.includes(reason);
+                    return (
+                      <label key={reason} className={`aw2-defect-checkbox ${checked ? 'is-checked' : ''}`}>
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setReworkReasons(prev => [...prev, reason]);
+                            } else {
+                              setReworkReasons(prev => prev.filter(r => r !== reason));
+                            }
+                          }}
+                        />
+                        <span>{reason}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="aw2-form-group">
+                <label className="aw2-form-label">整改具体说明 / Prompt 指导</label>
+                <textarea
+                  className="aw2-form-textarea"
+                  rows={3}
+                  value={reworkNotes}
+                  onChange={e => setReworkNotes(e.target.value)}
+                  placeholder="请输入具体的修改标准，例如：轮胎接地点需彻底清除地面接触阴影残留，不得破坏轮圈边缘圆弧..."
+                />
+              </div>
+
+              <div className="aw2-rework-protection-box">
+                <span className="aw2-protection-icon">🛡️</span>
+                <div className="aw2-protection-text">
+                  <strong>线上引用防断链机制已启动</strong>
+                  <p>打回重造期间，自建商城前端继续引用生效中的 <code>v1.0/v2.0 稳定快照</code>，不会导致线上页面图片裂开或缺失。待新版本重造验收合格发布后，将平滑升版。</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="aw2-modal__footer">
+              <button
+                type="button"
+                className="aw2-btn aw2-btn--outline"
+                disabled={isReworking}
+                onClick={() => setReworkModalAsset(null)}
+              >
+                取消
+              </button>
+              <button
+                type="button"
+                className="aw2-btn aw2-btn--warning"
+                disabled={isReworking}
+                onClick={() => handleConfirmRework(false)}
+              >
+                {isReworking ? '正在流转...' : '放入待回炉队列'}
+              </button>
+              <button
+                type="button"
+                className="aw2-btn aw2-btn--primary"
+                disabled={isReworking}
+                onClick={() => handleConfirmRework(true)}
+              >
+                {isReworking ? 'AI 正在重新抠图与去阴影...' : '⚡ 启动 AI 即刻重造'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

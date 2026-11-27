@@ -33,6 +33,39 @@ async function assetQuery(params = {}) {
   return req('GET', `/api/assets?${search.toString()}`);
 }
 
+// 批量下载：把一批素材 id 交给后端打成一个 zip。
+// 为什么不用 <a href>：勾 40 个 id 拼进 query 会超长，而且后端要 POST 才收得下。
+// 后端回 Content-Disposition，这里把它解析出来当作保存文件名。
+async function assetsZip(ids) {
+  let res;
+  try {
+    res = await fetch(BASE + '/api/assets/download-zip', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ids }),
+    });
+  } catch (_) { throw new Error('网络连接失败，请检查网络后重试'); }
+  if (!res.ok) {
+    const data = await res.json().catch(() => null);
+    if (res.status === 401) {
+      const error = new Error('登录状态已过期，请重新登录');
+      error.status = 401;
+      try { window.location.reload(); } catch (_) {}
+      throw error;
+    }
+    throw new Error((data && data.error) || `打包下载失败 (${res.status})`);
+  }
+  const disposition = res.headers.get('Content-Disposition') || '';
+  const encoded = /filename\*=UTF-8''([^;]+)/i.exec(disposition);
+  const plain = /filename="([^"]+)"/i.exec(disposition);
+  let filename = 'alsvid-assets.zip';
+  try {
+    const raw = encoded ? encoded[1] : (plain ? plain[1] : '');
+    if (raw) filename = decodeURIComponent(raw);
+  } catch (_) { /* 解不出来就用兜底名 */ }
+  return { blob: await res.blob(), filename };
+}
+
 // 素材下拉需要完整列表，接口单页最多 100 条，这里自动翻页（最多 10 页）。
 async function assetsAll(params = {}) {
   const pageSize = 100;
@@ -213,6 +246,7 @@ export const api = {
     return `/api/assets/${encodeURIComponent(id)}/file${search ? `?${search}` : ''}`;
   },
   assetThumbnailUrl: (id, checksum) => `/api/assets/${encodeURIComponent(id)}/thumbnail?checksum=${encodeURIComponent(checksum || '')}`,
+  assetsZip,
   cmsPages: ({type='',locale='',q='',path=''}={}) => req('GET',`/api/cms/pages?type=${encodeURIComponent(type)}&locale=${encodeURIComponent(locale)}&q=${encodeURIComponent(q)}&path=${encodeURIComponent(path)}`),
   cmsPage: id => req('GET',`/api/cms/pages/${encodeURIComponent(id)}`),
   createCmsPage: body => req('POST','/api/cms/pages',body),

@@ -47,11 +47,7 @@ export default function CatalogAdminPage({ user, active = true, workspaceKey, on
   if (section === 'seo-traffic') return <SeoTrafficCenter active={active} />;
   if (section === 'payments') return <PaymentProviders active={active} />;
   if (section === 'module-ledger') return <ModuleLedger />;
-  if (section === 'media') return <>
-    <ShopPageHead />
-    <AssetLibrary active={active} user={user} initialCategory="storefront"/>
-  </>;
-  if (section === 'assets-v2') return user?.role === 'admin' ? <AssetWorkspaceV2 embedded /> : <p>仅管理员可访问素材资产中心。</p>;
+  if (section === 'media' || section === 'assets-v2') return user?.role === 'admin' ? <AssetWorkspaceV2 embedded /> : <p>仅管理员可访问素材资产中心。</p>;
   if (section === 'pricing') return <ShopPricingPage/>;
   if (section === 'product-design') return <>
     <ShopPageHead actions={<button type="button" className="btn small" onClick={() => onSectionChange?.('design')}>← 返回店铺装修</button>} />

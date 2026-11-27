@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import { notFound } from 'next/navigation';
 import Image from 'next/image';
 import { cookies, draftMode } from 'next/headers';
 import { getProducts, getPreviewLayout, getPublishedLayout, getCmsPage, getStorefrontLayoutReviewPreview, localeLabels, publicApiUrl, type Locale, siteUrl } from '@/lib/alsvid-api';
@@ -74,6 +75,7 @@ function homepageModuleIds(blocks: { id: string; componentKey: string; moduleId?
 
 export async function generateMetadata({ params, searchParams }: { params: Promise<{ locale: Locale }>; searchParams?:Promise<{reviewToken?:string}> }): Promise<Metadata> {
   const { locale } = await params;
+  if (!['de', 'en', 'zh'].includes(locale)) notFound();
   if((await searchParams)?.reviewToken)return {title:localeLabels[locale].tagline,robots:{index:false,follow:false,nocache:true}};
   const cmsHome = await getCmsPage(locale, '/');
   const text = localeLabels[locale];
@@ -95,6 +97,7 @@ export async function generateMetadata({ params, searchParams }: { params: Promi
 
 export default async function Home({ params, searchParams }: { params: Promise<{ locale: Locale }>; searchParams?:Promise<{reviewToken?:string;parent?:string;device?:string}> }) {
   const { locale } = await params;
+  if (!['de', 'en', 'zh'].includes(locale)) notFound();
   const query=(await searchParams)||{};
   const layoutReview=query.reviewToken?await getStorefrontLayoutReviewPreview(locale,query.reviewToken):null;
   if(query.reviewToken&&!layoutReview)return <main className="container"><h1>首页审核预览不可用</h1><p>预览凭证无效、已过期，或草稿已更新。请回到后台重新开始审核。</p></main>;
@@ -104,7 +107,7 @@ export default async function Home({ params, searchParams }: { params: Promise<{
   let layout = null;
   let preview = false;
   let previewSourceMismatch = false;
-  if ((await draftMode()).isEnabled) {
+  if (!layoutReview && (await draftMode()).isEnabled) {
     const token = (await cookies()).get('alsvid_preview')?.value;
     if (token) {
       const draft = await getPreviewLayout(locale, token);
@@ -123,7 +126,7 @@ export default async function Home({ params, searchParams }: { params: Promise<{
   const snapshotHtml = layout?.html ? prepareLayoutSnapshot(layout.html, locale) : '';
 
   // 优先尝试读取 CMS 统一页面系统配置的首页（支持与内容页统一的模块化编排）
-  const cmsHome = layoutReview?null:await getCmsPage(locale, '/');
+  const cmsHome = layoutReview || preview ? null : await getCmsPage(locale, '/');
   if (cmsHome?.blocks && cmsHome.blocks.length > 0) {
     return <main data-alsvid-layout-source="cms-page">
       <CmsBlocks blocks={cmsHome.blocks} locale={locale} moduleIds={homepageModuleIds(cmsHome.blocks)}/>

@@ -6,13 +6,17 @@ import { ProductPageNav } from '@/components/product-page-nav';
 import { ImmersiveScene } from '@/components/immersive-scene';
 import { ProductTemplateReviewConfirm } from '@/components/product-template-review-confirm';
 import { absoluteApiUrl, getAvailability, getCmsProductTemplate, getOffers, getProduct, getProductTemplateReviewPreview, getReviews, publicApiUrl, publicAssetUrl, type Locale, type ProductModuleBanner, type ProductModuleCopy, type PerformanceConfig, type PerformanceSpec, siteUrl } from '@/lib/alsvid-api';
+import { getA1UltraStaticProduct } from '@/lib/a1-ultra-product-data';
 import { UI } from '@/lib/ui-text';
 
 type Props = { params: Promise<{ locale: Locale; slug: string }>; searchParams?: Promise<{configure?:string;reviewToken?:string;parent?:string}> };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { locale, slug } = await params;
-  const product = await getProduct(slug, locale);
+  let product = await getProduct(slug, locale);
+  if (!product && (slug === 'carbon-e-bike-klapprad-a1-ultra' || slug.includes('a1-ultra'))) {
+    product = getA1UltraStaticProduct(locale).product;
+  }
   if (!product || product.kind !== 'vehicle') return { title: 'Product unavailable', robots: { index: false, follow: false } };
   return {
     title: product.title,
@@ -28,14 +32,20 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function ProductPage({ params, searchParams }: Props) {
   const { locale, slug } = await params;
   const query = await searchParams;
-  const product = await getProduct(slug, locale);
+  const isA1Ultra = slug === 'carbon-e-bike-klapprad-a1-ultra' || slug.includes('a1-ultra');
+  let product = await getProduct(slug, locale);
+  let staticData = isA1Ultra ? getA1UltraStaticProduct(locale) : null;
+  if (!product && staticData) {
+    product = staticData.product;
+  }
   if (!product || product.kind !== 'vehicle') notFound();
-  const [allOffers, availability, reviews, reviewPreview] = await Promise.all([
-    getOffers(product.slug, locale),
-    getAvailability(product.slug, locale),
+  const [allOffers, availabilityResult, reviews, reviewPreview] = await Promise.all([
+    staticData ? Promise.resolve(staticData.offers) : getOffers(product.slug, locale),
+    staticData ? Promise.resolve(staticData.availability) : getAvailability(product.slug, locale),
     getReviews(product.productId),
     query?.reviewToken && query.parent ? getProductTemplateReviewPreview(locale, product.productId, query.reviewToken) : Promise.resolve(null),
   ]);
+  const availability = availabilityResult;
   if (query?.reviewToken && !reviewPreview) return <main role="alert" style={{ padding: 32 }}>审核预览凭证无效或已失效，请回到装修工作台重新开始审核。</main>;
   const template = reviewPreview?.template ?? await getCmsProductTemplate(locale, product.productId);
   const offers = allOffers.filter(offer => offer.currency === 'EUR');

@@ -1028,3 +1028,376 @@
   color: #9cb3a7;
   margin-bottom: 12px;
 }
+
+.aw2-card__img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  transition: transform 0.2s ease;
+}
+
+.aw2-card:hover .aw2-card__img {
+  transform: scale(1.02);
+}
+
+.aw2-drawer__img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+/* 质检回炉相关样式 */
+.aw2-status-pill--rework {
+  background: #fdf2f2;
+  color: #c53030;
+  border: 1px solid #feb2b2;
+}
+
+.aw2-card__footer-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.aw2-rework-btn {
+  background: #fff5f5;
+  color: #c53030;
+  border: 1px solid #feb2b2;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.aw2-rework-btn:hover {
+  background: #feb2b2;
+  color: #9b2c2c;
+  transform: scale(1.04);
+}
+
+.aw2-row-action--rework {
+  background: #fff5f5;
+  color: #c53030;
+  border-color: #feb2b2;
+  margin-right: 6px;
+}
+
+.aw2-row-action--rework:hover {
+  background: #fed7d7;
+  color: #9b2c2c;
+}
+
+.aw2-btn--danger {
+  background: #fff5f5;
+  color: #c53030;
+  border: 1px solid #feb2b2;
+}
+
+.aw2-btn--danger:hover {
+  background: #fed7d7;
+  color: #9b2c2c;
+}
+
+.aw2-btn--warning {
+  background: #fffaf0;
+  color: #dd6b20;
+  border: 1px solid #fbd38d;
+}
+
+.aw2-btn--warning:hover {
+  background: #feebc8;
+  color: #c05621;
+}
+
+/* 回炉模态框 */
+.aw2-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.65);
+  backdrop-filter: blur(4px);
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.aw2-modal {
+  background: #ffffff;
+  border-radius: 14px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+  width: 100%;
+  max-width: 600px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: aw2ModalIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes aw2ModalIn {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.aw2-modal__head {
+  padding: 18px 24px;
+  border-bottom: 1px solid var(--aw2-border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #fafcfb;
+}
+
+.aw2-modal__eyebrow {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: #c53030;
+}
+
+.aw2-modal__head h3 {
+  margin: 4px 0 0;
+  font-size: 17px;
+  color: var(--aw2-text-main);
+}
+
+.aw2-modal__close {
+  background: none;
+  border: none;
+  font-size: 22px;
+  color: var(--aw2-text-muted);
+  cursor: pointer;
+  line-height: 1;
+}
+
+.aw2-modal__body {
+  padding: 20px 24px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.aw2-rework-asset-brief {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px;
+  background: #f8fafc;
+  border: 1px solid var(--aw2-border);
+  border-radius: 8px;
+}
+
+.aw2-rework-asset-thumb {
+  width: 52px;
+  height: 52px;
+  border-radius: 6px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.aw2-rework-asset-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.aw2-rework-asset-brief strong {
+  font-size: 14px;
+  color: var(--aw2-text-main);
+  display: block;
+}
+
+.aw2-rework-asset-brief p {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: var(--aw2-text-muted);
+}
+
+.aw2-form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.aw2-form-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--aw2-text-main);
+}
+
+.aw2-defect-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+}
+
+.aw2-defect-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  font-size: 12px;
+  color: #334155;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+
+.aw2-defect-checkbox.is-checked {
+  border-color: #feb2b2;
+  background: #fff5f5;
+  color: #c53030;
+  font-weight: 600;
+}
+
+.aw2-form-textarea {
+  width: 100%;
+  border: 1px solid var(--aw2-border);
+  border-radius: 6px;
+  padding: 10px 12px;
+  font-size: 13px;
+  color: var(--aw2-text-main);
+  resize: vertical;
+  font-family: inherit;
+  box-sizing: border-box;
+}
+
+.aw2-form-textarea:focus {
+  outline: none;
+  border-color: var(--aw2-primary);
+  box-shadow: 0 0 0 2px rgba(43, 162, 101, 0.15);
+}
+
+.aw2-rework-protection-box {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.aw2-protection-icon {
+  font-size: 18px;
+  line-height: 1.2;
+}
+
+.aw2-protection-text strong {
+  font-size: 12px;
+  color: #166534;
+  display: block;
+}
+
+.aw2-protection-text p {
+  margin: 3px 0 0;
+  font-size: 11px;
+  color: #15803d;
+  line-height: 1.5;
+}
+
+.aw2-protection-text code {
+  background: rgba(255, 255, 255, 0.8);
+  padding: 1px 4px;
+  border-radius: 3px;
+}
+
+.aw2-modal__footer {
+  padding: 14px 24px;
+  border-top: 1px solid var(--aw2-border);
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  background: #fafcfb;
+}
+
+/* 抽屉内质检记录流水 */
+.aw2-rework-history {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.aw2-rework-log-item {
+  border: 1px solid #fee2e2;
+  background: #fffafa;
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.aw2-rework-log-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.aw2-rework-log-time {
+  font-size: 12px;
+  color: #64748b;
+  font-family: var(--font-mono, monospace);
+}
+
+.aw2-badge-success {
+  background: #dcfce7;
+  color: #15803d;
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-weight: 600;
+}
+
+.aw2-badge-warning {
+  background: #fee2e2;
+  color: #b91c1c;
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-weight: 600;
+}
+
+.aw2-rework-log-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 6px;
+}
+
+.aw2-rework-tag {
+  background: #fecaca;
+  color: #991b1b;
+  font-size: 11px;
+  padding: 1px 6px;
+  border-radius: 3px;
+}
+
+.aw2-rework-log-notes {
+  margin: 0;
+  font-size: 12px;
+  color: #334155;
+  line-height: 1.4;
+}
+
+.aw2-rework-clean-tip {
+  text-align: center;
+  padding: 30px 10px;
+  color: var(--aw2-text-muted);
+}
+

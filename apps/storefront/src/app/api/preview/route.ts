@@ -1,13 +1,13 @@
 import { draftMode } from 'next/headers';
 import { NextRequest, NextResponse } from 'next/server';
 import { apiOrigin, siteIsHttps } from '@/lib/origins';
+import { PREVIEW_COOKIE } from '@/lib/preview-cookie';
 
 // 单独起路由文件而不是走 /api/[...path] 代理：
 // Next 的静态段优先级高于 catch-all，因此 /api/preview 不会被代理吃掉。
 
 const LOCALES = new Set(['de', 'en', 'zh']);
 // 与 drafts 生命周期对齐：15 分钟。够看一遍，过期自动失效。
-export const PREVIEW_COOKIE = 'alsvid_preview';
 const PREVIEW_MAX_AGE = 15 * 60;
 
 // 来源与协议判定统一走 lib/origins.ts，不在此硬编码端口

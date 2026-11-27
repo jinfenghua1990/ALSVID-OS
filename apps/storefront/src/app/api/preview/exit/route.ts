@@ -1,6 +1,6 @@
 import { draftMode } from 'next/headers';
 import { NextRequest, NextResponse } from 'next/server';
-import { PREVIEW_COOKIE } from '../route';
+import { PREVIEW_COOKIE } from '@/lib/preview-cookie';
 
 const LOCALES = new Set(['de', 'en', 'zh']);
 

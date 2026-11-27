@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { api } from '../api.js';
 import { DESIGN_LOCALES, pageModule } from './design-module-registry.js';
+import { selectHomepageBlock } from './homepage-block-selection.js';
 
 // 支持的宣传表现形式
 const COMPONENT_LABELS = {
@@ -81,15 +82,8 @@ export default function UnifiedHomepageModuleEditor({ moduleId, locale, onWorksp
     return 0;
   }, [moduleId]);
 
-  // 定位属于当前模块的 block：优先按 moduleId 显式绑定，次之按槽位索引，再次按组件类别
-  const block = useMemo(() => {
-    if (!doc?.blocks?.length) return null;
-    const explicit = doc.blocks.find(row => row.moduleId === moduleId);
-    if (explicit) return explicit;
-    if (doc.blocks[targetSlotIndex]) return doc.blocks[targetSlotIndex];
-    const allowedKeys = choices.map(([key]) => key);
-    return doc.blocks.find(row => allowedKeys.includes(row.componentKey)) || null;
-  }, [doc, moduleId, targetSlotIndex, choices]);
+  const selection = useMemo(() => selectHomepageBlock(doc?.blocks, moduleId, targetSlotIndex, choices.map(([key]) => key)), [doc, moduleId, targetSlotIndex, choices]);
+  const { block, ambiguous } = selection;
 
   const patchBlock = useCallback(patch => {
     if (!doc || !block) return;
@@ -143,45 +137,7 @@ export default function UnifiedHomepageModuleEditor({ moduleId, locale, onWorksp
         }
         const loaded = await api.cmsPage(row.id);
         if (!alive) return;
-        let source = loaded.draft || loaded.published || { blocks: [] };
-        // 如果当前模块在 blocks 中尚未存在，自动注入高质量默认模板内容
-        const hasBlock = source.blocks?.some(b => (moduleChoices[moduleId] || []).some(([k]) => k === b.componentKey));
-        if (!hasBlock && vehicleList.length) {
-          const v = vehicleList[0];
-          const v2 = vehicleList[1] || v;
-          let defaultBlock = null;
-          if (moduleId === "ALSVID-G03-01" || moduleId === "ALSVID-H01") {
-            defaultBlock = blankBlock("hero", newId());
-            defaultBlock.props.eyebrow = "ALSVID · " + (v.title || "旗舰整车");
-            defaultBlock.props.title = (v.title || "A1 Ultra") + " · 超轻折叠旗舰";
-            defaultBlock.props.intro = v.description || "极简车身设计，3 步快速折叠，搭载隐藏动力系统，让城市出行兼具科技感与优雅。";
-            defaultBlock.props.ctaLabel = "立即选配 " + (v.title || "整车") + " →";
-            defaultBlock.props.ctaHref = "/" + locale + "/e-bikes/" + encodeURIComponent(v.slug) + "?configure=1";
-          } else if (moduleId === "ALSVID-G03-02") {
-            defaultBlock = blankBlock("twoColumn", newId());
-            defaultBlock.props.title = (v2.title || "G01") + " · 秒级折叠，为城市生活减负";
-            defaultBlock.props.body = "轻量化铝合金车身，折叠后体积缩小 65%，可随心推行、入梯或轻松放进汽车后备箱。通勤与周末出游的理想座驾。";
-          } else if (moduleId === "ALSVID-G03-03" || moduleId === "ALSVID-H03") {
-            defaultBlock = blankBlock("features", newId());
-            defaultBlock.props.heading = "核心科技与工程优势";
-            defaultBlock.props.items = [
-              { title: "航空级轻量车架", text: "一体压铸高刚性铝合金，兼顾轻盈与越级承重表现。" },
-              { title: "智能扭矩传感器", text: "毫秒级敏锐感知踏频与力度，起步丝滑、动力源源不绝。" },
-              { title: "高密度隐藏电池", text: "内置车架管腔，安全防水，单次充电动能支持 80-100 公里。" }
-            ];
-          } else if (moduleId === "ALSVID-G03-04" || moduleId === "ALSVID-H02") {
-            defaultBlock = blankBlock("productGallery", newId());
-            defaultBlock.props.heading = "在售全车系产品矩阵";
-            defaultBlock.bindings.productIds = vehicleList.map(item => item.productId).slice(0, 4);
-          } else if (moduleId === "ALSVID-G03-05" || moduleId === "ALSVID-H04") {
-            defaultBlock = blankBlock("article", newId());
-            defaultBlock.props.heading = "以工程创新，推动更美好的骑行生活";
-            defaultBlock.props.intro = "ALSVID 诞生于对未来清洁出行与工业美学的热爱。我们相信科技不仅是冰冷的参数，更是每一次破风前行时的心动。";
-          }
-          if (defaultBlock) {
-            source = { ...source, blocks: [...(source.blocks || []), defaultBlock] };
-          }
-        }
+        const source = loaded.draft || loaded.published || { blocks: [] };
         setPage(loaded);
         setDoc(JSON.parse(JSON.stringify(source)));
         setBaseline(JSON.stringify(loaded.draft || loaded.published || { blocks: [] }));
@@ -198,21 +154,22 @@ export default function UnifiedHomepageModuleEditor({ moduleId, locale, onWorksp
   // 一键同步所选车型数据到当前宣传屏
   const applyVehicleData = () => {
     const v = vehicles.find(item => item.productId === selectedVehicle);
+    if (ambiguous) { setError('旧版组件归属不明确，请先核对首页内容。'); return; }
     if (!v) {
       setError('请先在下方选择要绑定的车型。');
       return;
     }
     setError('');
     const title = v.title || v.slug;
-    const subtitle = v.description || '为自由而生 · 超轻折叠电助力';
+    const subtitle = v.description || '';
     const ctaHref = `/${locale}/e-bikes/${encodeURIComponent(v.slug)}?configure=1`;
     const ctaLabel = `立即选配 ${title} →`;
 
     if (!block) {
       // 自动新建 hero
-      const next = blankBlock('hero', newId());
+      const next = { ...blankBlock('hero', newId()), moduleId };
       next.props.eyebrow = `ALSVID · ${title}`;
-      next.props.title = `${title} 旗舰款`;
+      next.props.title = title;
       next.props.intro = subtitle;
       next.props.ctaLabel = ctaLabel;
       next.props.ctaHref = ctaHref;
@@ -226,7 +183,7 @@ export default function UnifiedHomepageModuleEditor({ moduleId, locale, onWorksp
         props: {
           ...block.props,
           eyebrow: `ALSVID · ${title}`,
-          title: `${title} 旗舰款`,
+          title,
           intro: subtitle,
           ctaLabel,
           ctaHref
@@ -236,8 +193,8 @@ export default function UnifiedHomepageModuleEditor({ moduleId, locale, onWorksp
       patchBlock({
         props: {
           ...block.props,
-          title: `${title} · 极致折叠与轻量出行`,
-          body: `${subtitle}\n\n车身采用轻量化铝合金一体成型工艺，3 步快速折叠，无缝衔接城市地铁与汽车后备箱。`
+          title,
+          body: subtitle
         }
       });
     } else if (block.componentKey === 'productGallery' || block.componentKey === 'comparison') {
@@ -247,18 +204,9 @@ export default function UnifiedHomepageModuleEditor({ moduleId, locale, onWorksp
         props: { ...block.props, heading: block.props.heading || '在售全车系矩阵' },
         bindings: { ...block.bindings, productIds: updated }
       });
-    } else if (block.componentKey === 'features') {
-      patchBlock({
-        props: {
-          ...block.props,
-          heading: `${title} · 核心科技优势`,
-          items: [
-            { title: '轻量化折叠车架', text: '航空级铝合金车架，兼顾刚性与便携。' },
-            { title: '隐藏式动力电池', text: '高度集成，续航可达 80-100 公里。' },
-            { title: '智能扭矩传感电机', text: '实时感知踩踏力度，平顺自如输出动力。' }
-          ]
-        }
-      });
+    } else {
+      setError('当前组件不支持应用车型资料，请直接编辑内容。');
+      return;
     }
     setNotice(`已成功将【${title}】的车型数据同步到当前模块！`);
   };
@@ -277,7 +225,7 @@ export default function UnifiedHomepageModuleEditor({ moduleId, locale, onWorksp
       setDoc(JSON.parse(JSON.stringify(saved)));
       setBaseline(JSON.stringify(saved));
       setVersions(await api.cmsVersions(updated.id));
-      setNotice(page ? '草稿已保存！前台右侧预览已同步更新。' : '首页草稿已创建并保存。');
+      setNotice(page ? '草稿已保存，正式页面不会立即改变。' : '首页草稿已创建并保存。');
     } catch (e) {
       setError(e.message || '保存失败');
     } finally {
@@ -305,7 +253,7 @@ export default function UnifiedHomepageModuleEditor({ moduleId, locale, onWorksp
   };
 
   const addBlock = key => {
-    const next = blankBlock(key, newId());
+    const next = { ...blankBlock(key, newId()), moduleId };
     setDoc(current => ({ ...current, blocks: [...(current?.blocks || []), next] }));
   };
 
@@ -340,7 +288,7 @@ export default function UnifiedHomepageModuleEditor({ moduleId, locale, onWorksp
       </header>
 
       <p className="hint">
-        💡 此模块属于 <strong>G03 车型宣传流</strong>。您可以绑定特定车型一键生成文案，也可以自由微调宣传大标语、切换展示形式或勾选多款车型进行对比！
+        💡 此模块属于 <strong>G03 车型宣传流</strong>。您可以选择已发布车型填入已有资料，也可以自由微调宣传大标语、切换展示形式或勾选多款车型进行对比！
       </p>
 
       {error && <p className="error-text" role="alert">{error}</p>}
@@ -369,18 +317,18 @@ export default function UnifiedHomepageModuleEditor({ moduleId, locale, onWorksp
               <button
                 type="button"
                 className="btn small primary"
-                disabled={!selectedVehicle || busy}
+                disabled={!selectedVehicle || busy || ambiguous}
                 onClick={applyVehicleData}
               >
                 一键应用车型数据到当前宣传屏
               </button>
             </div>
             <small style={{ color: '#555' }}>
-              选择车型后点击按钮，将自动把该车型的官方标题、标语、起售价、选配链接和图片预填到下方，省去手动录入！
+              选择车型后点击按钮，将填入已发布车型的名称、已有描述和选配链接，或关联车型；其他内容请手动填写。
             </small>
           </section>
 
-          {!block ? (
+          {ambiguous ? <p className="error-text" role="alert">旧版组件归属不明确，暂不能编辑或新建，请先核对首页内容。</p> : !block ? (
             <section className="udw-group">
               <p>当前页面尚未为此宣传位配置展示组件。</p>
               <label className="udw-field">

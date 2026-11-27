@@ -36,6 +36,16 @@ function createPortalStore(connectionString) {
       JOIN app_users u ON u.entity_uuid=o.dealer_user_uuid WHERE o.id=$1 AND u.id=$2 AND o.created_at>=m.started_at`,[orderId,user.id,membership.id])).rowCount)fail('订货申请不存在',404);
     return membership;
   }
+  const memberScope=(alias,n)=>`(${alias}.center_membership_id=${n}::uuid OR (${alias}.center_membership_id IS NULL AND ${alias}.created_at>=(SELECT started_at FROM dealer_company_memberships WHERE id=${n}::uuid)))`;
+  async function centerRead(user,fn){
+    const c=await pool.connect();
+    try{await c.query('BEGIN');const m=await centerMembership(c,user);const rows=await fn(c,m);await c.query('COMMIT');return rows}
+    catch(e){await c.query('ROLLBACK').catch(()=>{});throw e}finally{c.release()}
+  }
+  async function centerVehicle(c,user,m,vinId){
+    const row=(await c.query(`SELECT v.id,v.vin FROM portal_vehicle_access a JOIN vins v ON v.id=a.vin_id JOIN portal_vehicle_requests r ON r.id=a.request_id WHERE a.user_id=$1 AND a.role='dealer' AND a.revoked_at IS NULL AND v.id=$2 AND ${memberScope('r',3)} FOR SHARE OF a,v,r`,[user.id,vinId,m.id])).rows[0];
+    if(!row)fail('车辆不可用或尚未获得授权',403);return row;
+  }
   async function fetchDealerOrders(userId = null,center=false) {
     return (await pool.query(`SELECT o.id,o.status,o.note,o.admin_note AS "adminNote",o.dealer_response_note AS "dealerResponseNote",o.currency,dr.note AS "receiptNote",dr.received_at AS "receivedAt",sh.carrier AS "carrier",sh.tracking_no AS "trackingNo",sh.shipped_at AS "shippedAt",o.cancel_note AS "cancelNote",o.cancelled_by AS "cancelledBy",o.cancelled_at AS "cancelledAt",o.quoted_by AS "quotedBy",o.quoted_at AS "quotedAt",o.created_at AS "createdAt",u.username,
       (SELECT COALESCE(sum(i.quantity*i.quoted_unit_price),0)::numeric(18,2)::text FROM dealer_order_items i WHERE i.order_id=o.id) AS "orderTotal",
@@ -75,16 +85,17 @@ function createPortalStore(connectionString) {
     async requests(user) {
       return (await pool.query(`SELECT ${requestFields}${user ? '' : ',u.username,u.role'} FROM portal_vehicle_requests r JOIN app_users u ON u.id=r.user_id ${user ? 'WHERE r.user_id=$1' : ''} ORDER BY r.created_at DESC`, user ? [user.id] : [])).rows;
     },
-    async requestVehicle(user, input) {
+    async requestVehicle(user, input, center=false) {
       const vin = String(input.vin || '').trim().toUpperCase(), note = noteOf(input.note), id = uuidv7();
       if (!/^[A-HJ-NPR-Z0-9]{11,20}$/.test(vin)) fail('VIN 格式无效');
       // Do not look up the VIN before review: a request must not reveal whether a vehicle exists.
       return transaction('portal.vehicle.request', `portal-requests/${id}`, async c => {
         await portalUser(c, user.id);
+        const m=center?await centerMembership(c,user):null;
         await c.query('SELECT pg_advisory_xact_lock(hashtextextended($1,0))',[JSON.stringify(['portal-vehicle-request',user.id,vin])]);
         const pending=(await c.query("SELECT id,vin,note,status,decision_note AS \"decisionNote\",created_at AS \"createdAt\",reviewed_at AS \"reviewedAt\" FROM portal_vehicle_requests WHERE user_id=$1 AND vin=$2 AND status='pending' ORDER BY created_at DESC LIMIT 1 FOR UPDATE",[user.id,vin])).rows[0];
-        if(pending){if(pending.note!==note)fail('该车辆已有待审核申请，请等待管理员处理后再提交',409);return{...pending,replayed:true};}
-        return (await c.query("INSERT INTO portal_vehicle_requests(id,user_id,vin,note) VALUES($1,$2,$3,$4) RETURNING id,vin,note,status,created_at AS \"createdAt\"", [id, user.id, vin, note])).rows[0];
+        if(pending){if(m&&!(await c.query(`SELECT 1 FROM portal_vehicle_requests r WHERE r.id=$1 AND ${memberScope('r',2)}`,[pending.id,m.id])).rowCount)fail('存在历史企业待审核申请，请联系管理员处理',409);if(pending.note!==note)fail('该车辆已有待审核申请，请等待管理员处理后再提交',409);return{...pending,replayed:true};}
+        return (await c.query("INSERT INTO portal_vehicle_requests(id,user_id,vin,note,center_membership_id) VALUES($1,$2,$3,$4,$5) RETURNING id,vin,note,status,created_at AS \"createdAt\"", [id, user.id, vin, note,m?.id||null])).rows[0];
       });
     },
     async review(id, input) {
@@ -93,7 +104,7 @@ function createPortalStore(connectionString) {
       id=String(id).toLowerCase();
       const status={approve:'approved',reject:'rejected',revoke:'revoked'}[decision];
       const result=await transaction(`portal.vehicle.${decision}`, `portal-requests/${id}`, async c => {
-        const request = (await c.query('SELECT id,user_id,vin,status,decision_note AS "decisionNote" FROM portal_vehicle_requests WHERE id=$1 FOR UPDATE', [id])).rows[0];
+        const request = (await c.query('SELECT id,user_id,vin,status,center_membership_id,decision_note AS "decisionNote" FROM portal_vehicle_requests WHERE id=$1 FOR UPDATE', [id])).rows[0];
         if (!request) fail('申请不存在', 404);
         if(request.status===status){if(request.decisionNote!==note)fail('申请已处理，请核对原审核记录',409);return{id,vin:request.vin,status,decisionNote:request.decisionNote,replayed:true}}
         if (decision === 'revoke') {
@@ -103,6 +114,7 @@ function createPortalStore(connectionString) {
           if (request.status !== 'pending') fail('申请已被处理，请刷新', 409);
           if (decision === 'approve') {
             const user = await portalUser(c, request.user_id);
+            if(request.center_membership_id)await centerMembership(c,{...user,centerMembershipId:request.center_membership_id});
             const vin = (await c.query('SELECT id FROM vins WHERE vin=$1 FOR UPDATE', [request.vin])).rows[0];
             if (!vin) fail('车辆档案不存在，请先核实并建立档案');
             if (user.role === 'owner' && (await c.query("SELECT 1 FROM portal_vehicle_access WHERE vin_id=$1 AND role='owner' AND revoked_at IS NULL", [vin.id])).rowCount) fail('车辆已有车主授权，请先核实并撤销原授权', 409);
@@ -114,6 +126,12 @@ function createPortalStore(connectionString) {
       delete result.replayed;
       return result;
     },
+    async dealerCenterVehicles(user){return centerRead(user,async(c,m)=>(await c.query(`SELECT v.id,v.vin,v.model,v.produced_at AS "producedAt",
+      COALESCE((SELECT jsonb_agg(jsonb_build_object('id',w.id,'coverage',w.coverage,'startsOn',w.starts_on::text,'endsOn',w.ends_on::text,'revoked',w.revoked_at IS NOT NULL) ORDER BY w.starts_on DESC,w.id DESC) FROM vehicle_warranties w WHERE w.vin_uuid=v.entity_uuid),'[]'::jsonb) AS warranties
+      FROM portal_vehicle_access a JOIN vins v ON v.id=a.vin_id JOIN portal_vehicle_requests r ON r.id=a.request_id WHERE a.user_id=$1 AND a.role='dealer' AND a.revoked_at IS NULL AND ${memberScope('r',2)} ORDER BY v.vin`,[user.id,m.id])).rows);},
+    async dealerCenterVehicleRequests(user){return centerRead(user,async(c,m)=>(await c.query(`SELECT ${requestFields} FROM portal_vehicle_requests r WHERE r.user_id=$1 AND ${memberScope('r',2)} ORDER BY r.created_at DESC`,[user.id,m.id])).rows);},
+    async dealerCenterServices(user){return centerRead(user,async(c,m)=>(await c.query(`SELECT s.id,s.vin_id AS "vinId",v.vin,s.description,s.status,s.reply_note AS "replyNote",s.created_at AS "createdAt",repair.work_order_no AS "workOrderNo",repair.status AS "repairStatus"
+      FROM portal_service_requests s JOIN vins v ON v.id=s.vin_id LEFT JOIN repairs repair ON repair.id=s.repair_id WHERE s.user_id=$1 AND ${memberScope('s',2)} AND EXISTS(SELECT 1 FROM portal_vehicle_access a JOIN portal_vehicle_requests r ON r.id=a.request_id WHERE a.user_id=s.user_id AND a.vin_id=s.vin_id AND a.role='dealer' AND a.revoked_at IS NULL AND ${memberScope('r',2)}) ORDER BY s.created_at DESC`,[user.id,m.id])).rows);},
     async vehicles(user) {
       return (await pool.query(`SELECT v.id,v.vin,v.model,v.produced_at AS "producedAt",
         COALESCE((SELECT jsonb_agg(jsonb_build_object('id',w.id,'coverage',w.coverage,'startsOn',w.starts_on::text,'endsOn',w.ends_on::text,'revoked',w.revoked_at IS NOT NULL) ORDER BY w.starts_on DESC,w.id DESC)
@@ -160,19 +178,21 @@ function createPortalStore(connectionString) {
       const scope = user ? 'WHERE s.user_id=$1 AND EXISTS(SELECT 1 FROM portal_vehicle_access a WHERE a.user_id=$1 AND a.vin_id=s.vin_id AND a.role=$2 AND a.revoked_at IS NULL) AND u.enabled AND u.role=$2' : '';
       return (await pool.query(`SELECT s.id,s.vin_id AS "vinId",v.vin,s.description,s.status,s.reply_note AS "replyNote",s.created_at AS "createdAt",sc.name AS "serviceCenterName",r.work_order_no AS "workOrderNo",r.status AS "repairStatus"${user ? '' : ',u.username,u.role'} FROM portal_service_requests s JOIN vins v ON v.id=s.vin_id JOIN app_users u ON u.id=s.user_id LEFT JOIN service_centers sc ON sc.id=s.service_center_uuid LEFT JOIN repairs r ON r.id=s.repair_id ${scope} ORDER BY s.created_at DESC`, user ? [user.id, user.role] : [])).rows;
     },
-    async requestService(user, input) {
+    async requestService(user, input, center=false) {
       const description = noteOf(input.description), id = String(input.id || ''), vinId = String(input.vinId || '').toLowerCase(), serviceCenterId = input.serviceCenterId ? String(input.serviceCenterId).toLowerCase() : null;
       if (!isUuidv7(id)) fail('申请编号无效，请刷新后重试');
       if (!isUuidv7(vinId)) fail('车辆不可用或尚未获得授权',403);
       if (serviceCenterId && !isUuidv7(serviceCenterId)) fail('服务网点无效，请重新选择');
       return transaction('portal.service.request', `portal-services/${id}`, async c => {
-        await authorizedVehicle(c, user, vinId);
+        const m=center?await centerMembership(c,user):null;
+        if(m)await centerVehicle(c,user,m,vinId);else await authorizedVehicle(c,user,vinId);
         await c.query('SELECT pg_advisory_xact_lock(hashtextextended($1,0))',[JSON.stringify(['portal-service-request',user.id,vinId,description,serviceCenterId])]);
         const pending=(await c.query("SELECT id,vin_id AS \"vinId\",description,status,service_center_uuid AS \"serviceCenterId\" FROM portal_service_requests WHERE user_id=$1 AND vin_id=$2 AND description=$3 AND service_center_uuid IS NOT DISTINCT FROM $4::uuid AND status='submitted' ORDER BY created_at DESC LIMIT 1 FOR UPDATE",[user.id,vinId,description,serviceCenterId])).rows[0];
-        if(pending)return{...pending,replayed:true};
+        if(pending){if(m&&!(await c.query(`SELECT 1 FROM portal_service_requests s WHERE s.id=$1 AND ${memberScope('s',2)}`,[pending.id,m.id])).rowCount)fail('存在历史企业待处理售后，请联系管理员',409);return{...pending,replayed:true};}
         if (serviceCenterId && !(await c.query("SELECT 1 FROM service_centers WHERE id=$1 AND status='启用' FOR SHARE",[serviceCenterId])).rowCount) fail('所选服务网点当前不可受理，请重新选择');
-        await c.query('INSERT INTO portal_service_requests(id,user_id,vin_id,description,service_center_uuid) VALUES($1,$2,$3,$4,$5) ON CONFLICT(id) DO NOTHING', [id, user.id, vinId, description, serviceCenterId]);
+        await c.query('INSERT INTO portal_service_requests(id,user_id,vin_id,description,service_center_uuid,center_membership_id) VALUES($1,$2,$3,$4,$5,$6) ON CONFLICT(id) DO NOTHING', [id, user.id, vinId, description, serviceCenterId,m?.id||null]);
         const row = (await c.query('SELECT id,vin_id AS \"vinId\",description,status,service_center_uuid AS \"serviceCenterId\" FROM portal_service_requests WHERE id=$1 AND user_id=$2', [id, user.id])).rows[0];
+        if(m&&!(await c.query(`SELECT 1 FROM portal_service_requests s WHERE s.id=$1 AND s.user_id=$2 AND ${memberScope('s',3)}`,[id,user.id,m.id])).rowCount)fail('申请编号已使用，请刷新后重试',409);
         if (!row || row.vinId !== vinId || row.description !== description || row.serviceCenterId !== serviceCenterId) fail('申请编号已使用，请刷新后重试', 409);
         return row;
       });
@@ -190,7 +210,9 @@ function createPortalStore(connectionString) {
         }
         let repairId = null;
         if (decision === 'accept') {
-          const vin = await authorizedVehicle(c, { id: old.user_id, role: old.role }, old.vin_id);
+          const actor={id:old.user_id,role:old.role};
+          const m=old.center_membership_id?await centerMembership(c,{...actor,centerMembershipId:old.center_membership_id}):null;
+          const vin=m?await centerVehicle(c,actor,m,old.vin_id):await authorizedVehicle(c,actor,old.vin_id);
           repairId = uuidv7();
           const center=old.service_center_uuid?(await c.query('SELECT id,name,status FROM service_centers WHERE id=$1 FOR SHARE',[old.service_center_uuid])).rows[0]:null;
           const activeCenter=center?.status==='启用'?center:null;
@@ -599,6 +621,11 @@ function registerPortalRoutes(app, { portal, auth }) {
   route('POST', '/api/portal-management/dealer-orders/:id/payments/:paymentId/reverse', req => portal.reverseDealerPayment(req.params.id, req.params.paymentId, req.body || {}));
   route('POST', '/api/portal-management/dealer-orders/:id/invoices', req => portal.recordDealerInvoice(req.params.id, req.body || {}));
   function centerActor(req){const id=req.body?.membershipId;if(!isUuidv7(id))fail('企业关联凭证无效',409);return {...req.user,centerMembershipId:id.toLowerCase()};}
+  route('GET','/api/portal/dealer/center/vehicles',req=>portal.dealerCenterVehicles(req.user),true,['dealer']);
+  route('GET','/api/portal/dealer/center/vehicle-requests',req=>portal.dealerCenterVehicleRequests(req.user),true,['dealer']);
+  route('POST','/api/portal/dealer/center/vehicle-requests',(req,reply)=>portal.requestVehicle(centerActor(req),req.body||{},true).then(row=>reply.code(201).send(row)),true,['dealer']);
+  route('GET','/api/portal/dealer/center/service-requests',req=>portal.dealerCenterServices(req.user),true,['dealer']);
+  route('POST','/api/portal/dealer/center/service-requests',(req,reply)=>portal.requestService(centerActor(req),req.body||{},true).then(row=>reply.code(201).send(row)),true,['dealer']);
   route('GET','/api/portal/dealer/center/profile',req=>portal.dealerCenterProfile(req.user),true,['dealer']);
   route('GET','/api/portal/dealer/center/catalog',req=>portal.dealerCenterCatalog(req.user),true,['dealer']);
   route('GET','/api/portal/dealer/center/orders',req=>portal.dealerCenterOrders(req.user),true,['dealer']);
